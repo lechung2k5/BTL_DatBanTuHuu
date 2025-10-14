@@ -1,4 +1,9 @@
 /* Style cho màn hình chính */
+.root {
+    -fx-background-color: #f5f5f5;
+}
+
+/* Thanh top-bar chứa logo và thông tin người dùng */
 .top-bar {
     -fx-background-color: #fff;
     -fx-padding: 10 20;
@@ -29,49 +34,37 @@
 .sidebar {
     -fx-background-color: #fff;
     -fx-pref-width: 250px;
-    
-    /* Thêm padding ở trên cùng để tạo khoảng trống */
     -fx-padding: 20 0 0 0;
 }
 
-.sidebar .menu-items {
-    -fx-padding: 0 10;
-    -fx-spacing: 5;
-}
-
-/* Logo và tên TỪ HỮU */
 .logo-text {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
     -fx-text-fill: #4b4b4b;
 }
 
-/* Style cho các nút menu */
+/* Container cho các nút menu */
+.menu-items {
+    -fx-spacing: 5;
+    -fx-padding: 0 10;
+}
+
+/* Style chung cho các nút menu */
 .menu-button, .menu-button-active {
     -fx-background-color: transparent;
     -fx-pref-width: 220px;
     -fx-alignment: center-left;
     -fx-font-size: 14px;
-    -fx-text-fill: #4b4b4b; /* Màu chữ bình thường */
+    -fx-text-fill: #4b4b4b;
     -fx-cursor: hand;
     -fx-padding: 15 20;
     -fx-graphic-text-gap: 15;
     -fx-background-radius: 5;
-    
-    /* Icon mặc định (màu xám) */
-    -fx-graphic: url("icons/iconHome.png");
 }
 
-/* Hiệu ứng khi di chuột vào nút */
 /* Hiệu ứng khi di chuột vào nút */
 .menu-button:hover {
     -fx-background-color: #f0f0f0;
-}
-
-/* Khi di chuột vào nút, áp dụng bộ lọc invert cho icon */
-.menu-button:hover .graphic .image-view {
-    -fx-effect: inverts;
-    -fx-image: url("icons/iconHome.png");
 }
 
 /* Nút được chọn */
@@ -79,12 +72,10 @@
     -fx-background-color: #ff9100;
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    /* Áp dụng bộ lọc invert cho icon khi nút được chọn */
 }
 
 /* Content Area */
 .content-area {
- 	-fx-background-image: url("/images/background.jpg");
-    -fx-background-size: cover;
-    -fx-background-position: center center;
+    -fx-background-color: #fff;
+    -fx-padding: 20;
 }

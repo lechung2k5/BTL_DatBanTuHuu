@@ -87,7 +87,7 @@ public class ManHinhChinh {
         defaultIcons.put(quanLyHoaDonButton, "/icons/iconHoaDon.png");
         activeIcons.put(quanLyHoaDonButton, "/icons/iconHoaDon_White.png");
         
-        defaultIcons.put(quanLyNhanVienButton, "/icons/iconNhanVien.png");
+        defaultIcons.put(quanLyNhanVienButton, "/icons/iconNhanVienMenu.png");
         activeIcons.put(quanLyNhanVienButton, "/icons/iconNhanVien_White.png");
 
         defaultIcons.put(quanLyKhachHangButton, "/icons/iconKhachHang.png");
