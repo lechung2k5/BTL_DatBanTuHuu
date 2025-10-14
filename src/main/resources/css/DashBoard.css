@@ -1,0 +1,185 @@
+/* Style cho phần nội dung chính của dashboard */
+.dashboard-container {
+    -fx-background-color: transparent;
+    -fx-padding: 25px;
+    -fx-spacing: 25px;
+}
+
+/* Tiêu đề màn hình chính */
+.screen-title {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333333;
+}
+
+/* Style cho phần kiểm kê tiền mặt */
+.cash-check-container {
+    -fx-background-color: #ffc977;
+    -fx-background-radius: 10;
+    -fx-padding: 20;
+    -fx-spacing: 10;
+}
+
+.cash-check-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #4b4b4b;
+}
+
+.cash-check-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #4b4b4b;
+}
+
+.cash-check-field {
+    -fx-background-color: #fff;
+    -fx-background-radius: 5;
+    -fx-border-color: #d1b184;
+    -fx-border-width: 1;
+}
+
+.cash-check-button {
+    -fx-background-color: #ff9100;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5;
+    -fx-cursor: hand;
+}
+
+/* Hiệu ứng hover cho nút xác nhận */
+.cash-check-button:hover {
+    -fx-background-color: #ffaa33; /* Màu cam sáng hơn */
+}
+
+.cash-check-note {
+    -fx-font-size: 12px;
+    -fx-text-fill: #757575;
+}
+
+/* Các ô thống kê */
+.stats-card-revenue, .stats-card-dayoff {
+    -fx-background-color: #fff;
+    -fx-padding: 20px 25px;
+    -fx-background-radius: 12px;
+    -fx-min-width: 250px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 10, 0.3, 0, 2);
+    -fx-spacing: 10px;
+}
+
+.stats-card-revenue {
+    -fx-background-color: linear-gradient(to right, #ffb74d, #ff9800);
+    -fx-text-fill: white;
+}
+
+.stats-label {
+    -fx-font-size: 16px;
+    -fx-text-fill: #757575;
+    -fx-font-family: "Arial";
+}
+
+.stats-card-revenue .stats-label, .stats-card-revenue .stats-value {
+    -fx-text-fill: white;
+}
+
+.stats-value {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #424242;
+}
+
+/* Lịch */
+.calendar-container{
+	-fx-background-color: rgba(255, 161, 0, 0.24);
+    -fx-padding: 15px;
+    -fx-border-color: #FFA100;
+    -fx-border-width: 2px;
+    -fx-background-radius: 10px;
+}
+.calendar-header-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #424242;
+}
+
+.calendar-grid {
+   /* -fx-background-color: rgba(255, 161, 0, 0.24);
+    -fx-padding: 15px;*/
+    -fx-hgap: 10px;
+    -fx-vgap: 10px;
+    -fx-alignment: center;
+    /*-fx-border-color: #FFA100;
+    -fx-border-width: 2px; */
+}
+
+.day-label {
+    -fx-background-color: #0BB783;
+    -fx-alignment: center;
+    -fx-min-width: 120px;
+    -fx-min-height: 50px;
+    -fx-padding: 10px;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-background-radius: 8px;
+}
+
+.day-number {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #424242;
+    -fx-alignment: center;
+    -fx-min-width: 120px;
+    -fx-min-height: 80px;
+    -fx-padding: 15px;
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 1);
+}
+
+.current-day {
+    -fx-background-color: #0BB783;
+    -fx-text-fill: #ffffff;
+}
+
+.day-number:hover {
+    -fx-background-color: #f5f5f5;
+    -fx-cursor: hand;
+}
+
+/* DatePicker */
+.date-picker-control {
+    -fx-font-size: 18px;
+    -fx-min-width: 200px;
+    -fx-min-height: 40px;
+    -fx-background-color: #ffffff;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 2px;
+    -fx-border-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 1);
+}
+
+.date-picker-control .date-picker-display-node {
+    -fx-background-color: #ffffff;
+    -fx-text-fill: black;
+    -fx-padding: 10px 15px;
+    -fx-background-radius: 8px;
+}
+
+.date-picker-control:hover {
+    -fx-border-color: #0BB783;
+}
+
+/* Buttons */
+.calendar-nav-button {
+    -fx-background-color: #0BB783;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 16px;
+    -fx-padding: 8px 20px;
+    -fx-background-radius: 8px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 1);
+}
+
+.calendar-nav-button:hover {
+    -fx-background-color: #356ed8;
+    -fx-cursor: hand;
+}

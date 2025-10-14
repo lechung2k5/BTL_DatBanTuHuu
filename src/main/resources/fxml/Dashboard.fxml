@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.DashboardController" styleClass="dashboard-container" spacing="20.0">
+    <padding>
+        <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
+    </padding>
+
+    <HBox alignment="TOP_LEFT" spacing="20.0">
+        <children>
+            <VBox spacing="10.0" styleClass="cash-check-panel">
+                <children>
+                    <Label text="Màn hình chính" styleClass="screen-title" />
+					<VBox styleClass="cash-check-container" alignment="TOP_LEFT" spacing="10.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+					    <padding>
+					        <Insets top="10" right="10" bottom="10" left="10" />
+					    </padding>
+					    <children>
+					        <Label text="Kiểm kê tiền mặt trong két" styleClass="cash-check-title" />
+					        <HBox spacing="10.0" alignment="CENTER_LEFT">
+					            <children>
+					                <Label text="Nhập số tiền trong két: " />
+					                <TextField text="" />
+					                <Button text="Xác nhận" styleClass="cash-check-button" />
+					            </children>
+					        </HBox>
+					        <Label text="Nhập số tiền trong két để kiểm kê số tiền" styleClass="cash-check-note" />
+					    </children>
+					</VBox>
+                </children>
+            </VBox>
+            
+            <Region HBox.hgrow="ALWAYS" />
+            
+            <HBox spacing="15.0" alignment="CENTER">
+                <children>
+                    <VBox styleClass="stats-card-revenue">
+                        <children>
+                            <Label text="Doanh thu" styleClass="stats-label" />
+                            <Label text="23,000,000 VNĐ" styleClass="stats-value" />
+                        </children>
+                    </VBox>
+                    
+                    <VBox styleClass="stats-card-dayoff">
+                        <children>
+                            <Label text="Số ngày nghỉ" styleClass="stats-label" />
+                            <Label text="1/5 ngày" styleClass="stats-value" />
+                        </children>
+                    </VBox>
+                </children>
+            </HBox>
+        </children>
+    </HBox>
+    
+    <HBox spacing="20.0" VBox.vgrow="ALWAYS">
+        <children>
+            <VBox styleClass="calendar-container" HBox.hgrow="ALWAYS" spacing="15.0">
+                <children>
+                    <HBox alignment="CENTER_LEFT" spacing="15.0">
+                        <children>
+                            <Label text="Lịch làm theo tháng" styleClass="calendar-header-label" />
+                            <Region HBox.hgrow="ALWAYS" />
+                            <DatePicker fx:id="datePicker" styleClass="date-picker-control" onAction="#updateCalendarFromDatePicker" />
+                            <Button fx:id="prevMonthButton" text="Trước" styleClass="calendar-nav-button" onAction="#previousMonth" />
+                            <Button fx:id="nextMonthButton" text="Sau" styleClass="calendar-nav-button" onAction="#nextMonth" />
+                        </children>
+                    </HBox>
+                    
+                    <GridPane fx:id="calendarGrid" styleClass="calendar-grid" HBox.hgrow="ALWAYS" />
+                </children>
+            </VBox>
+        </children>
+    </HBox>
+</VBox>

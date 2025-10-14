@@ -11,11 +11,13 @@ import javafx.geometry.Rectangle2D;
 import java.io.IOException;
 
 public class MainApp extends Application {
+
     private Stage primaryStage;
 
     @Override
     public void start(Stage primaryStage) {
         this.primaryStage = primaryStage;
+        primaryStage.setResizable(false);
         gotoLogin();
     }
 
@@ -45,12 +47,11 @@ public class MainApp extends Application {
 
             Scene scene = new Scene(root);
             scene.getStylesheets().add(getClass().getResource("/css/manHinhChinh.css").toExternalForm());
+            scene.getStylesheets().add(getClass().getResource("/css/Dashboard.css").toExternalForm()); // Load dashboard.css
+            
             primaryStage.setTitle("Quản lý nhà hàng");
             
-            // Get screen bounds
             Rectangle2D screenBounds = Screen.getPrimary().getVisualBounds();
-            
-            // Set stage to fullscreen
             primaryStage.setX(screenBounds.getMinX());
             primaryStage.setY(screenBounds.getMinY());
             primaryStage.setWidth(screenBounds.getWidth());

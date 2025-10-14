@@ -9,6 +9,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <java.version>21</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
 
         <javafx.version>21.0.3</javafx.version>
         <log4j.version>2.24.0</log4j.version>
@@ -16,6 +18,7 @@
 
         <maven.compiler.version>3.13.0</maven.compiler.version>
         <maven.assembly.version>3.7.1</maven.assembly.version>
+        <maven.surefire.version>3.3.0</maven.surefire.version>
     </properties>
 
     <dependencies>
@@ -48,6 +51,7 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
+                <filtering>true</filtering>
             </resource>
         </resources>
 
@@ -57,8 +61,9 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>${maven.compiler.version}</version>
                 <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
+                    <source>${maven.compiler.source}</source>
+                    <target>${maven.compiler.target}</target>
+                    <release>${java.version}</release>
                 </configuration>
             </plugin>
             
@@ -68,6 +73,10 @@
                 <version>0.0.8</version>
                 <configuration>
                     <mainClass>ui.MainApp</mainClass>
+                    <options>
+                        <option>--add-exports=javafx.controls/com.sun.javafx.scene.control=ALL-UNNAMED</option>
+                        <option>--add-exports=javafx.fxml/com.sun.javafx.fxml=ALL-UNNAMED</option>
+                    </options>
                 </configuration>
             </plugin>
             
@@ -84,6 +93,7 @@
                             <mainClass>ui.MainApp</mainClass>
                         </manifest>
                     </archive>
+                    <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
                 <executions>
                     <execution>
@@ -94,6 +104,15 @@
                         </goals>
                     </execution>
                 </executions>
+            </plugin>
+            
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.version}</version>
+                <configuration>
+                    <skipTests>true</skipTests>
+                </configuration>
             </plugin>
         </plugins>
     </build>

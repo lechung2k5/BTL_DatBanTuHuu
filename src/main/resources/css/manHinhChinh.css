@@ -76,6 +76,39 @@
 
 /* Content Area */
 .content-area {
-    -fx-background-color: #fff;
+    -fx-background-image: url("/images/background.jpg");
     -fx-padding: 20;
+}
+/* Style cho màn hình Dashboard */
+.dashboard-container {
+    -fx-background-color: #fff;
+}
+
+.stats-card {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 10 20;
+    -fx-background-radius: 5;
+}
+
+.stats-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #666;
+}
+
+.stats-value {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.calendar-header {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+.calendar-day {
+    -fx-background-color: #e0f0e0;
+    -fx-min-width: 100px;
+    -fx-min-height: 100px;
+    -fx-border-color: #ccc;
+    -fx-border-width: 1;
 }
