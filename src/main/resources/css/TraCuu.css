@@ -1,0 +1,18 @@
+/* Style cho container chính của trang tra cứu */
+.tra-cuu-container {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 20;
+}
+
+.screen-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.action-button {
+    -fx-background-color: #ff9100;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5px;
+}

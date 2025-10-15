@@ -1,0 +1,40 @@
+/* Style cho container chính của trang khách hàng */
+.khach-hang-container {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 20;
+}
+
+.screen-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+/* Form nhập liệu */
+.khach-hang-form {
+    -fx-background-color: #fff;
+    -fx-padding: 20px;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+}
+
+.form-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.action-button {
+    -fx-background-color: #ff9100;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5px;
+}
+
+/* Bảng hiển thị khách hàng */
+.khach-hang-table {
+    -fx-background-color: #fff;
+    -fx-padding: 20px;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+}

@@ -73,7 +73,7 @@
                     </VBox>
                     <HBox alignment="CENTER_RIGHT">
                        <children>
-                          <Hyperlink text="Quên mật khẩu?" styleClass="forgot-password" />
+                          <Hyperlink text="Quên mật khẩu?" onAction="#handleQuenMatKhau" styleClass="forgot-password" />
                        </children>
                     </HBox>
                     <Button onAction="#handleDangNhapButtonAction" styleClass="login-button" text="Đăng nhập" />

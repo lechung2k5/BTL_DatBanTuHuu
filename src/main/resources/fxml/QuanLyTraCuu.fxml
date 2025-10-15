@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TableColumn?>
+
+<VBox fx:controller="ui.TraCuu" styleClass="tra-cuu-container" spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <padding>
+        <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
+    </padding>
+
+    <Label text="Quản lý tra cứu" styleClass="screen-title" />
+
+    <VBox spacing="10.0">
+        <HBox spacing="10.0" alignment="CENTER_LEFT">
+            <Label text="Nhập từ khóa:" />
+            <TextField fx:id="txtTimKiem" promptText="Tìm kiếm mã hóa đơn, tên khách hàng,..." />
+            <Button text="Tra cứu" onAction="#handleTraCuu" styleClass="action-button" />
+        </HBox>
+        
+        <TableView fx:id="tblKetQua" VBox.vgrow="ALWAYS">
+            <columns>
+                <TableColumn fx:id="colMa" text="Mã" />
+                <TableColumn fx:id="colTen" text="Tên" />
+                <TableColumn fx:id="colLoai" text="Loại" />
+                <TableColumn fx:id="colNgay" text="Ngày" />
+            </columns>
+        </TableView>
+    </VBox>
+</VBox>

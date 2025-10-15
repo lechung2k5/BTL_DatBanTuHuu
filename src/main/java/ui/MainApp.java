@@ -38,6 +38,23 @@ public class MainApp extends Application {
         }
     }
 
+	public void gotoQuenMatKhau() {
+	    try {
+	        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/QuenMatKhau.fxml"));
+	        Parent root = loader.load();
+	        QuenMatKhau quenMatKhauController = loader.getController();
+	        quenMatKhauController.setMainApp(this);
+	
+	        Scene scene = new Scene(root);
+	        scene.getStylesheets().add(getClass().getResource("/css/QuenMatKhau.css").toExternalForm());
+	        primaryStage.setTitle("Quên mật khẩu");
+	        primaryStage.setScene(scene);
+	        primaryStage.show();
+	    } catch (IOException e) {
+	        e.printStackTrace();
+	    }
+	}
+
     public void gotoMainScreen() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ManHinhChinh.fxml"));

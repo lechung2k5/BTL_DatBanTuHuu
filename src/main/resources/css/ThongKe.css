@@ -1,0 +1,37 @@
+/* Style cho container chính của trang thống kê */
+.thong-ke-container {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 20;
+}
+
+.screen-title {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+/* Biểu đồ thống kê */
+.chart-container {
+    -fx-background-color: #fff;
+    -fx-padding: 20;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+}
+
+.chart-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}
+
+/* Dữ liệu thống kê */
+.data-container {
+    -fx-background-color: #fff;
+    -fx-padding: 20;
+    -fx-background-radius: 10;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+}
+
+.data-title {
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+}

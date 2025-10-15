@@ -1,6 +1,5 @@
 package ui;
 
-import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -13,6 +12,7 @@ import javafx.scene.layout.VBox;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.net.URL;
 
 public class ManHinhChinh {
     @FXML private BorderPane contentArea;
@@ -79,12 +79,10 @@ public class ManHinhChinh {
         addIconMapping(dangXuatButton, "/icons/iconDangXuat.png", "/icons/iconDangXuat_White.png");
         
         // Đặt nút mặc định
-        activeButton = manHinhChinhButton;
-        updateMenuStyles();
-
-        // Load màn hình Dashboard mặc định
+        setActiveButton(manHinhChinhButton);
         try {
-            loadScreen("/fxml/Dashboard.fxml");
+            // Load màn hình Dashboard mặc định khi khởi chạy
+            loadScreen("/fxml/Dashboard.fxml", "/css/Dashboard.css");
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -100,10 +98,16 @@ public class ManHinhChinh {
             if (button == null || icon == null) return;
             if (button == activeButton) {
                 button.getStyleClass().setAll("menu-button-active");
-                icon.setImage(new Image(getClass().getResourceAsStream(activeIcons.get(button))));
+                URL activeIconUrl = getClass().getResource(activeIcons.get(button));
+                if (activeIconUrl != null) {
+                    icon.setImage(new Image(activeIconUrl.toExternalForm()));
+                }
             } else {
                 button.getStyleClass().setAll("menu-button");
-                icon.setImage(new Image(getClass().getResourceAsStream(defaultIcons.get(button))));
+                URL defaultIconUrl = getClass().getResource(defaultIcons.get(button));
+                if (defaultIconUrl != null) {
+                    icon.setImage(new Image(defaultIconUrl.toExternalForm()));
+                }
             }
         });
     }
@@ -113,55 +117,66 @@ public class ManHinhChinh {
         updateMenuStyles();
     }
     
-    private void loadScreen(String fxmlPath) throws IOException {
+    private void loadScreen(String fxmlPath, String cssPath) throws IOException {
         FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
         Parent root = loader.load();
+        
+        // Đảm bảo BorderPane đã có Scene trước khi thêm CSS
+        if (contentArea.getScene() != null) {
+            // Xóa tất cả các style cũ
+            contentArea.getScene().getStylesheets().clear();
+            
+            // Thêm các style mới
+            contentArea.getScene().getStylesheets().add(getClass().getResource("/css/manHinhChinh.css").toExternalForm());
+            contentArea.getScene().getStylesheets().add(getClass().getResource(cssPath).toExternalForm());
+        }
+
         contentArea.setCenter(root);
     }
 
     @FXML private void handleManHinhChinh() throws IOException {
         setActiveButton(manHinhChinhButton);
-        loadScreen("/fxml/Dashboard.fxml");
+        loadScreen("/fxml/Dashboard.fxml", "/css/Dashboard.css");
     }
 
     @FXML private void handleQuanLyDatBan() throws IOException {
         setActiveButton(quanLyDatBanButton);
-        loadScreen("/fxml/QuanLyDatBan.fxml");
+        loadScreen("/fxml/QuanLyDatBan.fxml", "/css/DatBan.css");
     }
 
     @FXML private void handleQuanLyThongKe() throws IOException {
         setActiveButton(quanLyThongKeButton);
-        loadScreen("/fxml/QuanLyThongKe.fxml");
+        loadScreen("/fxml/QuanLyThongKe.fxml", "/css/ThongKe.css");
     }
 
     @FXML private void handleQuanLyThucDon() throws IOException {
         setActiveButton(quanLyThucDonButton);
-        loadScreen("/fxml/QuanLyThucDon.fxml");
+        loadScreen("/fxml/QuanLyThucDon.fxml", "/css/ThucDon.css");
     }
 
     @FXML private void handleQuanLyHoaDon() throws IOException {
         setActiveButton(quanLyHoaDonButton);
-        loadScreen("/fxml/QuanLyHoaDon.fxml");
+        loadScreen("/fxml/QuanLyHoaDon.fxml", "/css/HoaDon.css");
     }
 
     @FXML private void handleQuanLyNhanVien() throws IOException {
         setActiveButton(quanLyNhanVienButton);
-        loadScreen("/fxml/QuanLyNhanVien.fxml");
+        loadScreen("/fxml/QuanLyNhanVien.fxml", "/css/NhanVien.css");
     }
 
     @FXML private void handleQuanLyKhachHang() throws IOException {
         setActiveButton(quanLyKhachHangButton);
-        loadScreen("/fxml/QuanLyKhachHang.fxml");
+        loadScreen("/fxml/QuanLyKhachHang.fxml", "/css/KhachHang.css");
     }
 
     @FXML private void handleQuanLyKhuyenMai() throws IOException {
         setActiveButton(quanLyKhuyenMaiButton);
-        loadScreen("/fxml/QuanLyKhuyenMai.fxml");
+        loadScreen("/fxml/QuanLyKhuyenMai.fxml", "/css/KhuyenMai.css");
     }
 
     @FXML private void handleQuanLyTraCuu() throws IOException {
         setActiveButton(quanLyTraCuuButton);
-        loadScreen("/fxml/QuanLyTraCuu.fxml");
+        loadScreen("/fxml/QuanLyTraCuu.fxml", "/css/TraCuu.css");
     }
 
     @FXML private void handleDangXuat() {

@@ -33,4 +33,10 @@ public class DangNhap {
             System.out.println("Mã nhân viên hoặc mật khẩu không đúng.");
         }
     }
+    @FXML
+    private void handleQuenMatKhau(ActionEvent event) {
+        if (mainApp != null) {
+            mainApp.gotoQuenMatKhau();
+        }
+    }
 }

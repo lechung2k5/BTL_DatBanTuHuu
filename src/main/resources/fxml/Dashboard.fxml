@@ -5,6 +5,7 @@
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
@@ -20,22 +21,22 @@
             <VBox spacing="10.0" styleClass="cash-check-panel">
                 <children>
                     <Label text="Màn hình chính" styleClass="screen-title" />
-					<VBox styleClass="cash-check-container" alignment="TOP_LEFT" spacing="10.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
-					    <padding>
-					        <Insets top="10" right="10" bottom="10" left="10" />
-					    </padding>
-					    <children>
-					        <Label text="Kiểm kê tiền mặt trong két" styleClass="cash-check-title" />
-					        <HBox spacing="10.0" alignment="CENTER_LEFT">
-					            <children>
-					                <Label text="Nhập số tiền trong két: " />
-					                <TextField text="" />
-					                <Button text="Xác nhận" styleClass="cash-check-button" />
-					            </children>
-					        </HBox>
-					        <Label text="Nhập số tiền trong két để kiểm kê số tiền" styleClass="cash-check-note" />
-					    </children>
-					</VBox>
+                    <VBox styleClass="cash-check-container" alignment="TOP_LEFT" spacing="10.0">
+                        <padding>
+                            <Insets top="10" right="10" bottom="10" left="10" />
+                        </padding>
+                        <children>
+                            <Label text="Kiểm kê tiền mặt trong két" styleClass="cash-check-title" />
+                            <HBox spacing="10.0" alignment="CENTER_LEFT">
+                                <children>
+                                    <Label text="Nhập số tiền trong két: " />
+                                    <TextField text="" />
+                                    <Button text="Xác nhận" styleClass="cash-check-button" />
+                                </children>
+                            </HBox>
+                            <Label text="Nhập số tiền trong két để kiểm kê số tiền" styleClass="cash-check-note" />
+                        </children>
+                    </VBox>
                 </children>
             </VBox>
             
@@ -75,7 +76,11 @@
                         </children>
                     </HBox>
                     
-                    <GridPane fx:id="calendarGrid" styleClass="calendar-grid" HBox.hgrow="ALWAYS" />
+                    <ScrollPane fitToWidth="true" fitToHeight="true" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+                        <content>
+                            <GridPane fx:id="calendarGrid" styleClass="calendar-grid" hgap="1.0" vgap="1.0" />
+                        </content>
+                    </ScrollPane>
                 </children>
             </VBox>
         </children>

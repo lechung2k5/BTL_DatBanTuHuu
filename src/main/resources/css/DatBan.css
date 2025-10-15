@@ -1,0 +1,31 @@
+/* Style cho màn hình "Quản lý đặt bàn" */
+.dat-ban-container {
+    -fx-background-color: transparent;
+}
+
+.dat-ban-form {
+    -fx-background-color: #fff;
+    -fx-padding: 20px;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+}
+
+.form-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+.dat-ban-button {
+    -fx-background-color: #ff9100;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5px;
+}
+
+.dat-ban-table {
+    -fx-background-color: #fff;
+    -fx-padding: 20px;
+    -fx-background-radius: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+}
