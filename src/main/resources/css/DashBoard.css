@@ -9,75 +9,150 @@
 .screen-title {
     -fx-font-size: 32px;
     -fx-font-weight: bold;
-    -fx-text-fill: #333333;
+    -fx-text-fill: #2c3e50;
 }
 
-/* Style cho phần kiểm kê tiền mặt */
+/* Phần kiểm kê tiền mặt */
 .cash-check-container {
-    -fx-background-color: #ffc977;
-    -fx-background-radius: 10;
-    -fx-padding: 20;
+    -fx-background-color: #f8f9fa; /* Màu xám nhạt */
+    -fx-background-radius: 10px;
+    -fx-padding: 20px;
+    -fx-spacing: 10px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 2);
 }
 
 .cash-check-title {
     -fx-font-size: 16px;
     -fx-font-weight: bold;
-    -fx-text-fill: #4b4b4b;
+    -fx-text-fill: #34495e;
 }
 
 .cash-check-label {
     -fx-font-size: 14px;
-    -fx-text-fill: #4b4b4b;
+    -fx-text-fill: #7f8c8d;
 }
 
 .cash-check-field {
     -fx-background-color: #fff;
-    -fx-background-radius: 5;
-    -fx-border-color: #d1b184;
-    -fx-border-width: 1;
+    -fx-background-radius: 8px;
+    -fx-border-color: #ced4da; /* Viền xám */
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-padding: 8px;
 }
 
 .cash-check-button {
-    -fx-background-color: #ff9100;
+    -fx-background-color: #2c3e50; /* Xanh đậm */
     -fx-text-fill: white;
     -fx-font-weight: bold;
-    -fx-background-radius: 5;
+    -fx-background-radius: 8px;
     -fx-cursor: hand;
+    -fx-padding: 8px 16px;
 }
 
-/* Hiệu ứng hover cho nút xác nhận */
 .cash-check-button:hover {
-    -fx-background-color: #ffaa33; /* Màu cam sáng hơn */
-}
-
-.cash-check-note {
-    -fx-font-size: 12px;
-    -fx-text-fill: #757575;
+    -fx-background-color: #34495e;
 }
 
 /* Các ô thống kê */
-.stats-card-revenue, .stats-card-dayoff {
-    -fx-background-color: #fff;
-    -fx-padding: 20px 25px;
-    -fx-background-radius: 12px;
-    -fx-min-width: 250px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.15), 10, 0.3, 0, 2);
+.stats-card-revenue, .stats-card-dayoff, .stats-card-serving, .stats-card-reserved, .stats-card-hours {
+    -fx-background-color: #ffffff;
+    -fx-padding: 20px;
+    -fx-background-radius: 15px;
+    -fx-min-width: 200px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 10, 0.2, 0, 2);
     -fx-spacing: 10px;
 }
+/* Container chung cho các phần mới */
+.new-features-container {
+    -fx-background-color: #fff;
+    -fx-background-radius: 15px; /* Bo góc 15px */
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 4); /* Bóng xịn */
+}
 
+/* Container cho bản đồ bàn ăn */
+.table-map-container {
+    -fx-background-color: #fff;
+    -fx-background-radius: 15px; /* Bo góc 15px */
+    -fx-padding: 15px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 4); /* Bóng xịn */
+}
+
+/* Container cho KPI cá nhân */
+.kpi-container {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 15px; /* Bo góc 15px */
+    -fx-padding: 15px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 4); /* Bóng xịn */
+}
+/* Lưới bàn ăn */
+.table-map-grid {
+    -fx-hgap: 10;
+    -fx-vgap: 10;
+}
+
+/* Style cho các nút bàn */
+.table-link {
+    -fx-font-size: 16px;
+    -fx-padding: 10px;
+    -fx-background-color: #f39c12; /* Cam nhạt cho link bàn */
+    -fx-background-radius: 8px; /* Bo góc */
+    -fx-text-fill: white;
+    -fx-cursor: hand;
+}
+
+.table-link:hover {
+    -fx-background-color: #e07a10; /* Cam đậm hơn khi hover */
+}
+
+.table-link:pressed {
+    -fx-background-color: #d35400; /* Cam tối hơn khi nhấn */
+}
+
+/* Tiêu đề các phần */
+.section-title {
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #2c3e50; /* Màu đen nhạt cho tiêu đề */
+}
+
+/* Canvas KPI */
+.kpi-canvas {
+    -fx-background-color: #fff;
+}
+
+/* Nhãn chi tiết KPI */
+.kpi-detail-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #f39c12; /* Cam nhạt cho nhãn chi tiết */
+    -fx-alignment: center;
+}
 .stats-card-revenue {
-    -fx-background-color: linear-gradient(to right, #ffb74d, #ff9800);
+    -fx-background-color: linear-gradient(to right, #f39c12, #e67e22);
     -fx-text-fill: white;
 }
+.stats-card-dayoff {
+    -fx-background-color: linear-gradient(to right, #2ecc71, #27ae60);
+    -fx-text-fill: white;
+}
+.stats-card-serving {
+    -fx-background-color: linear-gradient(to right, #3498db, #2980b9);
+    -fx-text-fill: white;
+}
+.stats-card-reserved {
+    -fx-background-color: linear-gradient(to right, #9b59b6, #8e44ad);
+    -fx-text-fill: white;
+}
+.stats-card-hours {
+    -fx-background-color: linear-gradient(to right, #f1c40f, #f39c12);
+    -fx-text-fill: white;
+}
+
 
 .stats-label {
     -fx-font-size: 16px;
     -fx-text-fill: #757575;
-    -fx-font-family: "Arial";
-}
-
-.stats-card-revenue .stats-label, .stats-card-revenue .stats-value {
-    -fx-text-fill: white;
 }
 
 .stats-value {
@@ -86,99 +161,152 @@
     -fx-text-fill: #424242;
 }
 
-/* Lịch */
-.calendar-container{
-	-fx-background-color: rgba(255, 161, 0, 0.24);
-    -fx-padding: 15px;
-    -fx-border-color: #FFA100;
-    -fx-border-width: 2px;
-    -fx-background-radius: 10px;
+.stats-card-revenue .stats-label, .stats-card-revenue .stats-value,
+.stats-card-dayoff .stats-label, .stats-card-dayoff .stats-value,
+.stats-card-serving .stats-label, .stats-card-serving .stats-value,
+.stats-card-reserved .stats-label, .stats-card-reserved .stats-value,
+.stats-card-hours .stats-label, .stats-card-hours .stats-value {
+    -fx-text-fill: white;
 }
+
+/* Lịch */
+.calendar-container {
+    -fx-background-color: #ffffff;
+    -fx-background-radius: 15px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 4);
+}
+
 .calendar-header-label {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
-    -fx-text-fill: #424242;
+    -fx-text-fill: #2c3e50;
 }
 
-.calendar-grid {
-   /* -fx-background-color: rgba(255, 161, 0, 0.24);
-    -fx-padding: 15px;*/
-    -fx-hgap: 10px;
-    -fx-vgap: 10px;
-    -fx-alignment: center;
-    /*-fx-border-color: #FFA100;
-    -fx-border-width: 2px; */
-}
-
-.day-label {
-    -fx-background-color: #0BB783;
-    -fx-alignment: center;
-    -fx-min-width: 120px;
-    -fx-min-height: 50px;
+.weekly-calendar-grid {
+    -fx-background-color: #ecf0f1;
+    -fx-hgap: 10;
+    -fx-vgap: 10;
     -fx-padding: 10px;
-    -fx-font-size: 18px;
-    -fx-font-weight: bold;
+}
+
+.day-of-week-label {
+    -fx-background-color: #3498db;
     -fx-text-fill: white;
-    -fx-background-radius: 8px;
-}
-
-.day-number {
-    -fx-font-size: 20px;
     -fx-font-weight: bold;
-    -fx-text-fill: #424242;
     -fx-alignment: center;
-    -fx-min-width: 120px;
-    -fx-min-height: 80px;
     -fx-padding: 15px;
+    -fx-background-radius: 8px;
+    -fx-font-size: 14px;
+    -fx-min-width: 150px;
+    -fx-max-width: 150px;
+    -fx-wrap-text: true;
+}
+
+.day-cell {
+    -fx-min-height: 120px;
+    -fx-min-width: 150px;
     -fx-background-color: #ffffff;
-    -fx-background-radius: 10px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 1);
+    -fx-background-radius: 15px;
+    -fx-padding: 15px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 4);
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 1px;
+    -fx-border-radius: 15px;
+    -fx-alignment: top-left;
 }
 
-.current-day {
-    -fx-background-color: #0BB783;
-    -fx-text-fill: #ffffff;
-}
-
-.day-number:hover {
+.day-cell:hover {
     -fx-background-color: #f5f5f5;
     -fx-cursor: hand;
 }
 
+.shift-info {
+    -fx-font-size: 14px;
+    -fx-text-fill: #2c3e50;
+    -fx-wrap-text: true;
+}
+
+/* Các nút điều hướng */
+.calendar-nav-button {
+    -fx-background-color: #2980b9;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 8px;
+    -fx-cursor: hand;
+    -fx-padding: 8px 16px;
+}
+.calendar-nav-button:hover {
+    -fx-background-color: #3498db;
+}
+
 /* DatePicker */
 .date-picker-control {
-    -fx-font-size: 18px;
-    -fx-min-width: 200px;
-    -fx-min-height: 40px;
-    -fx-background-color: #ffffff;
-    -fx-border-color: #e0e0e0;
-    -fx-border-width: 2px;
-    -fx-border-radius: 10px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 1);
-}
-
-.date-picker-control .date-picker-display-node {
-    -fx-background-color: #ffffff;
-    -fx-text-fill: black;
-    -fx-padding: 10px 15px;
+    -fx-background-color: #fff;
     -fx-background-radius: 8px;
+    -fx-border-color: #ced4da;
+    -fx-border-width: 1px;
+    -fx-border-radius: 8px;
+    -fx-pref-width: 120px;
+    -fx-pref-height: 30px;
+    -fx-font-size: 12px;
+}
+/* === Khung tổng popup === */
+.date-picker-popup {
+    -fx-background-color: white;
+    -fx-background-radius: 4px;
+    -fx-border-color: #c0c0c0;
+    -fx-border-radius: 4px;
+    -fx-padding: 4;
 }
 
-.date-picker-control:hover {
-    -fx-border-color: #0BB783;
+/* === Thanh tháng/năm ở đầu popup === */
+.date-picker-popup .month-year-pane {
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #d0d0d0;
+    -fx-border-width: 0 0 1 0;
+    -fx-font-size: 12px;
+    -fx-font-weight: normal;
+    -fx-padding: 4 8;
 }
 
-/* Buttons */
-.calendar-nav-button {
-    -fx-background-color: #0BB783;
-    -fx-text-fill: #ffffff;
-    -fx-font-size: 16px;
-    -fx-padding: 8px 20px;
-    -fx-background-radius: 8px;
-    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 1);
+/* === Nút chuyển tháng/năm (mũi tên) === */
+.date-picker-popup .left-arrow,
+.date-picker-popup .right-arrow {
+    -fx-background-color: transparent;
+    -fx-padding: 4;
+}
+.date-picker-popup .left-arrow:hover,
+.date-picker-popup .right-arrow:hover {
+    -fx-background-color: #e0e0e0;
 }
 
-.calendar-nav-button:hover {
-    -fx-background-color: #356ed8;
-    -fx-cursor: hand;
+/* === Ô ngày === */
+.date-picker-popup .day-cell {
+    -fx-background-color: white;
+    -fx-border-color: transparent;
+    -fx-alignment: center;
+    -fx-font-size: 12px;
+    -fx-padding: 2;
+    -fx-background-radius: 3;
+    -fx-min-width: 28px;
+    -fx-min-height: 24px;
+}
+
+/* Hover nhẹ */
+.date-picker-popup .day-cell:hover {
+    -fx-background-color: #e3f2fd;
+}
+
+/* Ngày được chọn */
+.date-picker-popup .day-cell:selected {
+    -fx-background-color: #2196f3;
+    -fx-text-fill: white;
+}
+
+/* Ngày hôm nay */
+.date-picker-popup .day-cell.today {
+    -fx-border-color: #2196f3;
+    -fx-border-width: 1px;
+    -fx-border-radius: 3;
 }

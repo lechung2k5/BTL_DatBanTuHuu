@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox fx:controller="ui.NhanVienUI" spacing="15.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+    <padding>
+        <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
+    </padding>
+
+    <Label text="Danh sách nhân viên" styleClass="section-title-large" />
+    
+	<HBox alignment="CENTER_LEFT" spacing="10">
+	    <Label text="Tìm kiếm:" />
+	    <TextField fx:id="txtTimKiem" promptText="Tìm theo tên, mã, hoặc chức vụ..." styleClass="search-field" />
+	</HBox>
+    
+	<VBox fx:id="nvContainer" styleClass="nv-table-container" VBox.vgrow="ALWAYS">
+	    <TableView fx:id="tblNhanVien" VBox.vgrow="ALWAYS">
+	        <columns>
+	            <TableColumn fx:id="colMaNV" text="Mã NV" prefWidth="100" />
+	            <TableColumn fx:id="colHoTen" text="Họ và tên" prefWidth="200" />
+	            <TableColumn fx:id="colSDT" text="Số điện thoại" prefWidth="170" />
+	            <TableColumn fx:id="colChucVu" text="Chức vụ" prefWidth="170" />
+	            <TableColumn fx:id="colMatKhau" text="Mật khẩu" prefWidth="170" />
+	            <TableColumn fx:id="colNgayVaoLam" text="Ngày vào làm" prefWidth="170" />
+	            <TableColumn fx:id="colCaLam" text="Ca làm" prefWidth="150" />
+	            <TableColumn fx:id="colTrangThai" text="Trạng thái" prefWidth="170" />
+	        </columns>
+	    </TableView>
+	</VBox>
+
+    <Label text="Thông tin chi tiết" styleClass="section-title-medium" />
+    <GridPane hgap="40" vgap="15">
+        
+        <Label text="Mã nhân viên:" GridPane.rowIndex="0" GridPane.columnIndex="0" styleClass="input-label" />
+        <TextField fx:id="txtMaNV" GridPane.rowIndex="0" GridPane.columnIndex="1" styleClass="input-field-readonly" editable="false" />
+        
+        <Label text="Họ và tên:" GridPane.rowIndex="0" GridPane.columnIndex="2" styleClass="input-label" />
+        <TextField fx:id="txtHoTen"  GridPane.rowIndex="0" GridPane.columnIndex="3" styleClass="input-field" />
+
+        <Label text="Số điện thoại:" GridPane.rowIndex="1" GridPane.columnIndex="0" styleClass="input-label" />
+        <TextField fx:id="txtSDT"  GridPane.rowIndex="1" GridPane.columnIndex="1" styleClass="input-field" />
+        
+        <Label text="Chức vụ:" GridPane.rowIndex="1" GridPane.columnIndex="2" styleClass="input-label" />
+        <ComboBox fx:id="cbxChucVu"  GridPane.rowIndex="1" GridPane.columnIndex="3" styleClass="input-combo" />
+
+        <Label text="Ngày vào làm:" GridPane.rowIndex="2" GridPane.columnIndex="0" styleClass="input-label" />
+        <DatePicker fx:id="dpNgayVaoLam" GridPane.rowIndex="2" GridPane.columnIndex="1" styleClass="input-date" />
+
+        <Label text="Ca làm:" GridPane.rowIndex="2" GridPane.columnIndex="2" styleClass="input-label" />
+        <ComboBox fx:id="cbxCaLam"  GridPane.rowIndex="2" GridPane.columnIndex="3" styleClass="input-combo" />
+
+        <Label text="Mật khẩu:" GridPane.rowIndex="3" GridPane.columnIndex="0" styleClass="input-label" />
+        <PasswordField fx:id="pfMatKhau"  GridPane.rowIndex="3" GridPane.columnIndex="1" styleClass="input-field" />
+        
+        <Label text="Trạng thái:" GridPane.rowIndex="3" GridPane.columnIndex="2" styleClass="input-label" />
+        <ComboBox fx:id="cbxTrangThai" GridPane.rowIndex="3" GridPane.columnIndex="3" styleClass="input-combo" />
+    </GridPane>
+
+    <HBox spacing="15" alignment="CENTER_LEFT" styleClass="action-buttons-container">
+        <Button text="Thêm" onAction="#handleThemNV" styleClass="action-button-add" />
+        <Button text="Xóa" onAction="#handleXoaNV" styleClass="action-button-delete" />
+        <Button text="Sửa" onAction="#handleSuaNV" styleClass="action-button-edit" />
+        <Button text="Lưu" onAction="#handleLuuNV" styleClass="action-button-save" />
+    </HBox>
+</VBox>

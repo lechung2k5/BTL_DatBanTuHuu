@@ -4,12 +4,14 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TextField?>
 <?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.canvas.Canvas?>
 
 <VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.DashboardController" styleClass="dashboard-container" spacing="20.0">
     <padding>
@@ -18,23 +20,19 @@
 
     <HBox alignment="TOP_LEFT" spacing="20.0">
         <children>
-            <VBox spacing="10.0" styleClass="cash-check-panel">
+            <VBox spacing="10.0">
                 <children>
                     <Label text="Màn hình chính" styleClass="screen-title" />
-                    <VBox styleClass="cash-check-container" alignment="TOP_LEFT" spacing="10.0">
-                        <padding>
-                            <Insets top="10" right="10" bottom="10" left="10" />
-                        </padding>
+                    <VBox styleClass="cash-check-container" spacing="10.0">
                         <children>
-                            <Label text="Kiểm kê tiền mặt trong két" styleClass="cash-check-title" />
+                            <Label text="Kiểm kê tiền mặt đầu ca" styleClass="cash-check-title" />
                             <HBox spacing="10.0" alignment="CENTER_LEFT">
-                                <children>
-                                    <Label text="Nhập số tiền trong két: " />
-                                    <TextField text="" />
-                                    <Button text="Xác nhận" styleClass="cash-check-button" />
-                                </children>
+							<children>
+							    <Label text="Nhập số tiền trong két: " />
+							    <TextField fx:id="txtSoTienKiemKe" promptText="5,000,000" />
+							    <Button text="Xác nhận" styleClass="cash-check-button" onAction="#handleCheckCash" />
+							</children>
                             </HBox>
-                            <Label text="Nhập số tiền trong két để kiểm kê số tiền" styleClass="cash-check-note" />
                         </children>
                     </VBox>
                 </children>
@@ -42,19 +40,30 @@
             
             <Region HBox.hgrow="ALWAYS" />
             
-            <HBox spacing="15.0" alignment="CENTER">
+            <HBox spacing="15.0" alignment="TOP_RIGHT">
                 <children>
-                    <VBox styleClass="stats-card-revenue">
-                        <children>
-                            <Label text="Doanh thu" styleClass="stats-label" />
-                            <Label text="23,000,000 VNĐ" styleClass="stats-value" />
-                        </children>
-                    </VBox>
-                    
                     <VBox styleClass="stats-card-dayoff">
                         <children>
                             <Label text="Số ngày nghỉ" styleClass="stats-label" />
                             <Label text="1/5 ngày" styleClass="stats-value" />
+                        </children>
+                    </VBox>
+                    <VBox styleClass="stats-card-serving">
+                        <children>
+                            <Label text="Bàn đang phục vụ" styleClass="stats-label" />
+                            <Label text="5 bàn" styleClass="stats-value" />
+                        </children>
+                    </VBox>
+                    <VBox styleClass="stats-card-reserved">
+                        <children>
+                            <Label text="Bàn đặt trước" styleClass="stats-label" />
+                            <Label text="10/25 bàn" styleClass="stats-value" />
+                        </children>
+                    </VBox>
+                    <VBox styleClass="stats-card-hours">
+                        <children>
+                            <Label text="Tổng giờ làm" styleClass="stats-label" />
+                            <Label text="160 giờ" styleClass="stats-value" />
                         </children>
                     </VBox>
                 </children>
@@ -68,19 +77,45 @@
                 <children>
                     <HBox alignment="CENTER_LEFT" spacing="15.0">
                         <children>
-                            <Label text="Lịch làm theo tháng" styleClass="calendar-header-label" />
+                            <Label text="Lịch làm theo tuần" styleClass="calendar-header-label" />
                             <Region HBox.hgrow="ALWAYS" />
-                            <DatePicker fx:id="datePicker" styleClass="date-picker-control" onAction="#updateCalendarFromDatePicker" />
-                            <Button fx:id="prevMonthButton" text="Trước" styleClass="calendar-nav-button" onAction="#previousMonth" />
-                            <Button fx:id="nextMonthButton" text="Sau" styleClass="calendar-nav-button" onAction="#nextMonth" />
+                            <DatePicker fx:id="datePicker" styleClass="date-picker-control" prefWidth="120.0" prefHeight="30.0" onAction="#updateCalendarFromDatePicker" />
+                            <Button text="Hôm nay" onAction="#handleCurrentWeek" styleClass="calendar-nav-button" />
+                            <Button text="Trước" onAction="#handlePreviousWeek" styleClass="calendar-nav-button" />
+                            <Button text="Sau" onAction="#handleNextWeek" styleClass="calendar-nav-button" />
                         </children>
                     </HBox>
                     
-                    <ScrollPane fitToWidth="true" fitToHeight="true" HBox.hgrow="ALWAYS" VBox.vgrow="ALWAYS">
+                    <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="calendar-scroll-pane">
                         <content>
-                            <GridPane fx:id="calendarGrid" styleClass="calendar-grid" hgap="1.0" vgap="1.0" />
+                            <GridPane fx:id="weeklyCalendarGrid" styleClass="weekly-calendar-grid" hgap="10.0" vgap="10.0" />
                         </content>
                     </ScrollPane>
+                </children>
+            </VBox>
+            
+            <VBox styleClass="new-features-container" HBox.hgrow="ALWAYS" spacing="15.0">
+                <children>
+                    <!-- Bản đồ bàn ăn -->
+                    <VBox styleClass="table-map-container" spacing="10.0">
+                        <Label text="Bàn ăn đang phục vụ" styleClass="section-title" />
+                        <GridPane fx:id="tableMapGrid" styleClass="table-map-grid" hgap="10.0" vgap="10.0" />
+                    </VBox>
+                    
+                    <!-- KPI cá nhân -->
+                    <VBox styleClass="kpi-container" spacing="10.0">
+                        <Label text="KPI cá nhân" styleClass="section-title" />
+                        <HBox spacing="20.0" alignment="CENTER">
+                            <VBox alignment="CENTER" spacing="5.0">
+                                <Canvas fx:id="hoursCanvas" width="150" height="150" />
+                                <Label fx:id="hoursDetailsLabel" styleClass="kpi-detail-label" />
+                            </VBox>
+                            <VBox alignment="CENTER" spacing="5.0">
+                                <Canvas fx:id="revenueCanvas" width="150" height="150" />
+                                <Label fx:id="revenueDetailsLabel" styleClass="kpi-detail-label" />
+                            </VBox>
+                        </HBox>
+                    </VBox>
                 </children>
             </VBox>
         </children>
