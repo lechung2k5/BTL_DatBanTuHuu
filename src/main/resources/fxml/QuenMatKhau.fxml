@@ -2,22 +2,152 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox fx:controller="ui.QuenMatKhau" alignment="CENTER" prefHeight="400.0" prefWidth="600.0" spacing="20.0" styleClass="quen-mat-khau-container" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
-    <children>
-        <Label text="Quên mật khẩu" styleClass="form-title" />
-        <Label text="Vui lòng nhập mã nhân viên của bạn để đặt lại mật khẩu." />
-        
-        <TextField fx:id="txtMaNhanVien" promptText="Mã nhân viên" styleClass="text-field" />
-        
-        <Button text="Xác nhận" onAction="#handleXacNhan" styleClass="action-button" />
-        
-        <Button text="Quay lại" onAction="#handleQuayLai" styleClass="link-button" />
-    </children>
-    <padding>
-        <Insets top="50" right="50" bottom="50" left="50" />
-    </padding>
-</VBox>
+<HBox fx:controller="ui.QuenMatKhau"
+      alignment="CENTER"
+      prefHeight="600.0"
+      prefWidth="900.0"
+      stylesheets="/css/QuenMatKhau.css"
+      xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1">
+
+   <children>
+
+      <!-- BÊN TRÁI: Form Quên Mật Khẩu -->
+      <VBox prefHeight="600.0"
+            prefWidth="450.0"
+            styleClass="forgot-password-form">
+         <children>
+
+            <!-- Logo -->
+            <HBox alignment="TOP_RIGHT">
+               <children>
+                  <ImageView fitHeight="50.0"
+                             fitWidth="50.0"
+                             pickOnBounds="true"
+                             preserveRatio="true">
+                     <image>
+                        <Image url="/images/LOGO TU HUU.png" />
+                     </image>
+                     <HBox.margin>
+                        <Insets right="0.0" top="0.0" />
+                     </HBox.margin>
+                  </ImageView>
+               </children>
+            </HBox>
+
+            <!-- Nội dung chính -->
+            <VBox alignment="CENTER" VBox.vgrow="ALWAYS">
+               <children>
+                  <Label styleClass="header-text" text="Quên mật khẩu" />
+
+                  <!-- Ô nhập -->
+                  <VBox styleClass="input-container">
+                     <children>
+
+                        <!-- Mã nhân viên -->
+                        <HBox alignment="CENTER_LEFT" styleClass="text-field-box">
+                           <children>
+                              <ImageView fitHeight="20.0"
+                                         fitWidth="20.0"
+                                         pickOnBounds="true"
+                                         preserveRatio="true">
+                                 <image>
+                                    <Image url="/icons/iconNhanVien.png" />
+                                 </image>
+                                 <HBox.margin>
+                                    <Insets right="10.0" />
+                                 </HBox.margin>
+                              </ImageView>
+                              <TextField fx:id="txtMaNhanVien"
+                                         styleClass="text-field-custom"
+                                         promptText="Mã nhân viên" />
+                           </children>
+                        </HBox>
+
+                        <!-- Mật khẩu mới -->
+                        <HBox alignment="CENTER_LEFT" styleClass="text-field-box">
+                           <children>
+                              <ImageView fitHeight="20.0"
+                                         fitWidth="20.0"
+                                         pickOnBounds="true"
+                                         preserveRatio="true">
+                                 <image>
+                                    <Image url="/icons/iconPassword.png" />
+                                 </image>
+                                 <HBox.margin>
+                                    <Insets right="10.0" />
+                                 </HBox.margin>
+                              </ImageView>
+                              <TextField fx:id="txtMatKhauMoi"
+                                         styleClass="text-field-custom"
+                                         promptText="Mật khẩu mới" />
+                           </children>
+                        </HBox>
+
+                        <!-- Nhập lại mật khẩu -->
+                        <HBox alignment="CENTER_LEFT" styleClass="text-field-box">
+                           <children>
+                              <ImageView fitHeight="20.0"
+                                         fitWidth="20.0"
+                                         pickOnBounds="true"
+                                         preserveRatio="true">
+                                 <image>
+                                    <Image url="/icons/iconPassword.png" />
+                                 </image>
+                                 <HBox.margin>
+                                    <Insets right="10.0" />
+                                 </HBox.margin>
+                              </ImageView>
+                              <TextField fx:id="txtNhapLaiMatKhau"
+                                         styleClass="text-field-custom"
+                                         promptText="Nhập lại mật khẩu" />
+                           </children>
+                        </HBox>
+
+                     </children>
+                  </VBox>
+
+                  <!-- Nút xác nhận -->
+                  <Button onAction="#handleXacNhan"
+                          styleClass="confirm-button"
+                          text="Xác nhận" />
+
+                  <!-- Liên kết quay lại -->
+                  <HBox alignment="CENTER">
+                     <children>
+                        <Hyperlink text="Quay lại đăng nhập"
+                                   onAction="#handleQuayLai"
+                                   styleClass="back-to-login" />
+                     </children>
+                  </HBox>
+               </children>
+            </VBox>
+
+         </children>
+      </VBox>
+
+      <!-- BÊN PHẢI: Banner -->
+      <VBox alignment="CENTER"
+            style="-fx-background-color: #d1b184;"
+            HBox.hgrow="ALWAYS">
+         <children>
+            <ImageView fitWidth="450.0"
+                       fitHeight="600.0"
+                       pickOnBounds="true">
+               <image>
+                  <Image url="/images/banner.png" />
+               </image>
+            </ImageView>
+         </children>
+      </VBox>
+
+   </children>
+</HBox>

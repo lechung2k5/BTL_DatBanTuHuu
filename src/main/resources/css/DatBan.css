@@ -1,31 +1,103 @@
-/* Style cho màn hình "Quản lý đặt bàn" */
-.dat-ban-container {
-    -fx-background-color: transparent;
+/* ==================== CHUNG & PANEL ==================== */
+.root-pane { 
+    -fx-background-color: transparent; 
+    -fx-font-size: 12.5px;
 }
-
-.dat-ban-form {
-    -fx-background-color: #fff;
-    -fx-padding: 20px;
+.left-panel, .table-grid-container, .info-form-container, .order-container, .time-filter-container {
+    -fx-background-color: rgba(255, 161, 0, 0.4); 
     -fx-background-radius: 10px;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 5);
+    -fx-padding: 20px;
 }
-
-.form-title {
-    -fx-font-size: 20px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #333;
+.screen-title-new { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #4a4a4a; }
+.form-title { -fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #4e342e; }
+.floor-title { -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding-bottom: 5; }
+.section-title-goimon { -fx-font-weight: bold; -fx-font-size: 14px; }
+.search-container-new, .filter-combo-new, .order-search-bar { 
+    -fx-background-color: white; -fx-background-radius: 20px; -fx-padding: 3px 10px;
 }
+.order-search-bar .text-field { -fx-background-color: transparent; }
 
-.dat-ban-button {
-    -fx-background-color: #ff9100;
-    -fx-text-fill: white;
-    -fx-font-weight: bold;
+.time-filter-container .text-field,
+.time-filter-container .date-picker,
+.time-filter-container .date-picker .text-field {
+    -fx-background-color: white;
     -fx-background-radius: 5px;
 }
 
-.dat-ban-table {
-    -fx-background-color: #fff;
-    -fx-padding: 20px;
-    -fx-background-radius: 10px;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+/* ==================== THANH CUỘN (SCROLLPANE) ==================== */
+.card-scroll-pane, .middle-scroll-pane, .receipt-scroll-pane { -fx-background-color: transparent; }
+.card-scroll-pane .viewport, .middle-scroll-pane .viewport, .receipt-scroll-pane .viewport { -fx-background-color: transparent; }
+
+/* ==================== CỘT TRÁI: DANH SÁCH ĐẶT BÀN ==================== */
+.booking-card { -fx-background-color: white; -fx-background-radius: 8px; -fx-padding: 12px; }
+.booking-card-id { -fx-font-weight: bold; -fx-font-size: 13px; }
+.create-booking-button {
+    -fx-background-color: #ff9100; -fx-text-fill: white; -fx-font-weight: bold;
+    -fx-font-size: 14px; -fx-background-radius: 8px; -fx-padding: 10px 20px;
+    -fx-graphic: url('../icons/iconAdd.png');
+}
+.view-details-button {
+    -fx-background-color: #ff9100; -fx-text-fill: white; -fx-font-weight: bold;
+    -fx-padding: 5px 15px; -fx-background-radius: 5px; -fx-font-size: 12px;
+}
+.view-details-button:hover { -fx-background-color: #fca93e; }
+
+/* ==================== CỘT GIỮA: THAO TÁC ==================== */
+.table-button {
+    -fx-font-weight: bold; -fx-font-size: 13px; -fx-pref-width: 45px; -fx-pref-height: 45px;
+    -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-border-width: 1.5;
+}
+.table-button-available { -fx-background-color: white; -fx-text-fill: black; -fx-border-color: #ced4da;}
+.table-button-booked { -fx-background-color: #ff8a80; -fx-text-fill: white; -fx-border-color: transparent;}
+.table-button-selected { -fx-background-color: #b9f6ca; -fx-text-fill: black; -fx-border-color: #2f9e44;}
+.table-button-wide { -fx-pref-width: 100px; }
+
+.vertical-divider { -fx-background-color: #fcc419; -fx-pref-width: 2px; }
+.legend-box { -fx-border-radius: 4; -fx-background-radius: 4; -fx-border-color: #dee2e6;}
+
+.menu-tabs .toggle-button {
+    -fx-background-color: #fff; -fx-background-radius: 8; -fx-text-fill: #495057; -fx-font-weight: bold;
+    -fx-border-color: #dee2e6; -fx-border-radius: 8; -fx-padding: 8 15;
+}
+.menu-tabs .toggle-button:selected { -fx-background-color: transparent; -fx-border-color: #ff9100; -fx-border-width: 2;}
+
+.confirm-button, .payment-button, .action-button-save, .confirm-button-large {
+    -fx-background-radius: 8px; -fx-font-weight: bold; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 18;
+}
+.confirm-button { -fx-background-color: #228be6;}
+.confirm-button-large { -fx-background-color: #f7a940; -fx-font-size: 14px; -fx-padding: 10 30;}
+.payment-button { -fx-background-color: #40c057;}
+.action-button-save { -fx-background-color: #37b24d;}
+
+.select-button { -fx-background-color: #20c997; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;}
+.cancel-button { -fx-background-color: #fa5252; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5;}
+.quantity-button { -fx-font-weight: bold; -fx-padding: 2 6;}
+
+
+/* ==================== CỘT PHẢI: HÓA ĐƠN ==================== */
+.receipt-panel { -fx-background-color: white; -fx-background-radius: 10px; -fx-padding: 15px;}
+.receipt-main-title { -fx-font-size: 22px; -fx-font-weight: bold; -fx-alignment: center; -fx-max-width: infinity; }
+.receipt-restaurant-name { -fx-font-weight: bold; }
+.receipt-title { -fx-font-weight: bold; -fx-font-size: 14px; -fx-padding: 8px 0 4px 0; }
+.receipt-summary { -fx-border-style: hidden hidden dashed hidden; -fx-border-width: 1; -fx-border-color: #ccc; -fx-padding: 8px 0; }
+.receipt-summary-label { -fx-font-weight: bold; }
+.receipt-total { -fx-padding: 8px 0; }
+.receipt-total-label { -fx-font-size: 15px; -fx-font-weight: bold; }
+.receipt-total-value { -fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #d9480f; }
+
+.promo-combo-box, .promo-label {
+    -fx-background-color: white; -fx-border-color: #ced4da;
+    -fx-border-radius: 20px; -fx-background-radius: 20px; -fx-padding: 8px 15px;
+}
+.promo-combo-box .arrow-button { -fx-padding: 0 5 0 0; }
+.payment-method-button {
+    -fx-pref-height: 50px; -fx-pref-width: 90px; -fx-font-weight: bold; -fx-text-fill: white; -fx-background-radius: 8px;
+}
+.payment-method-button.cash { -fx-background-color: #1c7ed6; }
+.payment-method-button.bank { -fx-background-color: #6d42c0; }
+.payment-method-button.momo { -fx-background-color: #ae3ec9; }
+.print-button {
+    -fx-background-color: #ff9100; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 13px;
+    -fx-background-radius: 5px; -fx-padding: 8px 30px;
 }

@@ -1,15 +1,16 @@
 package ui;
 
-import javafx.fxml.FXML;
 import javafx.event.ActionEvent;
-import javafx.scene.control.Button;
+import javafx.fxml.FXML;
 import javafx.scene.control.TextField;
+import javafx.stage.Stage;
+import javafx.scene.Node;
 
 import java.io.IOException;
 
 public class QuenMatKhau {
-    @FXML private TextField txtMaNhanVien;
-    @FXML private Button btnXacNhan;
+    @FXML
+    private TextField txtMaNhanVien;
 
     private MainApp mainApp;
 
@@ -19,7 +20,14 @@ public class QuenMatKhau {
 
     @FXML
     private void handleXacNhan(ActionEvent event) {
-        System.out.println("Xác nhận đổi mật khẩu cho mã nhân viên: " + txtMaNhanVien.getText());
+        String maNhanVien = txtMaNhanVien.getText();
+        
+        if (!maNhanVien.isEmpty()) {
+            System.out.println("Xác nhận đổi mật khẩu cho mã nhân viên: " + maNhanVien);
+            // Xử lý logic khôi phục mật khẩu ở đây
+        } else {
+            System.out.println("Vui lòng nhập mã nhân viên.");
+        }
     }
 
     @FXML

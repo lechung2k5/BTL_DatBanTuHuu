@@ -1,37 +1,120 @@
-/* Style cho container chính của trang thống kê */
-.thong-ke-container {
-    -fx-background-color: #f5f5f5;
-    -fx-padding: 20;
+.inner-panel {
+    -fx-background-image: url("../images/background.jpg");
+    -fx-background-repeat: no-repeat;
+    -fx-background-size: cover;
 }
 
 .screen-title {
     -fx-font-size: 24px;
     -fx-font-weight: bold;
+    -fx-text-fill: #3a3a3a;
+}
+
+.card {
+    -fx-background-color: white;
+    -fx-background-radius: 10px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 5);
+}
+
+.colored-card {
+    -fx-background-color: rgba(255, 161, 0, 0.4);
+    -fx-background-radius: 10px;
+    -fx-padding: 20px;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 5);
+}
+
+.card-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
     -fx-text-fill: #333;
 }
 
-/* Biểu đồ thống kê */
-.chart-container {
-    -fx-background-color: #fff;
-    -fx-padding: 20;
-    -fx-background-radius: 10;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+.combo-box {
+    -fx-font-size: 13px;
+    -fx-background-color: white;
+    -fx-border-color: #e0e0e0;
+    -fx-border-width: 1.5;
+    -fx-background-radius: 6;
+    -fx-border-radius: 6;
 }
 
+.table-view {
+    -fx-background-color: transparent;
+    -fx-border-color: #f0f0f0;
+    -fx-border-width: 1 0 1 0;
+}
+
+.table-view .column-header-background { -fx-background-color: #fafafa; }
+.table-view .column-header, .table-view .filler {
+    -fx-background-color: transparent;
+    -fx-border-width: 0 0 1.5 0;
+    -fx-border-color: #f0f0f0;
+}
+
+.table-view .column-header .label {
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+    -fx-padding: 8 5;
+}
+
+.table-view .table-cell {
+    -fx-padding: 10 8;
+    -fx-alignment: CENTER_LEFT;
+    -fx-font-size: 13px;
+}
+
+.note-section {
+    -fx-padding: 10 5 0 5;
+    -fx-font-size: 12px;
+    -fx-text-fill: #555;
+}
+
+.view-button {
+    -fx-background-color: #2980b9;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 5;
+    -fx-padding: 5 15;
+    -fx-cursor: hand;
+}
+
+#btnExportHoaDon, #btnExportMonAn {
+    -fx-background-color: #27ae60;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-font-size: 13px;
+    -fx-background-radius: 6;
+    -fx-padding: 6 18;
+    -fx-cursor: hand;
+}
+
+/* Chart Styles */
 .chart-title {
-    -fx-font-size: 18px;
+    -fx-font-size: 16px;
     -fx-font-weight: bold;
 }
 
-/* Dữ liệu thống kê */
-.data-container {
-    -fx-background-color: #fff;
-    -fx-padding: 20;
-    -fx-background-radius: 10;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0.3, 0, 2);
+.chart-summary {
+    -fx-padding: 10 0;
+}
+.summary-title {
+    -fx-font-size: 13px;
+    -fx-text-fill: #555;
+}
+.summary-value {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
 }
 
-.data-title {
-    -fx-font-size: 18px;
-    -fx-font-weight: bold;
+/* Áp dụng màu xanh cho Label có lớp text-success */
+.label.text-success {
+    -fx-text-fill: #28a745; /* Màu xanh lá cây */
+}
+
+/* Áp dụng màu đỏ cho Label có lớp text-danger */
+.label.text-danger {
+    -fx-text-fill: #dc3545; /* Màu đỏ */
 }

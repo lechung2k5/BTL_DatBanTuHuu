@@ -2,52 +2,242 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleButton?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.TableView?>
-<?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.shape.Rectangle?>
 
-<VBox fx:controller="ui.DatBan" styleClass="dat-ban-container" spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
-    <padding>
-        <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
-    </padding>
+<HBox spacing="15" styleClass="root-pane" stylesheets="@../css/DatBan.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.DatBan">
+   <padding>
+      <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+   </padding>
+   <VBox spacing="15" styleClass="left-panel" HBox.hgrow="NEVER" prefWidth="300.0">
+      <padding>
+         <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
+      </padding>
+      <HBox alignment="CENTER_LEFT" spacing="10">
+         <Label styleClass="screen-title-new" text="Danh sách đặt bàn" />
+      </HBox>
+      <HBox alignment="CENTER_LEFT" spacing="10">
+         <ComboBox fx:id="comboFilter" prefWidth="120.0" promptText="Đang phục vụ..." styleClass="filter-combo-new" />
+         <HBox styleClass="search-container-new" HBox.hgrow="ALWAYS">
+            <Label styleClass="search-icon-new" />
+            <TextField fx:id="txtSearch" promptText="0377019956" styleClass="search-field-new" />
+         </HBox>
+      </HBox>
+      <ScrollPane fitToWidth="true" styleClass="card-scroll-pane" VBox.vgrow="ALWAYS">
+         <content>
+            <VBox fx:id="vboxBookingCards" spacing="15" />
+         </content>
+      </ScrollPane>
+      <HBox alignment="CENTER">
+         <Button fx:id="btnTaoDatBan" mnemonicParsing="false" styleClass="create-booking-button" text="Tạo đặt bàn" />
+      </HBox>
+   </VBox>
 
-    <Label text="Quản lý đặt bàn" styleClass="screen-title" />
-
-    <HBox spacing="20.0" VBox.vgrow="ALWAYS">
-        <VBox spacing="10.0" styleClass="dat-ban-form">
-            <children>
-                <Label text="Thông tin đặt bàn" styleClass="form-title" />
-                <Label text="Tên khách hàng:" />
-                <TextField fx:id="txtTenKhachHang" />
-                <Label text="Số điện thoại:" />
-                <TextField fx:id="txtSoDienThoai" />
-                <Label text="Số lượng khách:" />
-                <TextField fx:id="txtSoLuongKhach" />
-                <Label text="Ngày đặt:" />
-                <TextField fx:id="txtNgayDat" />
-                <Label text="Giờ đặt:" />
-                <TextField fx:id="txtGioDat" />
-                <Label text="Tiền cọc:" />
-                <TextField fx:id="txtTienCoc" />
-                <Button text="Đặt bàn" onAction="#handleDatBan" styleClass="dat-ban-button" />
-            </children>
-        </VBox>
-        
-        <VBox spacing="10.0" styleClass="dat-ban-table" HBox.hgrow="ALWAYS">
-            <children>
-                <Label text="Danh sách bàn" styleClass="form-title" />
-                <TableView fx:id="tblBan">
-                    <columns>
-                        <TableColumn fx:id="colMaBan" text="Mã bàn" />
-                        <TableColumn fx:id="colTrangThai" text="Trạng thái" />
-                        <TableColumn fx:id="colSoGhe" text="Số ghế" />
-                    </columns>
-                </TableView>
-            </children>
-        </VBox>
-    </HBox>
-</VBox>
+   <ScrollPane fitToWidth="true" styleClass="middle-scroll-pane" HBox.hgrow="ALWAYS">
+      <content>
+         <VBox spacing="15">
+             <HBox spacing="10" alignment="CENTER_LEFT" styleClass="time-filter-container">
+                  <Label text="Thời gian đến"/>
+                  <TextField fx:id="txtThoiGian" prefWidth="60.0" promptText="18:00" />
+                  <DatePicker fx:id="datePickerThoiGianDen" prefWidth="110.0" promptText="Chọn ngày"/>
+                  <Region HBox.hgrow="ALWAYS" />
+                  <Button fx:id="btnTim" text="Tìm" styleClass="confirm-button"/>
+             </HBox>
+             
+            <VBox styleClass="table-grid-container" spacing="10">
+               <Label styleClass="form-title" text="Danh sách bàn" alignment="CENTER" maxWidth="Infinity"/>
+               <HBox alignment="CENTER" spacing="20">
+                  <VBox alignment="TOP_CENTER" spacing="10">
+                     <Label text="Tầng trệt" styleClass="floor-title"/>
+                     <GridPane fx:id="gridTangTret" hgap="10" vgap="10" />
+                  </VBox>
+                  <Region styleClass="vertical-divider" />
+                  <VBox alignment="TOP_CENTER" spacing="10">
+                     <Label text="Tầng 1" styleClass="floor-title"/>
+                     <GridPane fx:id="gridTang1" hgap="10" vgap="10" />
+                     <Label text="Phòng riêng" styleClass="floor-title"/>
+                     <GridPane fx:id="gridPhongRieng" hgap="10" vgap="10" />
+                  </VBox>
+               </HBox>
+               <HBox alignment="CENTER" spacing="15" style="-fx-padding: 15 0 0 0;">
+                   <HBox alignment="CENTER" spacing="5">
+                       <Rectangle fill="WHITE" height="20.0" styleClass="legend-box" width="20.0" />
+                       <Label text="Bàn trống" />
+                   </HBox>
+                   <HBox alignment="CENTER" spacing="5">
+                       <Rectangle fill="#ff8a80" height="20.0" styleClass="legend-box" width="20.0" />
+                       <Label text="Đã đặt" />
+                   </HBox>
+                   <HBox alignment="CENTER" spacing="5">
+                       <Rectangle fill="#b9f6ca" height="20.0" styleClass="legend-box" width="20.0" />
+                       <Label text="Đang chọn" />
+                   </HBox>
+               </HBox>
+                <HBox alignment="CENTER" style="-fx-padding: 10 0 0 0;">
+                   <Button fx:id="btnXacNhanBan" mnemonicParsing="false" text="Xác nhận" styleClass="confirm-button-large" />
+                </HBox>
+            </VBox>
+      
+            <VBox styleClass="info-form-container" spacing="10">
+               <Label styleClass="form-title" text="Nhập thông tin" />
+               <VBox spacing="10.0">
+                  <children>
+                     <HBox spacing="15.0">
+                        <children>
+                           <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                              <children>
+                                 <Label text="Tên khách hàng" />
+                                 <TextField fx:id="txtTenKhachHang" promptText="Nhập tên khách hàng (VD: Anh Nam)" />
+                              </children>
+                           </VBox>
+                           <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                              <children>
+                                 <Label text="Số điện thoại" />
+                                 <TextField fx:id="txtSoDienThoai" promptText="Nhập số điện thoại (VD:0377019956)" />
+                              </children>
+                           </VBox>
+                        </children>
+                     </HBox>
+                     <HBox spacing="15.0">
+                        <children>
+                           <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                              <children>
+                                 <Label text="Số lượng người" />
+                                 <TextField fx:id="txtSoLuongKhach" promptText="8" />
+                              </children>
+                           </VBox>
+                           <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                              <children>
+                                 <Label text="Yêu cầu đặc biệt" />
+                                 <TextField fx:id="txtYeuCau" promptText="Yêu cầu về bàn ăn,..." />
+                              </children>
+                           </VBox>
+                        </children>
+                     </HBox>
+                     <HBox alignment="BOTTOM_LEFT" spacing="10.0">
+                        <children>
+                           <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                              <children>
+                                 <Label text="Tiền cọc bàn" />
+                                 <TextField fx:id="txtTienCoc" promptText="150.000 VNĐ" />
+                              </children>
+                           </VBox>
+                           <Button fx:id="btnThanhToanCoc" mnemonicParsing="false" styleClass="payment-button" text="Thanh toán tiền cọc" />
+                        </children>
+                     </HBox>
+                  </children>
+               </VBox>
+            </VBox>
+             
+            <VBox styleClass="order-container" spacing="8">
+                 <Label styleClass="form-title" text="Gọi món"/>
+                 <HBox alignment="CENTER_LEFT" spacing="10">
+                    <Label styleClass="section-title-goimon" text="Danh mục món" />
+                    <Region HBox.hgrow="ALWAYS"/>
+                    <HBox styleClass="order-search-bar">
+                       <Label styleClass="search-icon-new"/>
+                       <TextField promptText="Lẩu cua đồng"/>
+                    </HBox>
+                 </HBox>
+                 <HBox styleClass="menu-tabs" spacing="5">
+                     <ToggleButton fx:id="toggleKhaiVi" text="Khai vị" selected="true"/>
+                     <ToggleButton fx:id="toggleNuong" text="Nướng" />
+                     <ToggleButton fx:id="toggleLau" text="Lẩu" />
+                     <ToggleButton fx:id="toggleXaoHap" text="Xào/Hấp" />
+                     <ToggleButton fx:id="toggleChien" text="Chiên" />
+                     <ToggleButton fx:id="toggleDacSan" text="Đặc sản" />
+                     <ToggleButton fx:id="toggleDoUong" text="Đồ uống" />
+                 </HBox>
+                 <TableView fx:id="tblMonAn" prefHeight="150.0">
+                     <columns>
+                        <TableColumn fx:id="colTenMon" text="Tên món" prefWidth="150"/>
+                        <TableColumn fx:id="colHinhAnh" text="Hình ảnh" prefWidth="100"/>
+                        <TableColumn fx:id="colGia" text="Giá" prefWidth="100"/>
+                        <TableColumn fx:id="colChon" text="Chọn" prefWidth="100"/>
+                     </columns>
+                 </TableView>
+                 <Label text="Danh sách order" styleClass="section-title-goimon"/>
+                  <TableView fx:id="tblMonDaChon" prefHeight="150.0">
+                     <columns>
+                        <TableColumn fx:id="colOrderTenMon" text="Tên món" prefWidth="150"/>
+                        <TableColumn fx:id="colOrderDonGia" text="Đơn giá" prefWidth="100"/>
+                        <TableColumn fx:id="colOrderSoLuong" text="Số lượng" prefWidth="75"/>
+                        <TableColumn fx:id="colOrderTangGiam" text="Tăng | giảm" prefWidth="100"/>
+                        <TableColumn fx:id="colOrderHuy" text="Hủy" prefWidth="75"/>
+                     </columns>
+                 </TableView>
+                 <HBox alignment="CENTER_RIGHT" spacing="10">
+                     <Button fx:id="btnLuuDatHang" text="Lưu đặt hàng" styleClass="action-button-save"/>
+                     <Button fx:id="btnThanhToan" text="Thanh toán" styleClass="confirm-button"/>
+                 </HBox>
+            </VBox>
+         </VBox>
+      </content>
+   </ScrollPane>
+    
+   <ScrollPane fitToWidth="true" styleClass="receipt-scroll-pane" prefWidth="420" HBox.hgrow="NEVER">
+      <content>
+         <VBox spacing="10" styleClass="receipt-panel">
+             <Label text="HÓA ĐƠN" styleClass="receipt-main-title"/>
+             <VBox alignment="CENTER" spacing="1">
+                 <Label text="NHÀ HÀNG TỨ HỮU" styleClass="receipt-restaurant-name"/>
+                 <Label text="Đ/c: TT. Long Thành, huyện Duyên Hải, Trà Vinh"/>
+                 <Label text="SĐT: 0987123456"/>
+             </VBox>
+             <Label text="HÓA ĐƠN THANH TOÁN" styleClass="receipt-title"/>
+             <Label text="Số HĐ: HD000123"/>
+             <GridPane hgap="10">
+                 <children>
+                     <Label text="Bàn: 16" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+                     <Label text="Thu ngân: Nguyễn Văn A" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+                     <Label text="Giờ vào: 18:00" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+                     <Label text="Giờ ra: 22:45" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+                 </children>
+             </GridPane>
+             <TableView fx:id="tblHoaDon" prefHeight="250.0">
+                 <columns>
+                     <TableColumn text="STT" prefWidth="30"/><TableColumn text="Tên món" prefWidth="110"/><TableColumn text="SL" prefWidth="30"/><TableColumn text="Đơn giá" prefWidth="90"/><TableColumn text="Thành tiền" prefWidth="100"/>
+                 </columns>
+             </TableView>
+             <VBox spacing="4" styleClass="receipt-summary">
+                 <HBox><Label text="Tổng cộng món ăn:" styleClass="receipt-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label text="520,000 VNĐ"/></HBox>
+                 <HBox><Label text="Phí dịch vụ (5%):" styleClass="receipt-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label text="31,889 VNĐ"/></HBox>
+                 <HBox><Label text="Thuế VAT (8%):" styleClass="receipt-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label text="49,600 VNĐ"/></HBox>
+                 <HBox><Label text="Tiền đặt cọc:" styleClass="receipt-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label text="-150,000 VNĐ"/></HBox>
+             </VBox>
+             <VBox spacing="8">
+                 <Label text="Khuyến mãi:" styleClass="receipt-title"/>
+                 <ComboBox fx:id="promoComboBox" prefWidth="Infinity" styleClass="promo-combo-box" />
+                 <HBox><Label text="Khuyến mãi:" styleClass="receipt-summary-label"/><Region HBox.hgrow="ALWAYS"/><Label text="-130,000 VNĐ"/></HBox>
+             </VBox>
+             <HBox styleClass="receipt-total">
+                 <Label text="Tổng tiền thanh toán:" styleClass="receipt-total-label"/>
+                 <Region HBox.hgrow="ALWAYS"/>
+                 <Label text="307,600 VNĐ" styleClass="receipt-total-value"/>
+             </HBox>
+             
+             <Label text="CHỌN PHƯƠNG THỨC THANH TOÁN" styleClass="receipt-title" alignment="CENTER"/>
+             <HBox spacing="10" alignment="CENTER">
+                 <Button fx:id="btnTienMat" text="Tiền mặt" styleClass="payment-method-button, cash"/>
+                 <Button fx:id="btnNganHang" text="Ngân hàng" styleClass="payment-method-button, bank"/>
+                 <Button fx:id="btnMoMo" text="MoMo" styleClass="payment-method-button, momo"/>
+             </HBox>
+             
+             <HBox alignment="CENTER" style="-fx-padding: 10 0 0 0;">
+                 <Button fx:id="btnInHoaDon" text="In hóa đơn" styleClass="print-button"/>
+             </HBox>
+         </VBox>
+      </content>
+    </ScrollPane>
+</HBox>

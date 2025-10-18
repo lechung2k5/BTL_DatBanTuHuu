@@ -2,51 +2,116 @@
 
 <?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
+<?import javafx.scene.control.ComboBox?>
+<?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
-<?import javafx.scene.control.TextField?>
-<?import javafx.scene.layout.HBox?>
-<?import javafx.scene.layout.VBox?>
-<?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TableColumn?>
+<?import javafx.scene.control.TableView?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.Image?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
 
-<VBox fx:controller="ui.KhachHang" styleClass="khach-hang-container" spacing="20.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
-    <padding>
-        <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
-    </padding>
-
-    <Label text="Quản lý khách hàng" styleClass="screen-title" />
-
-    <HBox spacing="20.0" VBox.vgrow="ALWAYS">
-        <VBox spacing="10.0" styleClass="khach-hang-form">
-            <children>
-                <Label text="Thông tin khách hàng" styleClass="form-title" />
-                <Label text="Mã khách hàng:" />
-                <TextField fx:id="txtMaKH" />
-                <Label text="Họ và tên:" />
-                <TextField fx:id="txtHoTen" />
-                <Label text="Số điện thoại:" />
-                <TextField fx:id="txtSDT" />
-                <HBox spacing="10.0">
-                    <children>
-                        <Button text="Thêm" onAction="#handleThemKH" styleClass="action-button" />
-                        <Button text="Sửa" onAction="#handleSuaKH" styleClass="action-button" />
-                        <Button text="Xóa" onAction="#handleXoaKH" styleClass="action-button" />
-                    </children>
-                </HBox>
-            </children>
-        </VBox>
-        
-        <VBox spacing="10.0" styleClass="khach-hang-table" HBox.hgrow="ALWAYS">
-            <children>
-                <Label text="Danh sách khách hàng" styleClass="form-title" />
-                <TableView fx:id="tblKhachHang">
-                    <columns>
-                        <TableColumn fx:id="colMaKH" text="Mã KH" />
-                        <TableColumn fx:id="colHoTen" text="Họ và tên" />
-                        <TableColumn fx:id="colSDT" text="Số điện thoại" />
-                    </columns>
-                </TableView>
-            </children>
-        </VBox>
-    </HBox>
-</VBox>
+<!-- Root container for the entire screen -->
+<AnchorPane stylesheets="@../css/KhachHang.css" xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.KhachHang">
+   <children>
+      <!-- Panel with wooden background -->
+      <AnchorPane styleClass="inner-panel" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+         <children>
+            <!-- Main vertical layout -->
+            <VBox spacing="15.0" AnchorPane.bottomAnchor="25.0" AnchorPane.leftAnchor="30.0" AnchorPane.rightAnchor="30.0" AnchorPane.topAnchor="20.0">
+               <children>
+                  <!-- Top row: Title and Search -->
+                  <HBox alignment="CENTER_LEFT" spacing="20.0">
+                     <children>
+                        <Label styleClass="screen-title" text="Quản lý khách hàng" />
+                        <Region HBox.hgrow="ALWAYS" />
+                        <ComboBox fx:id="filterComboBox" prefWidth="180.0" promptText="VIP, Thành viên..." />
+                        <!-- *** KEY CHANGE: Search field with icon inside *** -->
+                        <HBox alignment="CENTER_LEFT" styleClass="search-field">
+                           <children>
+                              <ImageView fitHeight="18.0" fitWidth="18.0" pickOnBounds="true" preserveRatio="true">
+                                 <image>
+                                    <Image url="@../icons/iconTraCuu.png" />
+                                 </image>
+                                 <HBox.margin>
+                                    <Insets left="5.0" right="5.0" />
+                                 </HBox.margin>
+                              </ImageView>
+                              <TextField fx:id="txtSearch" prefWidth="200.0" promptText="Tìm theo SĐT..." />
+                           </children>
+                        </HBox>
+                     </children>
+                  </HBox>
+                  <!-- *** KEY CHANGE: VBox now wraps ALL content to be colored *** -->
+                  <VBox styleClass="main-content-box" VBox.vgrow="ALWAYS">
+                     <children>
+                        <!-- Section Title -->
+                        <Label styleClass="section-title" text="Danh sách khách hàng" />
+                        <!-- Table Container -->
+                        <AnchorPane styleClass="table-container" prefHeight="280.0" VBox.vgrow="ALWAYS">
+                           <children>
+                              <TableView fx:id="tblKhachHang" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
+                                 <columns>
+                                    <TableColumn fx:id="colMaKH" prefWidth="80.0" text="Mã KH" />
+                                    <TableColumn fx:id="colHoTen" prefWidth="180.0" text="Họ tên" />
+                                    <TableColumn fx:id="colSDT" prefWidth="120.0" text="Số điện thoại" />
+                                    <TableColumn fx:id="colDiaChi" prefWidth="200.0" text="Địa chỉ" />
+                                    <TableColumn fx:id="colEmail" prefWidth="180.0" text="Email" />
+                                    <TableColumn fx:id="colNgayDangKy" prefWidth="120.0" text="Ngày đăng ký" />
+                                    <TableColumn fx:id="colLoaiKH" prefWidth="100.0" text="Loại KH" />
+                                    <TableColumn fx:id="colTongTien" prefWidth="120.0" text="Tổng tiền HĐ" />
+                                    <TableColumn fx:id="colXemLichSu" prefWidth="120.0" text="Lịch sử HĐ" />
+                                 </columns>
+                              </TableView>
+                           </children>
+                        </AnchorPane>
+                        <!-- Form Section (Now inside the colored box) -->
+                        <HBox spacing="30.0">
+                           <children>
+                              <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                 <children>
+                                    <Label styleClass="form-label" text="Họ tên:" />
+                                    <TextField fx:id="txtHoTen" />
+                                    <Label styleClass="form-label" text="Số điện thoại:" />
+                                    <TextField fx:id="txtSDT" />
+                                    <Label styleClass="form-label" text="Ngày đăng ký:" />
+                                    <DatePicker fx:id="datePickerNgayDangKy" maxWidth="1.7976931348623157E308" />
+                                 </children>
+                              </VBox>
+                              <VBox spacing="8.0" HBox.hgrow="ALWAYS">
+                                 <children>
+                                    <Label styleClass="form-label" text="Địa chỉ:" />
+                                    <TextField fx:id="txtDiaChi" />
+                                    <Label styleClass="form-label" text="Email:" />
+                                    <TextField fx:id="txtEmail" />
+                                 </children>
+                              </VBox>
+                           </children>
+                           <VBox.margin>
+                              <Insets top="20.0" />
+                           </VBox.margin>
+                        </HBox>
+                        <!-- Action Buttons Row (Now inside the colored box) -->
+                        <HBox fx:id="actionButtonBox" alignment="CENTER" spacing="20.0">
+                           <children>
+                              <Button fx:id="btnThem" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Thêm" HBox.hgrow="ALWAYS" />
+                              <Button fx:id="btnXoa" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Xóa" HBox.hgrow="ALWAYS" />
+                              <Button fx:id="btnSua" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Sửa" HBox.hgrow="ALWAYS" />
+                              <Button fx:id="btnLuu" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Lưu" HBox.hgrow="ALWAYS" />
+                           </children>
+                           <VBox.margin>
+                              <Insets top="20.0" />
+                           </VBox.margin>
+                        </HBox>
+                     </children>
+                  </VBox>
+               </children>
+            </VBox>
+         </children>
+      </AnchorPane>
+   </children>
+</AnchorPane>
