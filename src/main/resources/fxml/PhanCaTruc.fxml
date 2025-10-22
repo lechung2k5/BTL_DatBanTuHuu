@@ -20,12 +20,7 @@
 
     <Label text="Phân chia ca trực" styleClass="screen-title" />
 
-    <HBox spacing="10" alignment="CENTER_LEFT">
-        <children>
-            <ComboBox promptText="Trạng thái All" styleClass="filter-combo" />
-            <ComboBox promptText="Chức vụ All" styleClass="filter-combo" />
-        </children>
-    </HBox>
+
 
     <HBox alignment="CENTER_LEFT" spacing="15.0">
         <children>
@@ -51,8 +46,7 @@
 		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
 		    </columnConstraints>
 		    <rowConstraints>
-		        <RowConstraints vgrow="SOMETIMES" minHeight="50" prefHeight="60.0" />
-		        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
+		        <RowConstraints vgrow="SOMETIMES" minHeight="80" prefHeight="80.0" /> <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
 		        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
 		        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
 		    </rowConstraints>

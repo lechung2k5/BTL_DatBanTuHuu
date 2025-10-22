@@ -11,8 +11,7 @@
         <java.version>21</java.version>
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
-
-        <javafx.version>21.0.3</javafx.version>
+        <maven.compiler.encoding>UTF-8</maven.compiler.encoding> <javafx.version>21.0.3</javafx.version>
         <log4j.version>2.24.0</log4j.version>
         <tilesfx.version>21.0.9</tilesfx.version>
 
@@ -57,6 +56,16 @@
             <resource>
                 <directory>src/main/resources</directory>
                 <filtering>true</filtering>
+                <excludes>
+                    <exclude>database/**</exclude>
+                </excludes>
+            </resource>
+            <resource>
+                <directory>src/main/resources</directory>
+                <filtering>false</filtering>
+                <includes>
+                    <include>database/**</include>
+                </includes>
             </resource>
         </resources>
 
@@ -69,7 +78,7 @@
                     <source>${maven.compiler.source}</source>
                     <target>${maven.compiler.target}</target>
                     <release>${java.version}</release>
-                </configuration>
+                    <encoding>UTF-8</encoding> </configuration>
             </plugin>
 
             <plugin>

@@ -1,5 +1,4 @@
 .inner-panel {
-    -fx-background-image: url("../images/background.jpg");
     -fx-background-repeat: no-repeat;
     -fx-background-size: cover;
 }
@@ -68,6 +67,41 @@
     -fx-background-color: transparent;
 }
 
+/* ============================================= */
+/* ===== CSS CẬP NHẬT CHO NÚT TÌM BẮT ĐẦU ===== */
+/* ============================================= */
+.search-button {
+    -fx-background-color: #ffffff; /* Nền màu trắng */
+    -fx-text-fill: #333333; /* Chữ màu đen/xám đậm */
+    -fx-font-weight: bold; /* Chữ in đậm */
+    -fx-font-size: 14px;
+    -fx-background-radius: 8; /* Bo góc giống các nút khác */
+    -fx-border-radius: 8;
+    -fx-padding: 8px 20px; /* Padding (cao 8px, rộng 20px) */
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 8, 0.1, 0, 3);
+    
+    /* Thêm viền nhẹ để nút nổi bật */
+    -fx-border-color: #dcdcdc; 
+    -fx-border-width: 1;
+}
+
+.search-button:hover {
+    -fx-background-color: #f9f9f9; /* Hơi xám khi di chuột qua */
+    -fx-border-color: #c0c0c0;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.25), 10, 0.1, 0, 4);
+}
+
+.search-button:pressed {
+    -fx-background-color: #f0f0f0; /* Xám hơn khi nhấn */
+    -fx-translate-y: 1px;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.15), 5, 0, 0, 1);
+}
+/* =========================================== */
+/* ===== CSS CẬP NHẬT CHO NÚT TÌM KẾT THÚC ===== */
+/* =========================================== */
+
+
 .table-container {
     -fx-background-color: white;
     -fx-background-radius: 10;
@@ -131,7 +165,7 @@
 #btnThem { -fx-background-color: #27ae60; }
 #btnXoa { -fx-background-color: #c0392b; }
 #btnSua { -fx-background-color: #2980b9; }
-#btnLuu { -fx-background-color: #f39c12; }
+#btnXoaTrang { -fx-background-color: #f39c12; }
 
 .form-container-box .label {
     -fx-font-size: 13px;

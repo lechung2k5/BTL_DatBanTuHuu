@@ -49,7 +49,21 @@
     -fx-background-radius: 8px; -fx-border-radius: 8px; -fx-border-width: 1.5;
 }
 .table-button-available { -fx-background-color: white; -fx-text-fill: black; -fx-border-color: #ced4da;}
-.table-button-booked { -fx-background-color: #ff8a80; -fx-text-fill: white; -fx-border-color: transparent;}
+/* ==================== CỘT GIỮA: THAO TÁC (Bổ sung và Sửa) ==================== */
+
+/* Màu Đã Đặt: Sửa lại màu để dễ nhìn hơn */
+.table-button-booked { 
+    -fx-background-color: #d00000; /* ĐỎ ĐẬM HƠN */
+    -fx-text-fill: white; 
+    -fx-border-color: transparent;
+}
+
+/* Màu Đang Sử Dụng: Thêm định nghĩa cho trạng thái này */
+.table-button-serving { 
+    -fx-background-color: #ff9100; /* CAM/VÀNG cho Đang phục vụ */
+    -fx-text-fill: white; 
+    -fx-border-color: #e57d00;
+}
 .table-button-selected { -fx-background-color: #b9f6ca; -fx-text-fill: black; -fx-border-color: #2f9e44;}
 .table-button-wide { -fx-pref-width: 100px; }
 

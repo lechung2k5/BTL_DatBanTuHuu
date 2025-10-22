@@ -227,6 +227,14 @@
     -fx-wrap-text: true;
 }
 
+/* --- 🔥 STYLE MỚI ĐÃ THÊM VÀO --- */
+/* Style cho nhãn tổng giờ làm trong ca */
+.shift-duration-label {
+    -fx-font-size: 12px;
+    -fx-text-fill: #555555; /* Màu xám đậm */
+    -fx-font-style: italic; /* In nghiêng */
+}
+
 /* Các nút điều hướng */
 .calendar-nav-button {
     -fx-background-color: #2980b9;
@@ -309,4 +317,35 @@
     -fx-border-color: #2196f3;
     -fx-border-width: 1px;
     -fx-border-radius: 3;
+}
+/* Thêm các style này vào file DashBoard.css */
+
+/* Style cho ô tiêu đề góc trên bên trái ("Ca làm") */
+.time-slot-label-header {
+    -fx-min-height: 50px; /* Đặt chiều cao tối thiểu */
+    -fx-min-width: 100px; /* Đặt chiều rộng tối thiểu */
+    -fx-background-color: #b9d6fd; /* Màu nền của grid */
+    -fx-background-radius: 8px;
+    -fx-padding: 15px;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-fill: #2c3e50;
+    -fx-alignment: center;
+}
+
+/* Style cho các ô tiêu đề hàng (Sáng, Chiều, Tối) */
+.time-slot-label {
+    -fx-min-height: 120px; /* Giống .day-cell */
+    -fx-min-width: 100px;  /* Đặt chiều rộng tối thiểu */
+    -fx-background-color: #b9d6fd; /* Giống .day-cell */
+    -fx-background-radius: 15px; /* Giống .day-cell */
+    -fx-padding: 15px;
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.2), 10, 0.3, 0, 4); /* Giống .day-cell */
+    -fx-border-color: #e0e0e0; /* Giống .day-cell */
+    -fx-border-width: 1px;
+    -fx-border-radius: 15px;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-text-fill: #34495e;
+    -fx-alignment: center; /* Căn giữa cho đẹp */
 }

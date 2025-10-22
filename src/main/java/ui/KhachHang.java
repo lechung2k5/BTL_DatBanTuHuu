@@ -1,8 +1,13 @@
 package ui;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+
+import dao.KhachHangDAO;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.collections.transformation.FilteredList; 
 import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -15,69 +20,222 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-
 public class KhachHang {
 
-    @FXML private TableView<Customer> tblKhachHang;
-    @FXML private TableColumn<Customer, String> colMaKH;
-    @FXML private TableColumn<Customer, String> colHoTen;
-    @FXML private TableColumn<Customer, String> colSDT;
-    @FXML private TableColumn<Customer, String> colDiaChi;
-    @FXML private TableColumn<Customer, String> colEmail;
-    @FXML private TableColumn<Customer, String> colNgayDangKy;
-    @FXML private TableColumn<Customer, String> colLoaiKH;
-    @FXML private TableColumn<Customer, String> colTongTien;
-    @FXML private TableColumn<Customer, Void> colXemLichSu;
+    @FXML private TableView<entity.KhachHang> tblKhachHang;
+    @FXML private TableColumn<entity.KhachHang, String> colMaKH;
+    @FXML private TableColumn<entity.KhachHang, String> colHoTen;
+    @FXML private TableColumn<entity.KhachHang, String> colSDT;
+    @FXML private TableColumn<entity.KhachHang, String> colDiaChi;
+    @FXML private TableColumn<entity.KhachHang, String> colEmail;
+    @FXML private TableColumn<entity.KhachHang, String> colNgayDangKy;
+    @FXML private TableColumn<entity.KhachHang, String> colLoaiKH;
+    @FXML private TableColumn<entity.KhachHang, String> colTongTien;
+    @FXML private TableColumn<entity.KhachHang, Void> colXemLichSu;
 
     @FXML private TextField txtHoTen, txtSDT, txtDiaChi, txtEmail, txtSearch;
     @FXML private DatePicker datePickerNgayDangKy;
     @FXML private ComboBox<String> filterComboBox;
 
-    @FXML private Button btnThem, btnXoa, btnSua, btnLuu;
+    @FXML private Button btnThem, btnXoa, btnSua, btnXoaTrang;
+    @FXML private Button btnTim;
     
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-
+    private KhachHangDAO khachHangDAO;
+    
+    private ObservableList<entity.KhachHang> masterCustomerList;
+    private FilteredList<entity.KhachHang> filteredCustomerList;
+    
     public void initialize() {
+        khachHangDAO = new KhachHangDAO();
         setupTableColumns();
-        loadSampleData();
+        loadDatabaseData(); 
+        clearForm();
         
-        // Set initial form values from the image
-        setInitialFormValues();
-        
-        filterComboBox.setItems(FXCollections.observableArrayList("Tất cả", "VIP", "Thành viên"));
+        // 1. Cài đặt ComboBox (Tất cả, Member, Gold, Diamond)
+        filterComboBox.setItems(FXCollections.observableArrayList(
+            "Tất cả", "Member", "Gold", "Diamond"
+        ));
+        filterComboBox.setValue("Tất cả"); 
 
-        // Button action placeholders
-        btnThem.setOnAction(e -> System.out.println("Thêm clicked"));
-        btnXoa.setOnAction(e -> System.out.println("Xóa clicked"));
-        btnSua.setOnAction(e -> System.out.println("Sửa clicked"));
-        btnLuu.setOnAction(e -> System.out.println("Lưu clicked"));
+        // 2. Thêm listener cho ComboBox (Vẫn lọc trực tiếp khi chọn)
+        filterComboBox.valueProperty().addListener((obs, oldVal, newVal) -> updateFilter());
+        
+        // 4. Gán sự kiện cho Nút Tìm (Sẽ gọi hàm lọc)
+        btnTim.setOnAction(e -> updateFilter());
+        
+        // --- Các sự kiện nút Thêm, Sửa, Xóa ---
+        
+        btnThem.setOnAction(e -> {
+            String hoTen = txtHoTen.getText();
+            String sdt = txtSDT.getText();
+            String diaChi = txtDiaChi.getText();
+            String email = txtEmail.getText();
+            LocalDate ngayDangKy = datePickerNgayDangKy.getValue();
+
+            if (hoTen.isEmpty() || sdt.isEmpty() || ngayDangKy == null) {
+                System.out.println("LỖI: Vui lòng nhập đầy đủ Họ tên, SĐT và Ngày đăng ký.");
+                return;
+            }
+
+            String newId = khachHangDAO.getNewMaKH();
+            String loaiKH = "Member"; 
+
+            // 🔥 SỬA: Sử dụng constructor 7 tham số mới của entity.KhachHang:
+            // (maKH, tenKH, soDT, email, ngayDangKy, diaChi, thanhVien)
+            entity.KhachHang newCustomer = new entity.KhachHang(
+                newId, 
+                hoTen, 
+                sdt, 
+                email, 
+                ngayDangKy, // 🔥 Tham số 5: ngayDangKy
+                diaChi, 
+                loaiKH
+            );
+            
+            if (khachHangDAO.themKhachHang(newCustomer)) {
+                masterCustomerList.add(newCustomer); 
+                clearForm();
+            } else {
+                System.out.println("LỖI: Thêm khách hàng vào CSDL thất bại.");
+            }
+        });
+
+        btnSua.setOnAction(e -> {
+            entity.KhachHang selectedCustomer = tblKhachHang.getSelectionModel().getSelectedItem();
+
+            if (selectedCustomer == null) {
+                System.out.println("LỖI: Vui lòng chọn một khách hàng để sửa.");
+                return;
+            }
+
+            String hoTen = txtHoTen.getText();
+            String sdt = txtSDT.getText();
+            String diaChi = txtDiaChi.getText();
+            String email = txtEmail.getText();
+            LocalDate ngayDangKy = datePickerNgayDangKy.getValue();
+            
+             if (hoTen.isEmpty() || sdt.isEmpty() || ngayDangKy == null) {
+                System.out.println("LỖI: Vui lòng nhập đầy đủ Họ tên, SĐT và Ngày đăng ký.");
+                return;
+            }
+
+            selectedCustomer.setTenKH(hoTen);
+            selectedCustomer.setSoDT(sdt);
+            selectedCustomer.setDiaChi(diaChi);
+            selectedCustomer.setEmail(email);
+            
+            // Cập nhật trường ngày đăng ký
+            selectedCustomer.setNgayDangKy(ngayDangKy);
+            
+            if (khachHangDAO.suaKhachHang(selectedCustomer)) {
+                tblKhachHang.refresh(); 
+                clearForm();
+            } else {
+                 System.out.println("LỖI: Cập nhật CSDL thất bại.");
+                 loadDatabaseData(); 
+            }
+        });
+
+        btnXoa.setOnAction(e -> {
+            entity.KhachHang selectedCustomer = tblKhachHang.getSelectionModel().getSelectedItem();
+            
+            if (selectedCustomer != null) {
+                String maKH = selectedCustomer.getMaKH();
+                if (khachHangDAO.xoaKhachHang(maKH)) {
+                    masterCustomerList.remove(selectedCustomer); 
+                    clearForm();
+                } else {
+                    System.out.println("LỖI: Xóa khỏi CSDL thất bại. (Có thể do ràng buộc khóa ngoại)");
+                }
+            } else {
+                System.out.println("LỖI: Vui lòng chọn khách hàng để xóa.");
+            }
+        });
+
+        btnXoaTrang.setOnAction(e -> clearForm());
+        
+        tblKhachHang.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                txtHoTen.setText(newSelection.getTenKH());
+                txtSDT.setText(newSelection.getSoDT());
+                txtDiaChi.setText(newSelection.getDiaChi());
+                txtEmail.setText(newSelection.getEmail());
+                
+                // Sử dụng getNgayDangKy
+                datePickerNgayDangKy.setValue(newSelection.getNgayDangKy()); 
+            }
+        });
+    }
+    
+    /**
+     * Hàm này được gọi bởi ComboBox (lọc live) VÀ nút Tìm (lọc SĐT)
+     */
+    private void updateFilter() {
+        String selectedTier = filterComboBox.getValue();
+        String searchText = txtSearch.getText().toLowerCase();
+
+        filteredCustomerList.setPredicate(customer -> {
+            // Điều kiện 1: Lọc theo Hạng thành viên (ComboBox)
+            boolean tierMatch = false;
+            if (selectedTier == null || selectedTier.equals("Tất cả")) {
+                tierMatch = true;
+            } else {
+                // Giả định getThanhVien() trả về string khớp với "Member", "Gold", "Diamond"
+                tierMatch = customer.getThanhVien().equals(selectedTier);
+            }
+
+            // Điều kiện 2: Lọc theo SĐT (Ô tìm kiếm - Tương đối)
+            boolean searchMatch = false;
+            if (searchText == null || searchText.isEmpty()) {
+                searchMatch = true;
+            } else {
+                searchMatch = customer.getSoDT().toLowerCase().contains(searchText);
+            }
+
+            // Kết quả: Chỉ hiển thị nếu khớp CẢ HAI điều kiện
+            return tierMatch && searchMatch;
+        });
+    }
+
+    private void clearForm() {
+        txtHoTen.clear();
+        txtSDT.clear();
+        txtDiaChi.clear();
+        txtEmail.clear();
+        datePickerNgayDangKy.setValue(null);
+        tblKhachHang.getSelectionModel().clearSelection();
     }
 
     private void setupTableColumns() {
         tblKhachHang.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
         
-        colMaKH.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colHoTen.setCellValueFactory(new PropertyValueFactory<>("name"));
-        colSDT.setCellValueFactory(new PropertyValueFactory<>("phone"));
-        colDiaChi.setCellValueFactory(new PropertyValueFactory<>("address"));
+        colMaKH.setCellValueFactory(new PropertyValueFactory<>("maKH"));
+        colHoTen.setCellValueFactory(new PropertyValueFactory<>("tenKH"));
+        colSDT.setCellValueFactory(new PropertyValueFactory<>("soDT"));
+        colDiaChi.setCellValueFactory(new PropertyValueFactory<>("diaChi"));
         colEmail.setCellValueFactory(new PropertyValueFactory<>("email"));
-        colNgayDangKy.setCellValueFactory(new PropertyValueFactory<>("joinDate"));
-        colLoaiKH.setCellValueFactory(new PropertyValueFactory<>("type"));
-        colTongTien.setCellValueFactory(new PropertyValueFactory<>("totalSpent"));
+        colLoaiKH.setCellValueFactory(new PropertyValueFactory<>("thanhVien"));
         
-        // Add "Xem" buttons to the action column
-        colXemLichSu.setCellFactory(param -> new TableCell<Customer, Void>() {
+        colNgayDangKy.setCellValueFactory(cellData -> {
+            // Lấy getNgayDangKy từ Entity (ngayDangKy)
+            LocalDate date = cellData.getValue().getNgayDangKy();
+            return new SimpleStringProperty(date != null ? date.format(formatter) : "");
+        });
+        
+        colTongTien.setCellValueFactory(cellData -> {
+            return new SimpleStringProperty("0 Đ");
+        });
+        
+        colXemLichSu.setCellFactory(param -> new TableCell<entity.KhachHang, Void>() {
             private final Button viewButton = new Button("Xem");
             private final HBox pane = new HBox(viewButton);
             {
                 viewButton.getStyleClass().add("view-button");
                 pane.setAlignment(Pos.CENTER);
                 viewButton.setOnAction(event -> {
-                    Customer customer = getTableView().getItems().get(getIndex());
-                    System.out.println("Viewing history for: " + customer.getName());
-                    // Add logic to show history
+                    entity.KhachHang customer = getTableView().getItems().get(getIndex());
+                    System.out.println("Viewing history for: " + customer.getTenKH());
                 });
             }
 
@@ -89,55 +247,18 @@ public class KhachHang {
         });
     }
 
-    private void loadSampleData() {
-        ObservableList<Customer> customers = FXCollections.observableArrayList();
-        customers.add(new Customer("KH01", "Nguyễn Văn A", "0363636363", "Phường Hưng Thạnh, TPHCM", "abc@gmail.com", LocalDate.of(2025, 2, 28), "VIP", "1,000,000 Đ"));
-        customers.add(new Customer("KH02", "Nguyễn Văn B", "0363636363", "123 Đường ABC, Quận 1", "def@gmail.com", LocalDate.of(2025, 2, 28), "Thành viên", "1,000,000 Đ"));
-        customers.add(new Customer("KH03", "Nguyễn Văn C", "0363636363", "456 Đường XYZ, Quận 2", "ghi@gmail.com", LocalDate.of(2025, 2, 28), "Thành viên", "1,000,000 Đ"));
-        // Add more data to show scrollbar
-        for (int i = 4; i <= 15; i++) {
-             customers.add(new Customer("KH" + String.format("%02d", i), "Khách hàng " + i, "0987654321", "Địa chỉ " + i, "email"+i+"@example.com", LocalDate.now(), "Thành viên", i*100000 + " Đ"));
+    private void loadDatabaseData() {
+        masterCustomerList = khachHangDAO.getAllKhachHang();
+        
+        if (masterCustomerList != null) {
+            filteredCustomerList = new FilteredList<>(masterCustomerList, p -> true);
+            tblKhachHang.setItems(filteredCustomerList);
+            System.out.println("Đã tải dữ liệu CSDL và cài đặt bộ lọc.");
+        } else {
+            System.out.println("LỖI: Không thể tải dữ liệu CSDL.");
+            masterCustomerList = FXCollections.observableArrayList();
+            filteredCustomerList = new FilteredList<>(masterCustomerList, p -> true);
+            tblKhachHang.setItems(filteredCustomerList);
         }
-        tblKhachHang.setItems(customers);
-    }
-    
-    private void setInitialFormValues() {
-        txtHoTen.setText("Nguyễn Văn A");
-        txtSDT.setText("0325454123");
-        datePickerNgayDangKy.setValue(LocalDate.of(2022, 12, 12));
-        txtDiaChi.setText("Phường Hưng Thạnh, TPHCM");
-        txtEmail.setText("abc@gmail.com");
-    }
-    
-    public class Customer {
-        private final SimpleStringProperty id;
-        private final SimpleStringProperty name;
-        private final SimpleStringProperty phone;
-        private final SimpleStringProperty address;
-        private final SimpleStringProperty email;
-        private final SimpleStringProperty joinDate;
-        private final SimpleStringProperty type;
-        private final SimpleStringProperty totalSpent;
-
-        public Customer(String id, String name, String phone, String address, String email, LocalDate joinDate, String type, String totalSpent) {
-            this.id = new SimpleStringProperty(id);
-            this.name = new SimpleStringProperty(name);
-            this.phone = new SimpleStringProperty(phone);
-            this.address = new SimpleStringProperty(address);
-            this.email = new SimpleStringProperty(email);
-            this.joinDate = new SimpleStringProperty(joinDate.format(formatter));
-            this.type = new SimpleStringProperty(type);
-            this.totalSpent = new SimpleStringProperty(totalSpent);
-        }
-
-        // Getters
-        public String getId() { return id.get(); }
-        public String getName() { return name.get(); }
-        public String getPhone() { return phone.get(); }
-        public String getAddress() { return address.get(); }
-        public String getEmail() { return email.get(); }
-        public String getJoinDate() { return joinDate.get(); }
-        public String getType() { return type.get(); }
-        public String getTotalSpent() { return totalSpent.get(); }
     }
 }

@@ -1,5 +1,4 @@
 .inner-panel {
-    -fx-background-image: url("../images/background.jpg");
     -fx-background-repeat: no-repeat;
     -fx-background-size: cover;
 }
