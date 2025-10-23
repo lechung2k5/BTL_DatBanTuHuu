@@ -20,12 +20,11 @@
 
     <Label text="Phân chia ca trực" styleClass="screen-title" />
 
-
-
     <HBox alignment="CENTER_LEFT" spacing="15.0">
         <children>
             <Label text="Lịch làm theo tuần" styleClass="calendar-header-label" />
             <Region HBox.hgrow="ALWAYS" />
+    
             <DatePicker fx:id="datePicker" styleClass="date-picker-control" prefWidth="120.0" prefHeight="30.0" onAction="#updateCalendarFromDatePicker" />
             <Button text="Hôm nay" onAction="#handleCurrentWeek" styleClass="calendar-nav-button" />
             <Button text="Trước" styleClass="calendar-nav-button" onAction="#previousWeek" />
@@ -34,22 +33,27 @@
     </HBox>
 
     <ScrollPane fitToWidth="true" fitToHeight="true" VBox.vgrow="ALWAYS">
-		<GridPane fx:id="gridPhanCa" hgap="10" vgap="10" styleClass="weekly-calendar-grid">
-		    <columnConstraints>
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="120" prefWidth="150.0" />
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
-		        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
-		    </columnConstraints>
-		    <rowConstraints>
-		        <RowConstraints vgrow="SOMETIMES" minHeight="80" prefHeight="80.0" /> <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
-		        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
-		        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
-		    </rowConstraints>
-		</GridPane>
+		<content>
+			<GridPane fx:id="gridPhanCa" hgap="10" vgap="10" styleClass="weekly-calendar-grid">
+			    <columnConstraints>
+			        <ColumnConstraints hgrow="SOMETIMES" 
+			minWidth="120" prefWidth="150.0" />
+			        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
+			        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
+			        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
+			        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
+			        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
+			        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
+			        <ColumnConstraints hgrow="SOMETIMES" minWidth="150" prefWidth="200.0" />
+			    </columnConstraints>
+			    <rowConstraints>
+			      
+			        <RowConstraints vgrow="SOMETIMES" minHeight="80" prefHeight="80.0" /> 
+			        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
+			        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
+			        <RowConstraints vgrow="SOMETIMES" minHeight="120" prefHeight="150.0" />
+			    </rowConstraints>
+			</GridPane>
+		</content>
     </ScrollPane>
 </VBox>

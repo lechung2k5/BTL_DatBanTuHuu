@@ -1,74 +1,111 @@
-package entity;
+﻿package entity;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
+/**
+ * Lớp Entity (Model) đại diện cho đối tượng Hóa Đơn.
+ * Đã cập nhật hoàn chỉnh để đồng bộ với các DAO và Controller.
+ */
 public class HoaDon {
-    private String maHD;
-    private LocalDateTime ngayLap; // Thêm theo Class Diagram
-    private String maUuDai; // Thêm theo Class Diagram
-    private String ptThanhToan; // Thêm theo Class Diagram
-    private String trangThai;
-    private LocalDateTime gioVao;
-    private LocalDateTime gioRa; // Thêm theo Class Diagram
-    private Double tienCoc; // Thêm theo Class Diagram (Giả định là Double)
-    
+
+    private String maHD; // Đổi tên cho khớp DAO
+    private LocalDateTime ngayLap;
+    private PTTThanhToan hinhThucTT;
+    private TrangThaiHoaDon trangThai; // Thuộc tính kiểu Enum
+    private String maUuDai;
     private KhachHang khachHang; 
-    private Ban ban; 
-    // Các entity liên quan (NhanVien, UuDai) có thể được thêm nếu cần ánh xạ đầy đủ
+    private String tenNhanVien;  
+    private Ban ban;             
+    private LocalDateTime gioVao;
+    private LocalDateTime gioRa;
+    private double tongCongMonAn; 
+    private double tienCoc;
+
+    // Các trường tính toán
+    private double phiDichVu;
+    private double thueVAT;
+    private double khuyenMai;
+    private double tongTienThanhToan;
 
     // Constructors
     public HoaDon() {
+        // Constructor rỗng để DAO dễ sử dụng setters
+    }
+    
+
+    // Hàm tính toán tổng tiền (có thể gọi lại khi thêm/bớt món hoặc cập nhật ưu đãi)
+    public void calculateTotals() {
+        // === Logic tính toán ===
+        this.phiDichVu = this.tongCongMonAn * 0.05; // Giả định 5%
+        this.thueVAT = this.tongCongMonAn * 0.08;   // Giả định 8%
+
+        // TODO: Cần logic phức tạp hơn để tính khuyến mãi dựa trên maUuDai và tổng tiền món
+        this.khuyenMai = 0.0;
+
+        this.tongTienThanhToan = this.tongCongMonAn + this.phiDichVu + this.thueVAT - this.tienCoc - this.khuyenMai;
+        if (this.tongTienThanhToan < 0) {
+            this.tongTienThanhToan = 0; // Đảm bảo tổng tiền không âm
+        }
     }
 
-    // Constructor đầy đủ (Ví dụ - có thể cần điều chỉnh tùy theo nhu cầu)
-    public HoaDon(String maHD, LocalDateTime ngayLap, String maUuDai, String ptThanhToan, String trangThai, 
-                  LocalDateTime gioVao, LocalDateTime gioRa, Double tienCoc, KhachHang khachHang, Ban ban) {
-        this.maHD = maHD;
-        this.ngayLap = ngayLap;
-        this.maUuDai = maUuDai;
-        this.ptThanhToan = ptThanhToan;
-        this.trangThai = trangThai;
-        this.gioVao = gioVao;
-        this.gioRa = gioRa;
-        this.tienCoc = tienCoc;
-        this.khachHang = khachHang;
-        this.ban = ban;
-    }
 
-
-    // Getters và Setters
+    // --- Getters ---
     public String getMaHD() { return maHD; }
-    public void setMaHD(String maHD) { this.maHD = maHD; }
-    
     public LocalDateTime getNgayLap() { return ngayLap; }
-    public void setNgayLap(LocalDateTime ngayLap) { this.ngayLap = ngayLap; }
-
+    public PTTThanhToan getHinhThucTT() { return hinhThucTT; }
+    public TrangThaiHoaDon getTrangThai() { return trangThai; }
     public String getMaUuDai() { return maUuDai; }
-    public void setMaUuDai(String maUuDai) { this.maUuDai = maUuDai; }
-
-    public String getPtThanhToan() { return ptThanhToan; }
-    public void setPtThanhToan(String ptThanhToan) { this.ptThanhToan = ptThanhToan; }
-
-    public String getTrangThai() { return trangThai; }
-    public void setTrangThai(String trangThai) { this.trangThai = trangThai; }
-    
-    public LocalDateTime getGioVao() { return gioVao; }
-    public void setGioVao(LocalDateTime gioVao) { this.gioVao = gioVao; }
-    
-    public LocalDateTime getGioRa() { return gioRa; }
-    public void setGioRa(LocalDateTime gioRa) { this.gioRa = gioRa; }
-
-    public Double getTienCoc() { return tienCoc; }
-    public void setTienCoc(Double tienCoc) { this.tienCoc = tienCoc; }
-
     public KhachHang getKhachHang() { return khachHang; }
-    public void setKhachHang(KhachHang khachHang) { this.khachHang = khachHang; }
-
+    public String getTenNhanVien() { return tenNhanVien; }
     public Ban getBan() { return ban; }
-    public void setBan(Ban ban) { this.ban = ban; }
- // Trong file entity/HoaDon.java
-    public String getMaKH() {
-        // Giả định bạn đã có private KhachHang khachHang; và phương thức getKhachHang()
-        return khachHang != null ? khachHang.getMaKH() : null;
+    public LocalDateTime getGioVao() { return gioVao; }
+    public LocalDateTime getGioRa() { return gioRa; }
+    public double getTongCongMonAn() { return tongCongMonAn; }
+    public double getTienCoc() { return tienCoc; }
+    public double getPhiDichVu() { return phiDichVu; }
+    public double getThueVAT() { return thueVAT; }
+    public double getKhuyenMai() { return khuyenMai; }
+    public double getTongTienThanhToan() { return tongTienThanhToan; }
+
+    // --- Getters tiện ích cho UI ---
+    /** Lấy mã bàn (String) hoặc null nếu không có bàn. */
+    public String getMaBan() {
+        return (this.ban != null) ? this.ban.getMaBan() : null;
     }
+    /** Lấy số điện thoại KH (String) hoặc null nếu không có KH. */
+    public String getSoDienThoaiKH() {
+        return (this.khachHang != null) ? this.khachHang.getSoDT() : null;
+    }
+
+
+    // --- Setters ---
+    public void setMaHD(String maHD) { this.maHD = maHD; }
+    public void setNgayLap(LocalDateTime ngayLap) { this.ngayLap = ngayLap; }
+    public void setHinhThucTT(PTTThanhToan hinhThucTT) { this.hinhThucTT = hinhThucTT; }
+    
+    // Setter 1: Nhận Enum (Dùng cho Controller/Logic nội bộ)
+    public void setTrangThai(TrangThaiHoaDon trangThai) { this.trangThai = trangThai; }
+
+    // Setter 2: Nhận String (Dùng cho DAO/đọc từ DB)
+    public void setTrangThai(String trangThaiDbValue) { 
+        // 🔥 FIX LỖI DÒNG 86: Dùng hàm chuyển đổi tĩnh từ Enum
+        this.trangThai = TrangThaiHoaDon.fromDbValue(trangThaiDbValue); 
+    }
+
+    public void setMaUuDai(String maUuDai) { this.maUuDai = maUuDai; }
+    public void setKhachHang(KhachHang khachHang) { this.khachHang = khachHang; }
+    public void setTenNhanVien(String tenNhanVien) { this.tenNhanVien = tenNhanVien; }
+    public void setBan(Ban ban) { this.ban = ban; }
+    public void setGioVao(LocalDateTime gioVao) { this.gioVao = gioVao; }
+    public void setGioRa(LocalDateTime gioRa) { this.gioRa = gioRa; }
+    public void setTongCongMonAn(double tongCongMonAn) {
+        this.tongCongMonAn = tongCongMonAn;
+        calculateTotals(); // Tính lại tổng tiền khi tổng món ăn thay đổi
+    }
+    public void setTienCoc(double tienCoc) {
+        this.tienCoc = tienCoc;
+        calculateTotals(); // Tính lại tổng tiền khi tiền cọc thay đổi
+    }
+    // Không cần setters cho các trường tính toán
 }
