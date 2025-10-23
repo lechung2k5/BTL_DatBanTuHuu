@@ -37,7 +37,7 @@ public class BanDAO {
                 ban.setLoaiBan(LoaiBan.fromString(loaiBanStr)); 
                 
                 String trangThaiStr = rs.getString("trangThai");
-                ban.setTrangThai(TrangThaiBan.fromString(trangThaiStr));
+             
 
                 dsBan.add(ban);
             }
