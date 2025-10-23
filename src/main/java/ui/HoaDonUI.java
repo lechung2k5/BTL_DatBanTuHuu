@@ -11,11 +11,32 @@ import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.HBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime; // Import LocalDateTime
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
+
+import org.apache.poi.ss.usermodel.VerticalAlignment; // Import đúng package
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.BorderStyle;
+import org.apache.poi.ss.usermodel.CellStyle;
+import org.apache.poi.ss.usermodel.CreationHelper;
+import org.apache.poi.ss.usermodel.DataFormat;
+import org.apache.poi.ss.usermodel.FillPatternType;
+import org.apache.poi.ss.usermodel.Font;
+import org.apache.poi.ss.usermodel.HorizontalAlignment;
+import org.apache.poi.ss.usermodel.IndexedColors;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 /**
  * Lớp Controller cho giao diện Quản lý Hóa Đơn (HoaDon.fxml)
@@ -267,7 +288,128 @@ public class HoaDonUI {
         danhSachChiTietHD.setAll(hoaDonDAO.getChiTietHoaDon(hoaDon.getMaHD()));
     }
 
-    private void xuatExcel() { showAlert("Tính năng xuất Excel đang được phát triển..."); }
+    private void xuatExcel() {
+        ObservableList<HoaDon> dataToExport = tableHoaDon.getItems();
+        if (dataToExport == null || dataToExport.isEmpty()) {
+            showAlert("Không có dữ liệu hóa đơn để xuất.");
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Lưu file Excel");
+        fileChooser.setInitialFileName("DanhSachHoaDon_" + LocalDate.now() + ".xlsx");
+        FileChooser.ExtensionFilter extFilter = new FileChooser.ExtensionFilter("Excel files (*.xlsx)", "*.xlsx");
+        fileChooser.getExtensionFilters().add(extFilter);
+
+        Stage stage = (Stage) tableHoaDon.getScene().getWindow();
+        File file = fileChooser.showSaveDialog(stage);
+
+        if (file != null) {
+            try (Workbook workbook = new XSSFWorkbook(); FileOutputStream fileOut = new FileOutputStream(file)) {
+                Sheet sheet = workbook.createSheet("DanhSachHoaDon");
+
+                // --- Styles ---
+                CellStyle headerStyle = createHeaderStyle(workbook);
+                CellStyle currencyStyle = createCurrencyStyle(workbook);
+                CellStyle dateTimeStyle = createDateTimeStyle(workbook);
+                CellStyle basicStyle = createBasicCellStyle(workbook);
+
+                // --- Header Row ---
+                String[] columns = {"Mã HĐ", "Ngày Lập", "PT Thanh Toán", "Trạng Thái", "SĐT Khách", "Thu Ngân", "Bàn", "Giờ Vào", "Giờ Ra", "Tiền Cọc", "Tổng Tiền Món", "Tổng Thanh Toán"};
+                Row headerRow = sheet.createRow(0);
+                for (int i = 0; i < columns.length; i++) {
+                    Cell cell = headerRow.createCell(i);
+                    cell.setCellValue(columns[i]);
+                    cell.setCellStyle(headerStyle);
+                }
+
+                // --- Data Rows ---
+                int rowNum = 1;
+                for (HoaDon hd : dataToExport) {
+                    Row row = sheet.createRow(rowNum++);
+                    createCell(row, 0, hd.getMaHD(), basicStyle);
+                    createCell(row, 1, hd.getNgayLap(), dateTimeStyle); // Truyền LocalDateTime
+                    createCell(row, 2, (hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : ""), basicStyle);
+                    createCell(row, 3, (hd.getTrangThai() != null ? hd.getTrangThai().getDisplayName() : ""), basicStyle);
+                    createCell(row, 4, hd.getSoDienThoaiKH(), basicStyle);
+                    createCell(row, 5, hd.getTenNhanVien(), basicStyle);
+                    createCell(row, 6, hd.getMaBan(), basicStyle);
+                    createCell(row, 7, hd.getGioVao(), dateTimeStyle); // Truyền LocalDateTime
+                    createCell(row, 8, hd.getGioRa(), dateTimeStyle); // Truyền LocalDateTime
+                    createCell(row, 9, hd.getTienCoc(), currencyStyle);
+                    createCell(row, 10, hd.getTongCongMonAn(), currencyStyle);
+                    createCell(row, 11, hd.getTongTienThanhToan(), currencyStyle);
+                }
+
+                // --- Auto Size Columns ---
+                for (int i = 0; i < columns.length; i++) {
+                    sheet.autoSizeColumn(i);
+                }
+
+                workbook.write(fileOut);
+                showAlert("Xuất file Excel thành công!\nĐã lưu tại: " + file.getAbsolutePath());
+
+            } catch (IOException e) {
+                showAlert("Lỗi khi ghi file Excel: " + e.getMessage());
+                e.printStackTrace();
+            } catch (Exception e) {
+                 showAlert("Đã xảy ra lỗi không mong muốn: " + e.getMessage());
+                 e.printStackTrace();
+            }
+        } else {
+            System.out.println("Hủy thao tác lưu file Excel.");
+        }
+    }
+
+    // --- Hàm tiện ích tạo CellStyle (giúp code `xuatExcel` gọn hơn) ---
+    private CellStyle createHeaderStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        Font font = workbook.createFont(); font.setBold(true); font.setFontHeightInPoints((short) 12); style.setFont(font);
+        style.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex()); style.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+        style.setAlignment(HorizontalAlignment.CENTER); style.setVerticalAlignment(VerticalAlignment.CENTER);
+        style.setBorderBottom(BorderStyle.THIN); style.setBorderTop(BorderStyle.THIN); style.setBorderLeft(BorderStyle.THIN); style.setBorderRight(BorderStyle.THIN);
+        return style;
+    }
+    private CellStyle createCurrencyStyle(Workbook workbook) {
+        CellStyle style = createBasicCellStyle(workbook); // Kế thừa border
+        DataFormat format = workbook.createDataFormat();
+        style.setDataFormat(format.getFormat("#,##0\" VNĐ\""));
+        return style;
+    }
+    private CellStyle createDateTimeStyle(Workbook workbook) {
+        CellStyle style = createBasicCellStyle(workbook); // Kế thừa border
+        CreationHelper createHelper = workbook.getCreationHelper();
+        style.setDataFormat(createHelper.createDataFormat().getFormat("dd/MM/yyyy HH:mm")); // Dùng CreationHelper
+        return style;
+    }
+    private CellStyle createBasicCellStyle(Workbook workbook) {
+        CellStyle style = workbook.createCellStyle();
+        style.setBorderBottom(BorderStyle.THIN); style.setBorderTop(BorderStyle.THIN); style.setBorderLeft(BorderStyle.THIN); style.setBorderRight(BorderStyle.THIN);
+        style.setVerticalAlignment(VerticalAlignment.CENTER); // Căn giữa theo chiều dọc
+        return style;
+    }
+
+    // --- Hàm tiện ích tạo Cell (xử lý kiểu dữ liệu khác nhau) ---
+    private void createCell(Row row, int column, Object value, CellStyle style) {
+        Cell cell = row.createCell(column);
+        if (value instanceof String) {
+            cell.setCellValue((String) value);
+        } else if (value instanceof Double) {
+            cell.setCellValue((Double) value);
+        } else if (value instanceof Integer) { // Thêm kiểu Integer nếu cần
+            cell.setCellValue((Integer) value);
+        } else if (value instanceof LocalDateTime) { // Xử lý LocalDateTime
+             cell.setCellValue((LocalDateTime) value);
+        } else if (value instanceof LocalDate) { // Xử lý LocalDate (nếu có)
+             cell.setCellValue((LocalDate) value);
+        } else if (value == null) {
+            cell.setBlank();
+        }
+        // Luôn áp dụng style
+        if (style != null) {
+            cell.setCellStyle(style);
+        }
+    }
     private void inHoaDon() {
         HoaDon selectedHoaDon = tableHoaDon.getSelectionModel().getSelectedItem();
         if (selectedHoaDon != null) {

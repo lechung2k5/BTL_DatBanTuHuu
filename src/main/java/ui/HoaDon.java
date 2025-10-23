@@ -192,4 +192,9 @@ public class HoaDon {
         alert.setContentText(message);
         alert.showAndWait();
     }
+
+	public void setMaHD(String maHD) {
+		// TODO Auto-generated method stub
+		
+	}
 }

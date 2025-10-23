@@ -246,18 +246,18 @@ public class DatBan implements Initializable {
 
                 // Tạo đối tượng HoaDon mới
                 HoaDon newHoaDon = new HoaDon();
-                newHoaDon.setNgayLap(LocalDateTime.now());
-                newHoaDon.setGioVao(thoiGianDen);
-                newHoaDon.setKhachHang(khachHang);
-                newHoaDon.setBan(banDuocChon);
-                newHoaDon.setTrangThai(trangThaiBanDau);
-                // Tiền cọc (đã parse và kiểm tra)
+//                newHoaDon.setNgayLap(LocalDateTime.now());
+//                newHoaDon.setGioVao(thoiGianDen);
+//                newHoaDon.setKhachHang(khachHang);
+//                newHoaDon.setBan(banDuocChon);
+//                newHoaDon.setTrangThai(trangThaiBanDau);
+//                // Tiền cọc (đã parse và kiểm tra)
                 double tienCoc = 0; try { String raw = txtTienCoc.getText().replaceAll("[^0-9.]", ""); tienCoc = Double.parseDouble(raw.isEmpty() ? "0" : raw); } catch (Exception e) {}
-                newHoaDon.setTienCoc(tienCoc);
-                 // Các trường khác như maUuDai, ptThanhToan, tenNV sẽ là null ban đầu
-
-                // Lưu vào DB
-                datBanDAO.luuHoaDonVaChiTiet(newHoaDon, monOrderList);
+//                newHoaDon.setTienCoc(tienCoc);
+//                 // Các trường khác như maUuDai, ptThanhToan, tenNV sẽ là null ban đầu
+//
+//                // Lưu vào DB
+//                datBanDAO.luuHoaDonVaChiTiet(newHoaDon, monOrderList);
 
                 // Cập nhật trạng thái bàn trong DB
                 String trangThaiBanDb = (trangThaiBanDau == TrangThaiHoaDon.DAT) ? TrangThaiBan.DA_DAT.getDbValue() : TrangThaiBan.DANG_SU_DUNG.getDbValue();
@@ -415,7 +415,7 @@ public class DatBan implements Initializable {
             return;
         }
          // TODO: Thêm logic in hóa đơn ở đây (sử dụng JasperReports hoặc thư viện khác)
-         showAlert(Alert.AlertType.INFORMATION, "In hóa đơn", "Chuẩn bị in hóa đơn: " + currentHoaDon.getMaHD());
+//         showAlert(Alert.AlertType.INFORMATION, "In hóa đơn", "Chuẩn bị in hóa đơn: " + currentHoaDon.getMaHD());
     }
 
 
