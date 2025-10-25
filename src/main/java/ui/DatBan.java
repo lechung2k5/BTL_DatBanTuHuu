@@ -19,6 +19,7 @@ import entity.UuDai; // Đảm bảo đã import
 
 // Import JavaFX
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
@@ -32,6 +33,9 @@ import java.util.Collections;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.print.DocFlavor;
@@ -57,6 +61,8 @@ import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType0Font;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.printing.PDFPrintable;
@@ -347,46 +353,47 @@ public class DatBan implements Initializable {
  // ui.DatBan.java
 
     /**
-     * 🔥 HÀM SỬA CUỐI CÙNG: Xử lý nút In Hóa đơn (Sử dụng AWT/Swing PrinterJob và setPrintable).
-     * Đã sửa lỗi Type Mismatch (PDFPrintable không phải là Pageable).
+     * 🔥 HÀM SỬA CUỐI CÙNG: Xử lý nút In Hóa đơn (In Hóa đơn TẠM TÍNH).
+     * Cho phép in nếu HĐ đang ở trạng thái ĐANG SỬ DỤNG hoặc ĐÃ ĐẶT (Chưa thanh toán).
      */
     @FXML
     private void handleInHoaDon() {
         if (currentHoaDon == null || currentHoaDon.getMaHD() == null) {
-            showAlert(Alert.AlertType.WARNING, "Lỗi", "Vui lòng chọn hoặc hoàn tất thanh toán hóa đơn để in.");
+            showAlert(Alert.AlertType.WARNING, "Lỗi", "Vui lòng chọn Hóa đơn để in.");
             return;
         }
         
-        // Yêu cầu phải là HĐ đã thanh toán
-        if (!currentHoaDon.getTrangThai().getDbValue().equals(TrangThaiHoaDon.DA_THANH_TOAN.getDbValue())) {
-             showAlert(Alert.AlertType.WARNING, "Không thể In", "Hóa đơn phải ở trạng thái ĐÃ THANH TOÁN để có thể in.");
-             return;
-        }
+        String trangThaiDb = currentHoaDon.getTrangThai().getDbValue();
 
-        // Chạy trong Thread riêng
+        // 1. Nếu HĐ CHƯA thanh toán (Đang sử dụng, Đã đặt, Hóa đơn tạm)
+        if (!trangThaiDb.equals(TrangThaiHoaDon.DA_THANH_TOAN.getDbValue())) {
+            // 🔥 BẮT BUỘC: Lưu lại danh sách món đã sửa đổi trước khi in (Tạo bản nháp)
+            handleSuaHoaDon(); 
+            showAlert(Alert.AlertType.INFORMATION, "Thông báo", "Đã lưu thay đổi và tiến hành in Hóa đơn TẠM TÍNH.");
+        }
+        
+        // 2. Chạy trong Thread riêng để tránh treo UI
         new Thread(() -> {
             PDDocument document = null;
             try {
-                // 1. TẠO DOCUMENT TRỰC TIẾP TỪ BỘ NHỚ
+                // 3. TẠO DOCUMENT TRỰC TIẾP TỪ BỘ NHỚ
                 document = createReceiptPdf(currentHoaDon);
                 
-                // 2. Lấy Job in từ AWT/Swing
+                // 4. Lấy Job in từ AWT/Swing
                 java.awt.print.PrinterJob job = java.awt.print.PrinterJob.getPrinterJob();
                 PrintRequestAttributeSet attr = new HashPrintRequestAttributeSet();
                 
-                // 3. Mở hộp thoại chọn máy in
+                // 5. Mở hộp thoại chọn máy in
                 if (job.printDialog(attr)) {
                     
-                    // 🔥 SỬA LỖI: Lấy PageFormat đã được cấu hình từ hộp thoại
                     java.awt.print.PageFormat pageFormat = job.getPageFormat(attr);
                     
                     // Cài đặt nội dung in (PDFPrintable)
                     org.apache.pdfbox.printing.PDFPrintable printableData = new org.apache.pdfbox.printing.PDFPrintable(document);
                     
-                    // 🔥 FIX LỖI TYPE MISMATCH: Sử dụng setPrintable để nhận PDFPrintable và PageFormat
                     job.setPrintable(printableData, pageFormat);
                     
-                    // 4. GỬI LỆNH IN
+                    // 6. GỬI LỆNH IN
                     job.print(attr); 
                     
                     Platform.runLater(() -> {
@@ -410,116 +417,336 @@ public class DatBan implements Initializable {
             }
         }).start();
     }
+
+ // Lớp YPosition của bạn (đặt ngoài phương thức, trong class DatBan)
+    private static class YPosition {
+        public float y;
+        public YPosition(float initialY) {
+            this.y = initialY;
+        }
+    }
+
     /**
-     * 🔥 HÀM SỬA: Tạo đối tượng PDDocument (trong bộ nhớ) chứa nội dung hóa đơn.
+     * 🔥 HÀM CUỐI CÙNG: Tạo đối tượng PDDocument theo MẪU ẢNH HÓA ĐƠN.
+     * ĐÃ FIX: Điều chỉnh căn chỉnh cột Tên món (làm hẹp) và các cột giá trị (thêm padding) để tối ưu khoảng cách.
      * @param hd Hóa đơn đã thanh toán.
      * @return PDDocument chứa nội dung hóa đơn.
      */
     private PDDocument createReceiptPdf(HoaDon hd) throws IOException {
         PDDocument document = new PDDocument();
-        PDPage page = new PDPage();
+        // SỬ DỤNG A4
+        PDPage page = new PDPage(org.apache.pdfbox.pdmodel.common.PDRectangle.A4);
         document.addPage(page);
 
-        // Kích thước trang và margins (Giữ nguyên)
+        // Kích thước trang & margin
         final float PAGE_WIDTH = page.getMediaBox().getWidth();
-        final float MARGIN = 40;
+        final float MARGIN = 72; 
         final float Y_START = page.getMediaBox().getHeight() - MARGIN;
-        final float LINE_HEIGHT = 18;
-        float y = Y_START;
+        final float LINE_HEIGHT = 16; 
+        
+        final YPosition pos = new YPosition(Y_START); 
 
-        // Tải Font (Giả định logic tải font Tiếng Việt đã được giải quyết)
-        org.apache.pdfbox.pdmodel.font.PDFont font;
-        java.io.InputStream fontStream = getClass().getResourceAsStream("/fonts/Roboto-Regular.ttf");
+        // ====== 🔹 LOAD FONT HỖ TRỢ TIẾNG VIỆT (Giữ nguyên logic) ======
+        org.apache.pdfbox.pdmodel.font.PDFont font = null;
+        org.apache.pdfbox.pdmodel.font.PDFont fontBold = null; 
         
-        if (fontStream != null) {
-            font = org.apache.pdfbox.pdmodel.font.PDType0Font.load(document, fontStream);
-        } else {
-            // Fallback: Sử dụng font mặc định (Tiếng Việt sẽ bị lỗi dấu)
-            font = org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA; 
+        try {
+            InputStream fontStream = getClass().getResourceAsStream("/fonts/UTM Avo.ttf");
+            InputStream fontBoldStream = getClass().getResourceAsStream("/fonts/UTM AvoBold.ttf");
+            
+            if (fontStream != null) {
+                font = org.apache.pdfbox.pdmodel.font.PDType0Font.load(document, fontStream, true); 
+            } 
+            if (fontBoldStream != null) {
+                fontBold = org.apache.pdfbox.pdmodel.font.PDType0Font.load(document, fontBoldStream, true);
+            } 
+        } catch (Exception e) {
+            System.err.println("⚠️ Lỗi load font: " + e.getMessage());
         }
+
+        if (font == null) font = org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA;
+        if (fontBold == null) fontBold = org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA_BOLD;
+        // ============================================================
+
+        // ====== DỮ LIỆU CHUẨN BỊ VÀ TÍNH TOÁN LẠI TỔNG TIỀN ======
+        ObservableList<MonOrder> monAnList = datBanDAO.getChiTietHoaDon(hd.getMaHD());
         
-        // Lấy chi tiết hóa đơn (MonOrder list)
-        ObservableList<MonOrder> monAnList = datBanDAO.getChiTietHoaDon(hd.getMaHD()); 
+        double tongTienMonAn = monAnList.stream()
+                .mapToDouble(order -> order.getDonGia() * order.getSoLuong())
+                .sum();
+        
+        hd.setTongCongMonAn(tongTienMonAn); // Kích hoạt calculateTotals()
+
+        final java.text.DecimalFormat currencyFormatter = new java.text.DecimalFormat("###,###");
+        final java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        final java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+
+        // --- Chuẩn bị dữ liệu hiển thị (Giữ nguyên) ---
+        String banStr = hd.getBan() != null ? hd.getBan().getMaBan() : "N/A";
+        String ngayStr = hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(dateFormatter) : "N/A";
+        String gioVaoStr = hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFormatter) : "N/A";
+        String gioRaStr = LocalTime.now().format(timeFormatter);
+        String tenThuNgan = "N/A";
+        try {
+            TaiKhoan tk = MainApp.getLoggedInUser();
+            if (tk != null && tk.getNhanVien() != null) {
+                tenThuNgan = tk.getNhanVien().getHoTen(); 
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi khi lấy tên nhân viên đăng nhập: " + e.getMessage());
+        }
+        String thuNganStr = tenThuNgan;
+        String khachHangStr = (hd.getKhachHang() != null && hd.getKhachHang().getSoDT() != null) ? hd.getKhachHang().getSoDT() : "N/A";
+        String hinhThucTTStr = hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A";
+        // ============================================================
 
         try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
-            // ... (Toàn bộ logic vẽ nội dung PDF giữ nguyên) ...
-            // *** ĐẢM BẢO KHÔNG CÓ LỆNH document.save() VÀ document.close() Ở ĐÂY ***
         
-            // === 1. HEADER ===
+            // === 1, 2, 3: HEADER, TIÊU ĐỀ, THÔNG TIN CHUNG (Giữ nguyên) ===
+            // 1.1 Tên Quán
             contentStream.beginText();
-            contentStream.setFont(font, 14);
-            contentStream.newLineAtOffset(MARGIN, y);
-            contentStream.showText("HÓA ĐƠN THANH TOÁN - " + hd.getMaHD());
-            y -= LINE_HEIGHT;
+            contentStream.setFont(fontBold, 14); 
+            float titleWidth = fontBold.getStringWidth("NHÀ HÀNG TỨ HỮU") / 1000 * 14;
+            contentStream.newLineAtOffset((PAGE_WIDTH - titleWidth) / 2, pos.y);
+            contentStream.showText("NHÀ HÀNG TỨ HỮU");
             contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.5;
             
-            // === 2. THÔNG TIN CHUNG ===
-            y -= LINE_HEIGHT * 0.5;
+            // 1.2 Địa chỉ
             contentStream.beginText();
             contentStream.setFont(font, 10);
-            contentStream.newLineAtOffset(MARGIN, y);
-            contentStream.showText("Thời gian: " + hd.getGioRa().format(DateTimeFormatter.ofPattern("HH:mm dd/MM/yyyy")));
-            y -= LINE_HEIGHT;
-            contentStream.showText("Bàn: " + (hd.getBan() != null ? hd.getBan().getMaBan() : "N/A"));
-            y -= LINE_HEIGHT;
-            contentStream.showText("Thu ngân: " + (hd.getTenNhanVien() != null ? hd.getTenNhanVien() : "N/A"));
-            y -= LINE_HEIGHT * 1.5;
+            String address = "Địa chỉ: 77 Hồ Tùng Mậu, Phường Châu Đốc, An Giang";
+            float addressWidth = font.getStringWidth(address) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - addressWidth) / 2, pos.y);
+            contentStream.showText(address);
             contentStream.endText();
-            
-            // === 3. DANH SÁCH MÓN ===
-            contentStream.setLineWidth(0.5f);
-            contentStream.moveTo(MARGIN, y);
-            contentStream.lineTo(PAGE_WIDTH - MARGIN, y);
-            contentStream.stroke();
-            y -= LINE_HEIGHT;
-            
+            pos.y -= LINE_HEIGHT;
+
+            // 1.3 SĐT
+            contentStream.beginText();
+            contentStream.setFont(font, 10);
+            String sdt = "SĐT: 0909 123 456";
+            float sdtWidth = font.getStringWidth(sdt) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - sdtWidth) / 2, pos.y);
+            contentStream.showText(sdt);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.5;
+
+            // 2. TIÊU ĐỀ HÓA ĐƠN
+            contentStream.beginText();
+            contentStream.setFont(fontBold, 16);
+            titleWidth = fontBold.getStringWidth("HÓA ĐƠN THANH TOÁN") / 1000 * 16;
+            contentStream.newLineAtOffset((PAGE_WIDTH - titleWidth) / 2, pos.y);
+            contentStream.showText("HÓA ĐƠN THANH TOÁN");
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.2;
+
+            contentStream.beginText();
+            contentStream.setFont(fontBold, 12);
+            String maHDLabel = "SỐ HĐ: " + (hd.getMaHD() != null ? hd.getMaHD() : "N/A");
+            float maHDWidth = fontBold.getStringWidth(maHDLabel) / 1000 * 12;
+            contentStream.newLineAtOffset((PAGE_WIDTH - maHDWidth) / 2, pos.y);
+            contentStream.showText(maHDLabel);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.8;
+
+            // 3. THÔNG TIN CHUNG
+            final float COL_SEP = (PAGE_WIDTH - 2 * MARGIN) / 2;
+            final float FONT_SIZE_INFO = 10;
+            final float COL_1_START = MARGIN;
+            final float COL_2_START = MARGIN + COL_SEP;
+
+            contentStream.setFont(font, FONT_SIZE_INFO);
+            // Dòng 1
+            contentStream.beginText();
+            contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Bàn: " + banStr);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Thu ngân: " + tenThuNgan);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 0.9;
+
+            // Dòng 2
+            contentStream.beginText();
+            contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Ngày: " + ngayStr);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Khách hàng: " + khachHangStr);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 0.9;
+
+            // Dòng 3
+            contentStream.beginText();
+            contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Giờ vào: " + gioVaoStr);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Giờ ra: " + gioRaStr);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.5;
+
+            // === 4. BẢNG MÓN ĂN (Giữ nguyên) ===
+            final float FONT_SIZE_TABLE = 9; 
+            float colSTT = MARGIN;                    // 72
+            float colTenMon = MARGIN + 30;           // 102
+            float colSL = PAGE_WIDTH - MARGIN - 180;  // 414
+            float colDonGia = PAGE_WIDTH - MARGIN - 110; // 484
+            float colThanhTien = PAGE_WIDTH - MARGIN - 30; // 564
+
             // Tiêu đề cột
             contentStream.beginText();
-            contentStream.setFont(font, 10);
-            contentStream.newLineAtOffset(MARGIN, y);
+            contentStream.setFont(fontBold, FONT_SIZE_TABLE);
+            contentStream.newLineAtOffset(colSTT, pos.y);
+            contentStream.showText("STT");
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colTenMon, pos.y));
             contentStream.showText("Tên món");
-            contentStream.newLineAtOffset(200, 0);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colSL, pos.y));
             contentStream.showText("SL");
-            contentStream.newLineAtOffset(50, 0);
-            contentStream.showText("Giá");
-            contentStream.newLineAtOffset(80, 0);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colDonGia, pos.y));
+            contentStream.showText("Đơn giá (VNĐ)");
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colThanhTien, pos.y));
             contentStream.showText("Thành tiền");
             contentStream.endText();
-            y -= LINE_HEIGHT;
-
+            
             // Dữ liệu món ăn
-            for (MonOrder mon : monAnList) {
+            contentStream.setFont(font, FONT_SIZE_TABLE);
+            
+            float currentY = pos.y - LINE_HEIGHT * 1.2f; 
+            
+            for (int i = 0; i < monAnList.size(); i++) {
+                MonOrder mon = monAnList.get(i);
+                
                 contentStream.beginText();
-                contentStream.setFont(font, 10);
-                contentStream.newLineAtOffset(MARGIN, y);
+                
+                // Cột STT
+                contentStream.newLineAtOffset(colSTT, currentY);
+                contentStream.showText(String.valueOf(i + 1));
+                
+                // Cột Tên món
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colTenMon, currentY));
                 contentStream.showText(mon.getTenMon());
-                contentStream.newLineAtOffset(200, 0);
-                contentStream.showText(String.valueOf(mon.getSoLuong()));
-                contentStream.newLineAtOffset(50, 0);
-                contentStream.showText(String.format("%,.0f", mon.getDonGia()));
-                contentStream.newLineAtOffset(80, 0);
-                contentStream.showText(String.format("%,.0f", mon.getDonGia() * mon.getSoLuong()));
+                
+                // Cột SL (Căn phải)
+                String slStr = String.valueOf(mon.getSoLuong());
+                float slWidth = font.getStringWidth(slStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colSL - slWidth + 15, currentY)); 
+                contentStream.showText(slStr);
+
+                // Cột Đơn giá (Căn phải)
+                String dgStr = currencyFormatter.format(mon.getDonGia());
+                float dgWidth = font.getStringWidth(dgStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colDonGia - dgWidth + 15, currentY)); 
+                contentStream.showText(dgStr);
+                
+                // Cột Thành tiền (Căn phải)
+                String ttStr = currencyFormatter.format(mon.getDonGia() * mon.getSoLuong());
+                float ttWidth = fontBold.getStringWidth(ttStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colThanhTien - ttWidth + 15, currentY)); 
+                contentStream.showText(ttStr);
+                
                 contentStream.endText();
-                y -= LINE_HEIGHT;
+                
+                currentY -= LINE_HEIGHT * 1.6f; 
+            }
+            
+            pos.y = currentY + LINE_HEIGHT * 1.6f; 
+            pos.y -= LINE_HEIGHT * 1.0;
+
+            // === 5. TỔNG KẾT CHI TIẾT ===
+            final float FONT_SIZE_SUMMARY = 10;
+            final float SUMMARY_INDENT = MARGIN;
+            final float SUMMARY_VALUE_COL = PAGE_WIDTH - MARGIN;
+            
+            class SummaryDrawer {
+                private final PDFont regularFont;
+                private final PDFont boldFont;
+                
+                SummaryDrawer(final PDFont regularFont, final PDFont boldFont) {
+                    this.regularFont = regularFont;
+                    this.boldFont = boldFont;
+                }
+                
+                void draw(String label, String value, boolean isBold, boolean isTotal) throws IOException {
+                    float currentFontSize = isTotal ? 12 : FONT_SIZE_SUMMARY; 
+                    PDFont currentFont = isBold ? boldFont : regularFont;
+                    
+                    // 1. Vẽ Label
+                    contentStream.beginText();
+                    contentStream.setFont(currentFont, currentFontSize);
+                    contentStream.newLineAtOffset(SUMMARY_INDENT, pos.y);
+                    contentStream.showText(label);
+                    contentStream.endText();
+                    
+                    // 2. Vẽ Value (Căn phải)
+                    float valueWidth = currentFont.getStringWidth(value) / 1000 * currentFontSize;
+                    contentStream.beginText();
+                    contentStream.setFont(currentFont, currentFontSize);
+                    contentStream.newLineAtOffset(SUMMARY_VALUE_COL - valueWidth, pos.y); 
+                    contentStream.showText(value);
+                    contentStream.endText();
+                    
+                    pos.y -= LINE_HEIGHT * (isTotal ? 1.4f : 1.1f); 
+                }
             }
 
-            // === 4. TỔNG KẾT ===
-            y -= LINE_HEIGHT;
+            SummaryDrawer drawer = new SummaryDrawer(font, fontBold);
             
-            // Tổng tiền thanh toán
-            contentStream.beginText();
-            contentStream.setFont(font, 12);
-            contentStream.newLineAtOffset(MARGIN, y);
-            contentStream.showText("TỔNG CỘNG THANH TOÁN: " + String.format("%,.0f Đ", hd.getTongTienThanhToan()));
-            contentStream.endText();
+            // 5.1. Các dòng tính toán
+            drawer.draw("Tổng cộng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", true, false); 
+            drawer.draw("Phí dịch vụ (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", false, false);
+            drawer.draw("Thuế VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", false, false);
+            drawer.draw("Tiền đặt cọc bàn:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", false, false);
             
-        } // contentStream.close() tự động đóng
+            // 5.2. Đường kẻ phân chia
+            pos.y += LINE_HEIGHT * 0.5f;
+            contentStream.setLineWidth(0.5f);
+            contentStream.moveTo(SUMMARY_INDENT, pos.y);
+            contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
+            contentStream.stroke();
+            pos.y -= LINE_HEIGHT * 1.2f; // Tăng khoảng cách xuống thêm (từ 0.8f lên 1.2f)
 
-        // 🔥 TRẢ VỀ ĐỐI TƯỢNG DOCUMENT MÀ KHÔNG LƯU VÀO ĐĨA
+            // 5.3. Vẽ "Tổng thanh toán" ngay dưới đường kẻ
+            drawer.draw("Tổng thanh toán:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", true, true);
+
+            pos.y -= LINE_HEIGHT * 0.5f;
+
+            // Đường kẻ dưới tổng thanh toán
+            contentStream.moveTo(SUMMARY_INDENT, pos.y);
+            contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
+            contentStream.stroke();
+            pos.y -= LINE_HEIGHT * 1.2f;
+            
+            // 5.4. Chi tiết Thanh toán, Ưu đãi, Khách trả
+            String khachHangMemberDetails = "Gold (giảm 10%)"; 
+            String uuDaiStr = (hd.getKhuyenMai() > 0) ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") : "0 VNĐ";
+            double soTienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai(); 
+
+            drawer.draw("Hình thức thanh toán:", hinhThucTTStr, false, false);
+            drawer.draw("Khách hàng thành viên:", khachHangMemberDetails, false, false);
+            drawer.draw("Ưu đãi áp dụng:", uuDaiStr, false, false);
+            
+            // Số tiền khách trả
+            drawer.draw("Số tiền khách trả:", currencyFormatter.format(soTienKhachTra) + " VNĐ", true, false); 
+            
+            // Đường kẻ cuối cùng
+            pos.y -= LINE_HEIGHT * 0.2;
+            contentStream.moveTo(SUMMARY_INDENT, pos.y);
+            contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
+            contentStream.stroke();
+            pos.y -= LINE_HEIGHT * 2.5;
+
+            // === 6. FOOTER ===
+            contentStream.beginText();
+            contentStream.setFont(font, 10);
+            String footer = "Nhà hàng Tứ Hữu xin cám ơn và hẹn gặp lại!";
+            float footerWidth = font.getStringWidth(footer) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - footerWidth) / 2, pos.y);
+            contentStream.showText(footer);
+            contentStream.endText();
+        }
+
         return document;
     }
- 
-	/**
+    /**
      * 🔥 HÀM SỬA CUỐI CÙNG CHO MOMO: Mở Popup hiển thị QR Thanh toán (Sử dụng LOGO và BIN BVBank).
      * * SẼ CẦN KẾT NỐI INTERNET ĐỂ TẢI ẢNH QR.
      */
