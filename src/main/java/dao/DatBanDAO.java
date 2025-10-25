@@ -123,57 +123,63 @@ public class DatBanDAO {
         }
     }
 
-    /**
-     * Lưu Hóa đơn và Chi tiết Hóa đơn (Đơn đặt hàng/đến quán)
-     * Đã cập nhật: Sử dụng dbValue của enum TrangThaiHoaDon, lấy mã từ entity Ban, KH.
-     */
-    public void luuHoaDonVaChiTiet(HoaDon hoaDon, ObservableList<MonOrder> monOrderList) throws SQLException {
-        String maHD = getNextMaHD();
-        hoaDon.setMaHD(maHD); // Gán mã HD mới tạo vào đối tượng HoaDon luôn
 
-        String hdSql = "INSERT INTO HoaDon (maHD, ngayLap, trangThai, gioVao, maBan, maKH, tienCoc, maUuDai, ptThanhToan, maNV) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        try (Connection con = ConnectDB.getConnection();
-             PreparedStatement ps = con.prepareStatement(hdSql)) {
+     /**
+      * Lưu Hóa đơn và Chi tiết Hóa đơn (Đơn đặt hàng/đến quán)
+      * === ĐÃ SỬA: Thêm cột maHDGoc ===
+      */
+     public void luuHoaDonVaChiTiet(HoaDon hoaDon, ObservableList<MonOrder> monOrderList) throws SQLException {
+         String maHD = getNextMaHD();
+         hoaDon.setMaHD(maHD); // Gán mã HD mới tạo vào đối tượng HoaDon luôn
 
-            ps.setString(1, maHD);
-            ps.setTimestamp(2, hoaDon.getNgayLap() != null ? Timestamp.valueOf(hoaDon.getNgayLap()) : null);
+         // Sửa SQL: Thêm maHDGoc
+         String hdSql = "INSERT INTO HoaDon (maHD, ngayLap, trangThai, gioVao, maBan, maKH, tienCoc, maUuDai, ptThanhToan, maNV, maHDGoc) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+         
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(hdSql)) {
 
-            String trangThaiDbValue = (hoaDon.getTrangThai() != null) ? hoaDon.getTrangThai().getDbValue() : null;
-            ps.setString(3, trangThaiDbValue);
+             ps.setString(1, maHD);
+             ps.setTimestamp(2, hoaDon.getNgayLap() != null ? Timestamp.valueOf(hoaDon.getNgayLap()) : null);
+             ps.setString(3, (hoaDon.getTrangThai() != null) ? hoaDon.getTrangThai().getDbValue() : null);
+             ps.setTimestamp(4, hoaDon.getGioVao() != null ? Timestamp.valueOf(hoaDon.getGioVao()) : null);
+             ps.setString(5, (hoaDon.getBan() != null) ? hoaDon.getBan().getMaBan() : null);
+             ps.setString(6, (hoaDon.getKhachHang() != null) ? hoaDon.getKhachHang().getMaKH() : null);
+             ps.setDouble(7, hoaDon.getTienCoc());
+             ps.setString(8, hoaDon.getMaUuDai());
+             ps.setNull(9, Types.NVARCHAR); // ptThanhToan
+             ps.setNull(10, Types.VARCHAR); // maNV
+             
+             // === THÊM MỚI LOGIC maHDGoc ===
+             if (hoaDon.getMaHDGoc() != null) {
+                 ps.setString(11, hoaDon.getMaHDGoc());
+             } else {
+                 ps.setNull(11, Types.VARCHAR); // HĐ Gốc sẽ là NULL
+             }
+             // =============================
 
-            ps.setTimestamp(4, hoaDon.getGioVao() != null ? Timestamp.valueOf(hoaDon.getGioVao()) : null);
-            ps.setString(5, (hoaDon.getBan() != null) ? hoaDon.getBan().getMaBan() : null);
-            ps.setString(6, (hoaDon.getKhachHang() != null) ? hoaDon.getKhachHang().getMaKH() : null);
-            ps.setDouble(7, hoaDon.getTienCoc());
-            ps.setString(8, hoaDon.getMaUuDai());
+             ps.executeUpdate();
 
-            ps.setNull(9, Types.NVARCHAR); // ptThanhToan null khi mới tạo
-            ps.setNull(10, Types.VARCHAR); // maNV null khi mới tạo
-
-            ps.executeUpdate();
-
-            // Lưu Chi tiết Hóa đơn
-            if (monOrderList != null && !monOrderList.isEmpty()) {
-                 String cthdSql = "INSERT INTO ChiTietHoaDon (maHD, maMon, soLuong, thanhTien) VALUES (?, ?, ?, ?)";
-                 try (PreparedStatement psCt = con.prepareStatement(cthdSql)) {
-                     for (MonOrder order : monOrderList) {
-                         psCt.setString(1, maHD);
-                         psCt.setString(2, order.getMaMon());
-                         psCt.setInt(3, order.getSoLuong());
-                         // 🔥 FIX LỖI DÒNG 161: Tính thành tiền bằng cách nhân Đơn Giá và Số Lượng
-                         psCt.setDouble(4, order.getDonGia() * order.getSoLuong());
-                         psCt.addBatch();
-                     }
-                     psCt.executeBatch();
-                 }
-            }
-            System.out.println("LOG DAO: Đã lưu thành công hóa đơn " + maHD);
-        } catch (SQLException e) {
-            System.err.println("Lỗi khi lưu hóa đơn và chi tiết: SQL State: " + e.getSQLState() + ", Error Code: " + e.getErrorCode());
-            e.printStackTrace();
-            throw e;
-        }
-    }
+             // Lưu Chi tiết Hóa đơn (Chỉ lưu nếu có món)
+             if (monOrderList != null && !monOrderList.isEmpty()) {
+                  String cthdSql = "INSERT INTO ChiTietHoaDon (maHD, maMon, soLuong, thanhTien) VALUES (?, ?, ?, ?)";
+                  try (PreparedStatement psCt = con.prepareStatement(cthdSql)) {
+                      for (MonOrder order : monOrderList) {
+                          psCt.setString(1, maHD);
+                          psCt.setString(2, order.getMaMon());
+                          psCt.setInt(3, order.getSoLuong());
+                          psCt.setDouble(4, order.getDonGia() * order.getSoLuong());
+                          psCt.addBatch();
+                      }
+                      psCt.executeBatch();
+                  }
+             }
+             System.out.println("LOG DAO: Đã lưu thành công hóa đơn " + maHD);
+         } catch (SQLException e) {
+             System.err.println("Lỗi khi lưu hóa đơn và chi tiết: SQL State: " + e.getSQLState() + ", Error Code: " + e.getErrorCode());
+             e.printStackTrace();
+             throw e;
+         }
+     }
 
     /**
      * Lấy chi tiết món ăn (MonOrder ViewModel) của một hóa đơn cụ thể.
@@ -207,58 +213,75 @@ public class DatBanDAO {
     }
 
     /**
-     * Lấy danh sách bàn trống tại một thời điểm cụ thể.
-     * @param gioDen Thời điểm cần kiểm tra (dưới dạng Timestamp).
-     * @return Danh sách các đối tượng Ban đang trống tại thời điểm đó.
+     * Lấy TẤT CẢ các bàn và kiểm tra tính khả dụng tại một thời điểm cụ thể.
+     * === ĐÃ SỬA LOGIC KIỂM TRA THỜI GIAN VÀ TRẢ VỀ TẤT CẢ BÀN ===
+     * Kiểm tra xem thời điểm yêu cầu có giao với "khoảng thời gian bận ước tính"
+     * của các hóa đơn khác không (ước tính 4 tiếng phục vụ).
+     * @param gioDenKiemTra Thời điểm cần kiểm tra (dưới dạng Timestamp).
+     * @return Danh sách Map chứa thông tin Ban và trạng thái isAvailable (true/false).
      */
-    public List<Ban> getBanTrongTheoGio(Timestamp gioDen) {
-        // ... (Logic giữ nguyên)
-        List<Ban> list = new ArrayList<>();
-        // SQL kiểm tra xem bàn có bị trùng lịch đặt ('Dat') hoặc đang sử dụng ('DangSuDung')
-        // trong khoảng thời gian bao gồm giờ đến hay không.
+    public List<Map<String, Object>> getAllBanWithAvailability(Timestamp gioDenKiemTra) {
+
+        List<Map<String, Object>> resultList = new ArrayList<>();
+        final int estimatedServiceHours = 4; // Thời gian phục vụ ước tính
+
+        // SQL mới: Lấy TẤT CẢ bàn và dùng CASE để xác định isAvailable
         String sql = """
-            SELECT b.*
+            SELECT
+                b.*,
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1
+                        FROM HoaDon h
+                        WHERE h.maBan = b.maBan
+                          AND h.trangThai IN (?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam'
+                          AND ? >= h.gioVao
+                          AND ? < DATEADD(hour, ?, h.gioVao)
+                    ) THEN CAST(0 AS BIT) -- Nếu tồn tại HĐ trùng giờ -> Bận (0)
+                    ELSE CAST(1 AS BIT) -- Ngược lại -> Trống (1)
+                END AS isAvailable
             FROM Ban b
-            WHERE b.maBan NOT IN (
-                SELECT h.maBan
-                FROM HoaDon h
-                WHERE
-                    h.maBan IS NOT NULL AND
-                    h.trangThai IN (?, ?) -- 'Dat', 'DangSuDung'
-                    AND (
-                         ? BETWEEN h.gioVao AND ISNULL(h.gioRa, '9999-12-31 23:59:59') -- Kiểm tra xem giờ đến có nằm trong khoảng bận không
-                         -- Hoặc kiểm tra xem khoảng thời gian đặt/sử dụng có bao gồm giờ đến không
-                         -- (Phức tạp hơn và tùy thuộc vào logic nghiệp vụ về thời gian sử dụng ước tính)
-                    )
-            ) AND b.trangThai = ? -- Chỉ lấy bàn có trạng thái gốc là 'Trong'
+            ORDER BY b.maBan -- Sắp xếp để hiển thị nhất quán
         """;
         try (Connection con = ConnectDB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
+            // Tham số cho EXISTS
             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
             ps.setString(2, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
-            ps.setTimestamp(3, gioDen);
-            ps.setString(4, TrangThaiBan.TRONG.getDbValue()); // Chỉ kiểm tra những bàn đang 'Trong'
+            ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
+            ps.setTimestamp(4, gioDenKiemTra);
+            ps.setTimestamp(5, gioDenKiemTra);
+            ps.setInt(6, estimatedServiceHours);
 
             ResultSet rs = ps.executeQuery();
+
             while (rs.next()) {
-                // Tạo đối tượng Ban từ ResultSet
-            	// DatBanDAO.java (Dòng 357)
-            	Ban ban = new Ban(
-            	    rs.getString("maBan"), rs.getString("banViTri"), 
-            	    rs.getInt("sucChua"), // ĐÃ SỬA: Dùng tên alias
-            	    LoaiBan.fromString(rs.getString("banLoaiBan")),
-            	    TrangThaiBan.fromDbValue(rs.getString("banTrangThai"))
-            	);
-                list.add(ban);
+                // Tạo đối tượng Ban
+                Ban ban = new Ban(
+                    rs.getString("maBan"),
+                    rs.getString("viTri"),
+                    rs.getInt("sucChua"),
+                    LoaiBan.fromString(rs.getString("loaiBan")),
+                    // Lấy trạng thái gốc từ DB, không cần thiết lắm ở đây
+                    TrangThaiBan.fromDbValue(rs.getString("trangThai"))
+                );
+                // Lấy trạng thái khả dụng
+                boolean isAvailable = rs.getBoolean("isAvailable");
+
+                // Tạo Map để chứa cả Ban và isAvailable
+                Map<String, Object> banInfo = new HashMap<>();
+                banInfo.put("ban", ban);
+                banInfo.put("isAvailable", isAvailable);
+                resultList.add(banInfo);
             }
+
         } catch (SQLException e) {
-             System.err.println("Lỗi khi lấy bàn trống theo giờ: " + e.getMessage());
+             System.err.println("Lỗi khi lấy tất cả bàn và kiểm tra availability: " + e.getMessage());
             e.printStackTrace();
         }
-        return list;
+        return resultList;
     }
-
     /**
      * Lấy tất cả các bàn trong nhà hàng.
      * @return Danh sách tất cả đối tượng Ban.
@@ -297,16 +320,16 @@ public class DatBanDAO {
                 hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
                 hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
                 hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
-                hd.maNV, n.tenNV
+                hd.maNV, n.tenNV, hd.maHDGoc
             FROM HoaDon hd
             LEFT JOIN Ban b ON hd.maBan = b.maBan
             LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
             LEFT JOIN NhanVien n ON hd.maNV = n.maNV
             WHERE
-                hd.trangThai IN (?, ?) -- 'Dat', 'DangSuDung'
+                hd.trangThai IN (?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam'
                 AND (
                     CAST(hd.gioVao AS DATE) = ?
-                    OR (hd.trangThai = ? AND CAST(hd.gioVao AS DATE) < ?) -- 'DangSuDung'
+                    OR (hd.trangThai IN (?, ?) AND CAST(hd.gioVao AS DATE) < ?) -- 'DangSuDung', 'HoaDonTam'
                 )
              ORDER BY hd.gioVao ASC
         """;
@@ -316,9 +339,11 @@ public class DatBanDAO {
 
             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
             ps.setString(2, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
-            ps.setDate(3, java.sql.Date.valueOf(date));
-            ps.setString(4, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
-            ps.setDate(5, java.sql.Date.valueOf(date));
+            ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
+            ps.setDate(4, java.sql.Date.valueOf(date));
+            ps.setString(5, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
+            ps.setString(6, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
+            ps.setDate(7, java.sql.Date.valueOf(date));
 
             ResultSet rs = ps.executeQuery();
 
@@ -339,6 +364,7 @@ public class DatBanDAO {
                 hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
                 Timestamp tsGioRa = rs.getTimestamp("gioRa");
                 hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
+                hoaDon.setMaHDGoc(rs.getString("maHDGoc")); // Thêm maHDGoc
 
                 // Thông tin Khách hàng
                 if (rs.getString("maKH") != null) {
@@ -373,7 +399,100 @@ public class DatBanDAO {
         }
         return list;
     }
+    /**
+     * 🔥 HÀM MỚI: Lấy TẤT CẢ các hóa đơn đang ở trạng thái chờ xử lý (Đang phục vụ, Đã đặt, Hóa đơn tạm)
+     * Sắp xếp theo: Đang phục vụ/Hóa đơn tạm > Đã đặt, sau đó theo Giờ vào sớm nhất.
+     * @return Danh sách HoaDon đang chờ.
+     */
+    public List<HoaDon> getDsHoaDonDangCho() {
+        List<HoaDon> list = new ArrayList<>();
+        // Câu SQL mới: Thêm HoaDonTam
+        String sql = """
+            SELECT
+                hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
+                hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
+                hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
+                hd.maNV, n.tenNV
+            FROM HoaDon hd
+            LEFT JOIN Ban b ON hd.maBan = b.maBan
+            LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
+            LEFT JOIN NhanVien n ON hd.maNV = n.maNV
+            WHERE
+                hd.trangThai IN (?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam'
+            ORDER BY
+                -- Ưu tiên 1: Trạng thái (Đang phục vụ/Tạm -> Đã đặt)
+                CASE hd.trangThai
+                    WHEN ? THEN 1 -- 'DangSuDung'
+                    WHEN ? THEN 1 -- 'HoaDonTam'
+                    WHEN ? THEN 2 -- 'Dat'
+                    ELSE 3
+                END ASC,
+                -- Ưu tiên 2: Giờ vào sớm nhất
+                hd.gioVao ASC
+        """;
 
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            // Tham số cho WHERE
+            ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
+            ps.setString(2, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
+            ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
+
+            // Tham số cho ORDER BY
+            ps.setString(4, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
+            ps.setString(5, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
+            ps.setString(6, TrangThaiHoaDon.DAT.getDbValue());
+
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                HoaDon hoaDon = new HoaDon();
+
+                // Thông tin Hóa đơn
+                hoaDon.setMaHD(rs.getString("maHD"));
+                hoaDon.setMaUuDai(rs.getString("maUuDai"));
+                hoaDon.setTienCoc(rs.getDouble("tienCoc"));
+                hoaDon.setTenNhanVien(rs.getString("tenNV"));
+                hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(rs.getString("ptThanhToan")));
+                hoaDon.setTrangThai(rs.getString("trangThai")); 
+                Timestamp tsNgayLap = rs.getTimestamp("ngayLap");
+                hoaDon.setNgayLap( (tsNgayLap != null) ? tsNgayLap.toLocalDateTime() : null );
+                Timestamp tsGioVao = rs.getTimestamp("gioVao");
+                hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
+                Timestamp tsGioRa = rs.getTimestamp("gioRa");
+                hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
+
+                // Thông tin Khách hàng
+                if (rs.getString("maKH") != null) {
+                    LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null;
+                    KhachHang kh = new KhachHang(
+                        rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"),
+                        rs.getString("khEmail"), ngayDK, rs.getString("khDiaChi"),
+                        rs.getString("khThanhVien")
+                    );
+                    hoaDon.setKhachHang(kh);
+                } else { hoaDon.setKhachHang(null); }
+
+                // Thông tin Bàn
+                if (rs.getString("maBan") != null) {
+                    Ban ban = new Ban(
+                        rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"),
+                        LoaiBan.fromString(rs.getString("banLoaiBan")),
+                        TrangThaiBan.fromDbValue(rs.getString("banTrangThai"))
+                    );
+                    hoaDon.setBan(ban);
+                } else { hoaDon.setBan(null); }
+
+                list.add(hoaDon);
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi lấy danh sách hóa đơn đang chờ: " + e.getMessage());
+            e.printStackTrace();
+            return new ArrayList<>();
+        }
+        return list;
+    }
     /**
      * Cập nhật trạng thái của một bàn trong CSDL.
      * @param maBan Mã bàn cần cập nhật.
@@ -449,7 +568,7 @@ public class DatBanDAO {
                 hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
                 hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
                 hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
-                hd.maNV, n.tenNV
+                hd.maNV, n.tenNV, hd.maHDGoc
             FROM HoaDon hd
             LEFT JOIN Ban b ON hd.maBan = b.maBan
             LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
@@ -478,6 +597,7 @@ public class DatBanDAO {
                 hoaDon.setNgayLap( (rs.getTimestamp("ngayLap") != null) ? rs.getTimestamp("ngayLap").toLocalDateTime() : null );
                 hoaDon.setGioVao( (rs.getTimestamp("gioVao") != null) ? rs.getTimestamp("gioVao").toLocalDateTime() : null );
                 hoaDon.setGioRa( (rs.getTimestamp("gioRa") != null) ? rs.getTimestamp("gioRa").toLocalDateTime() : null );
+                hoaDon.setMaHDGoc(rs.getString("maHDGoc")); // Thêm maHDGoc
 
                 // Thông tin Khách hàng
                 if (rs.getString("maKH") != null) {
@@ -508,4 +628,460 @@ public class DatBanDAO {
         }
         return null;
     }
+    /**
+     * 🔥 DAO MỚI: Cập nhật thông tin chính của Hóa đơn (MaKH, TienCoc).
+     */
+    public void capNhatThongTinHoaDon(String maHD, String maKH, double tienCoc) throws SQLException {
+        String sql = "UPDATE HoaDon SET maKH = ?, tienCoc = ? WHERE maHD = ?";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, maKH);
+            ps.setDouble(2, tienCoc);
+            ps.setString(3, maHD);
+            ps.executeUpdate();
+            System.out.println("LOG DAO: Đã cập nhật thông tin cho HD: " + maHD);
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi cập nhật thông tin Hóa đơn: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 🔥 DAO MỚI: Cập nhật Chi tiết Hóa đơn (Xóa cũ, chèn mới).
+     */
+    public void capNhatChiTietHoaDon(String maHD, ObservableList<MonOrder> monOrderList) throws SQLException {
+        // Dùng Transaction để đảm bảo an toàn
+        Connection con = null;
+        try {
+            con = ConnectDB.getConnection();
+            con.setAutoCommit(false); // Bắt đầu Transaction
+
+            // 1. Xóa chi tiết cũ
+            String deleteSql = "DELETE FROM ChiTietHoaDon WHERE maHD = ?";
+            try (PreparedStatement psDelete = con.prepareStatement(deleteSql)) {
+                psDelete.setString(1, maHD);
+                psDelete.executeUpdate();
+            }
+            
+            // 2. Thêm chi tiết mới
+            if (monOrderList != null && !monOrderList.isEmpty()) {
+                String insertSql = "INSERT INTO ChiTietHoaDon (maHD, maMon, soLuong, thanhTien) VALUES (?, ?, ?, ?)";
+                try (PreparedStatement psInsert = con.prepareStatement(insertSql)) {
+                    for (MonOrder order : monOrderList) {
+                        psInsert.setString(1, maHD);
+                        psInsert.setString(2, order.getMaMon());
+                        psInsert.setInt(3, order.getSoLuong());
+                        psInsert.setDouble(4, order.getDonGia() * order.getSoLuong());
+                        psInsert.addBatch();
+                    }
+                    psInsert.executeBatch();
+                }
+            }
+            
+            con.commit(); // Hoàn tất Transaction
+            System.out.println("LOG DAO: Đã cập nhật CTHD cho HD: " + maHD);
+            
+        } catch (SQLException e) {
+            if (con != null) con.rollback(); // Hoàn tác nếu lỗi
+            System.err.println("Lỗi khi cập nhật chi tiết Hóa đơn (Đã rollback): " + e.getMessage());
+            throw e;
+        } finally {
+            if (con != null) {
+                 con.setAutoCommit(true);
+                 con.close();
+            }
+        }
+    }
+
+    /**
+     * 🔥 DAO MỚI: Cập nhật mã bàn mới cho Hóa đơn.
+     */
+    public void capNhatBanChoHoaDon(String maHD, String maBanMoi) throws SQLException {
+        String sql = "UPDATE HoaDon SET maBan = ? WHERE maHD = ?";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, maBanMoi);
+            ps.setString(2, maHD);
+            ps.executeUpdate();
+            System.out.println("LOG DAO: Đã đổi bàn cho HD " + maHD + " sang " + maBanMoi);
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi cập nhật bàn cho Hóa đơn: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 🔥 DAO MỚI: Cập nhật trạng thái Hóa đơn (Hủy/Thanh toán)
+     * @param setGioRa true nếu muốn set gioRa = GETDATE() (khi Hủy hoặc Thanh toán)
+     */
+    public void capNhatTrangThaiHoaDon(String maHD, String trangThaiMoiDbValue, boolean setGioRa) throws SQLException {
+        String sql;
+        if (setGioRa) {
+            sql = "UPDATE HoaDon SET trangThai = ?, gioRa = GETDATE() WHERE maHD = ?";
+        } else {
+            sql = "UPDATE HoaDon SET trangThai = ? WHERE maHD = ?";
+        }
+        
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, trangThaiMoiDbValue);
+            ps.setString(2, maHD);
+            ps.executeUpdate();
+            System.out.println("LOG DAO: Đã cập nhật trạng thái HD " + maHD + " sang " + trangThaiMoiDbValue);
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi cập nhật trạng thái Hóa đơn: " + e.getMessage());
+            throw e;
+        }
+    }
+    /**
+     * 🔥 DAO MỚI: Cập nhật cả mã bàn và giờ vào mới cho Hóa đơn (dùng khi Đổi Bàn).
+     */
+    public void capNhatBanVaGioVaoChoHoaDon(String maHD, String maBanMoi, java.sql.Timestamp gioVaoMoi) throws SQLException {
+        String sql = "UPDATE HoaDon SET maBan = ?, gioVao = ? WHERE maHD = ?";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, maBanMoi);
+            ps.setTimestamp(2, gioVaoMoi);
+            ps.setString(3, maHD);
+            ps.executeUpdate();
+            System.out.println("LOG DAO: Đã đổi bàn VÀ giờ vào cho HD " + maHD + " sang " + maBanMoi);
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi cập nhật bàn và giờ vào cho Hóa đơn: " + e.getMessage());
+            throw e;
+        }
+    }
+ // dao.DatBanDAO.java
+
+    /**
+     * 🔥 DAO MỚI: Lấy danh sách Hóa Đơn Phụ (HoaDonTam) 
+     * dựa trên mã Hóa Đơn Gốc.
+     * @param maHDGoc Mã của hóa đơn gốc.
+     * @return Danh sách các HoaDon phụ.
+     */
+    public List<HoaDon> getHoaDonPhuByMaHDGoc(String maHDGoc) {
+        List<HoaDon> list = new ArrayList<>();
+        // Chỉ lấy các thông tin cơ bản (MaHD, MaBan)
+        // === SỬA LỖI GỐC RỄ: CHỈ LỌC HĐ TẠM CHỨ KHÔNG PHẢI HĐ ĐÃ HỦY ===
+        String sql = """
+            SELECT hd.maHD, hd.maBan, b.viTri AS banViTri, b.sucChua AS banSucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai
+            FROM HoaDon hd
+            LEFT JOIN Ban b ON hd.maBan = b.maBan
+            WHERE hd.maHDGoc = ? AND hd.trangThai = 'HoaDonTam'
+        """; // <<< LỌC THEO TRẠNG THÁI 'HoaDonTam'
+
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            
+            ps.setString(1, maHDGoc);
+            ResultSet rs = ps.executeQuery();
+
+            while (rs.next()) {
+                HoaDon hd = new HoaDon();
+                hd.setMaHD(rs.getString("maHD"));
+                hd.setMaHDGoc(maHDGoc); // Thêm maHDGoc
+                hd.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Set trạng thái
+                
+                // Tải thông tin Bàn
+                if (rs.getString("maBan") != null) {
+                    Ban ban = new Ban(
+                        rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("banSucChua"),
+                        LoaiBan.fromString(rs.getString("banLoaiBan")),
+                        TrangThaiBan.fromDbValue(rs.getString("banTrangThai"))
+                    );
+                    hd.setBan(ban);
+                }
+                list.add(hd);
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi lấy hóa đơn phụ cho " + maHDGoc + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return list;
+    }
+    /**
+     * 🔥 DAO HELPER: Kiểm tra một bàn cụ thể có trống vào thời điểm nhất định không.
+     */
+    public boolean isBanAvailableAtTime(String maBan, Timestamp gioDenKiemTra) {
+        final int estimatedServiceHours = 4;
+        String sql = """
+            SELECT COUNT(*)
+            FROM HoaDon h
+            WHERE h.maBan = ?
+              AND h.trangThai IN (?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam'
+              AND ? >= h.gioVao
+              AND ? < DATEADD(hour, ?, h.gioVao)
+        """;
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, maBan);
+            ps.setString(2, TrangThaiHoaDon.DAT.getDbValue());
+            ps.setString(3, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
+            ps.setString(4, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
+            ps.setTimestamp(5, gioDenKiemTra);
+            ps.setTimestamp(6, gioDenKiemTra);
+            ps.setInt(7, estimatedServiceHours);
+
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getInt(1) == 0; // Trả về true nếu count = 0 (không có HĐ nào trùng)
+            }
+        } catch (SQLException e) {
+             System.err.println("Lỗi khi kiểm tra availability cho bàn " + maBan + ": " + e.getMessage());
+             e.printStackTrace();
+        }
+        // Giữ nguyên logic cũ: Nếu có lỗi CSDL, coi như không trống
+        return false; 
+    }
+    /**
+     * 🔥 DAO MỚI: Cập nhật số lượng món trong Chi tiết Hóa đơn.
+     * Dùng cho nghiệp vụ Tách Bàn (giảm số lượng).
+     */
+    public void capNhatSoLuongCTHD(String maHD, String maMon, int soLuongMoi, double giaBan) throws SQLException {
+        String sql = "UPDATE ChiTietHoaDon SET soLuong = ?, thanhTien = ? * ? WHERE maHD = ? AND maMon = ?";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, soLuongMoi);
+            ps.setInt(2, soLuongMoi);
+            ps.setDouble(3, giaBan);
+            ps.setString(4, maHD);
+            ps.setString(5, maMon);
+            ps.executeUpdate();
+            System.out.println("LOG DAO: Cập nhật CTHD (" + maHD + ", " + maMon + ") SL mới: " + soLuongMoi);
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi cập nhật số lượng CTHD: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 🔥 DAO MỚI: Thêm chi tiết món ăn mới vào Hóa đơn.
+     * Dùng cho nghiệp vụ Tách Bàn (thêm vào HĐ mới).
+     */
+    public void themChiTietHoaDon(String maHD, String maMon, int soLuong, double giaBan) throws SQLException {
+        String cthdSql = "INSERT INTO ChiTietHoaDon (maHD, maMon, soLuong, thanhTien) VALUES (?, ?, ?, ?)";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement psCt = con.prepareStatement(cthdSql)) {
+            psCt.setString(1, maHD);
+            psCt.setString(2, maMon);
+            psCt.setInt(3, soLuong);
+            psCt.setDouble(4, soLuong * giaBan);
+            psCt.executeUpdate();
+            System.out.println("LOG DAO: Đã thêm CTHD (" + maHD + ", " + maMon + ") SL: " + soLuong);
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi thêm chi tiết Hóa đơn mới: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 🔥 DAO MỚI: Xóa một món cụ thể khỏi Chi tiết Hóa đơn.
+     * Dùng cho nghiệp vụ Tách Bàn (khi số lượng còn lại là 0).
+     */
+    public void xoaChiTietHoaDon(String maHD, String maMon) throws SQLException {
+        String sql = "DELETE FROM ChiTietHoaDon WHERE maHD = ? AND maMon = ?";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setString(1, maHD);
+            ps.setString(2, maMon);
+            ps.executeUpdate();
+            System.out.println("LOG DAO: Đã xóa món " + maMon + " khỏi HD " + maHD);
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi xóa chi tiết Hóa đơn: " + e.getMessage());
+            throw e;
+        }
+    }
+    /**
+     * 🔥 DAO MỚI: Cập nhật trạng thái của một Hóa Đơn.
+     * Dùng để cập nhật trạng thái từ ComboBox trong ChiTietDatBanController.
+     * @param maHD Mã hóa đơn cần cập nhật.
+     * @param newTrangThai Giá trị trạng thái mới (ví dụ: "Dat", "DangSuDung", "DaThanhToan").
+     * @return true nếu cập nhật thành công, false nếu thất bại.
+     */
+    public boolean updateTrangThaiHoaDon(String maHD, String newTrangThai) {
+        String sql = "UPDATE HoaDon SET trangThai = ? WHERE maHD = ?";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, newTrangThai);
+            ps.setString(2, maHD);
+
+            int rowsAffected = ps.executeUpdate();
+            
+            if (rowsAffected > 0) {
+                System.out.println("LOG DAO: Đã cập nhật trạng thái HĐ " + maHD + " thành " + newTrangThai);
+                return true;
+            } else {
+                System.err.println("LỖI CSDL: Không tìm thấy Hóa Đơn có mã " + maHD + " để cập nhật trạng thái.");
+                return false;
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi cập nhật trạng thái Hóa đơn " + maHD + ": " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    /**
+     * 🔥 DAO MỚI: Cộng dồn chi tiết món ăn từ một HĐ nguồn vào một HĐ đích (Gộp món).
+     * @param maHDDich Mã Hóa đơn Đích (Master)
+     * @param maHDNguon Mã Hóa đơn Nguồn (Cần gộp)
+     */
+    public void congDonChiTietHoaDon(String maHDDich, String maHDNguon) throws SQLException {
+        // SQL thực hiện: Cập nhật CTHD đích nếu món đã tồn tại, ngược lại, chèn món mới
+        String sql = """
+            -- TẠO BẢNG TẠM ĐỂ CHỨA CTHD CỦA HĐ NGUỒN
+            SELECT maMon, soLuong, thanhTien INTO #TempCTHD FROM ChiTietHoaDon WHERE maHD = ?;
+
+            -- 1. CẬP NHẬT CÁC MÓN ĐÃ TỒN TẠI (Cộng dồn số lượng và thành tiền)
+            UPDATE ChiTietHoaDon
+            SET soLuong = CTHD.soLuong + T.soLuong,
+                thanhTien = CTHD.thanhTien + T.thanhTien
+            FROM ChiTietHoaDon CTHD
+            INNER JOIN #TempCTHD T ON CTHD.maMon = T.maMon
+            WHERE CTHD.maHD = ?;
+
+            -- 2. CHÈN CÁC MÓN CHƯA TỒN TẠI VÀO HĐ ĐÍCH
+            INSERT INTO ChiTietHoaDon (maHD, maMon, soLuong, thanhTien)
+            SELECT
+                ?, T.maMon, T.soLuong, T.thanhTien
+            FROM #TempCTHD T
+            LEFT JOIN ChiTietHoaDon CTHD ON T.maMon = CTHD.maMon AND CTHD.maHD = ?
+            WHERE CTHD.maMon IS NULL;
+            
+            -- DỌN DẸP BẢNG TẠM
+            DROP TABLE #TempCTHD;
+        """;
+
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            // Tham số cho #TempCTHD
+            ps.setString(1, maHDNguon);
+            
+            // Tham số cho UPDATE
+            ps.setString(2, maHDDich);
+            
+            // Tham số cho INSERT (Lặp lại maHDDich 2 lần)
+            ps.setString(3, maHDDich);
+            ps.setString(4, maHDDich);
+
+            ps.executeUpdate(); // Chạy toàn bộ khối lệnh
+            System.out.println("LOG DAO: Đã gộp món ăn từ HD " + maHDNguon + " vào HD " + maHDDich);
+
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi cộng dồn CTHD: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * 🔥 DAO MỚI: Xóa Hóa đơn và Chi tiết HĐ của HĐ nguồn sau khi gộp.
+     * HÀM NÀY PHẢI ĐƯỢC CHẠY SAU CÙNG.
+     */
+    public void xoaHoaDonGop(String maHDNguon, String maBanNguon) throws SQLException {
+        Connection con = null;
+        try {
+            con = ConnectDB.getConnection();
+            con.setAutoCommit(false);
+
+            // 1. Xóa CTHD Nguồn
+            String deleteCTHD = "DELETE FROM ChiTietHoaDon WHERE maHD = ?";
+            try (PreparedStatement ps = con.prepareStatement(deleteCTHD)) {
+                ps.setString(1, maHDNguon);
+                ps.executeUpdate();
+            }
+
+            // 2. Xóa HĐ Nguồn
+            String deleteHD = "DELETE FROM HoaDon WHERE maHD = ?";
+            try (PreparedStatement ps = con.prepareStatement(deleteHD)) {
+                ps.setString(1, maHDNguon);
+                ps.executeUpdate();
+            }
+
+            // 3. Giải phóng bàn
+            String updateBan = "UPDATE Ban SET trangThai = ? WHERE maBan = ?";
+            try (PreparedStatement ps = con.prepareStatement(updateBan)) {
+                ps.setString(1, TrangThaiBan.TRONG.getDbValue());
+                ps.setString(2, maBanNguon);
+                ps.executeUpdate();
+            }
+            
+            con.commit();
+            System.out.println("LOG DAO: Đã hủy HĐ " + maHDNguon + " và giải phóng bàn " + maBanNguon);
+
+        } catch (SQLException e) {
+            if (con != null) con.rollback();
+            System.err.println("LỖI GỘP BÀN: Rollback giao dịch xóa HĐ nguồn: " + e.getMessage());
+            throw e;
+        } finally {
+            if (con != null) con.setAutoCommit(true);
+        }
+    }
+ // dao.DatBanDAO.java
+
+    /**
+     * Cập nhật trạng thái Hóa đơn thành ĐÃ THANH TOÁN và lưu PTTT.
+     * @param maHD Mã hóa đơn cần cập nhật.
+     * @param pttt Phương thức thanh toán (TIEN_MAT, NGAN_HANG, MOMO).
+     * @param maNhanVien Mã nhân viên thực hiện thanh toán. 🔥 THÊM THAM SỐ NÀY
+     * @return true nếu cập nhật thành công, false nếu thất bại.
+     */
+    public boolean thanhToanHoaDon(String maHD, PTTThanhToan pttt, String maNhanVien) { 
+        Connection con = null;
+        try {
+            con = ConnectDB.getConnection();
+            con.setAutoCommit(false); // Bắt đầu giao dịch
+
+            // 1. Cập nhật trạng thái hóa đơn thành ĐÃ THANH TOÁN
+            // SQL: Thêm cột maNhanVien
+            String sqlHD = "UPDATE HoaDon SET trangThai = ?, ptThanhToan = ?, gioRa = GETDATE(), maNV = ? WHERE maHD = ?";
+            try (PreparedStatement psHD = con.prepareStatement(sqlHD)) {
+                psHD.setString(1, TrangThaiHoaDon.DA_THANH_TOAN.getDbValue());
+                psHD.setString(2, pttt.getDbValue()); 
+                psHD.setString(3, maNhanVien); // 🔥 SỬ DỤNG MÃ NHÂN VIÊN
+                psHD.setString(4, maHD);
+                
+                if (psHD.executeUpdate() == 0) {
+                    con.rollback();
+                    return false;
+                }
+            }
+            
+            // 2. Giải phóng TẤT CẢ bàn liên quan đến hóa đơn này
+            String sqlUpdateBan = "UPDATE Ban SET trangThai = ? WHERE maBan IN " +
+                                  "(SELECT maBan FROM HoaDon WHERE maHD = ? OR maHDGoc = ?)";
+            try (PreparedStatement psBan = con.prepareStatement(sqlUpdateBan)) {
+                psBan.setString(1, TrangThaiBan.TRONG.getDbValue());
+                psBan.setString(2, maHD); // HĐ Gốc
+                psBan.setString(3, maHD); // HĐ Phụ có maHDGoc là maHD
+                psBan.executeUpdate();
+            }
+            
+            con.commit(); // Hoàn tất giao dịch
+            System.out.println("LOG DAO: Đã thanh toán HĐ " + maHD + " và giải phóng các bàn liên quan.");
+            return true;
+
+        } catch (SQLException e) {
+            if (con != null) {
+                try {
+                    con.rollback();
+                } catch (SQLException ex) {
+                    System.err.println("LỖI ROLLBACK: " + ex.getMessage());
+                }
+            }
+            System.err.println("LỖI THANH TOÁN HĐ " + maHD + ": " + e.getMessage());
+            return false;
+        } finally {
+            if (con != null) {
+                try {
+                    con.setAutoCommit(true);
+                    con.close();
+                } catch (SQLException ex) {
+                    System.err.println("LỖI ĐÓNG KẾT NỐI: " + ex.getMessage());
+                }
+            }
+        }
+    }
+    
 }

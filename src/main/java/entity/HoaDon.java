@@ -27,6 +27,7 @@ public class HoaDon {
     private double thueVAT;
     private double khuyenMai;
     private double tongTienThanhToan;
+    private String maHDGoc;
 
     // Constructors
     public HoaDon() {
@@ -77,13 +78,17 @@ public class HoaDon {
     public String getSoDienThoaiKH() {
         return (this.khachHang != null) ? this.khachHang.getSoDT() : null;
     }
-
+    public String getMaHDGoc() {
+        return maHDGoc;
+    }
 
     // --- Setters ---
     public void setMaHD(String maHD) { this.maHD = maHD; }
     public void setNgayLap(LocalDateTime ngayLap) { this.ngayLap = ngayLap; }
     public void setHinhThucTT(PTTThanhToan hinhThucTT) { this.hinhThucTT = hinhThucTT; }
-    
+    public void setMaHDGoc(String maHDGoc) {
+        this.maHDGoc = maHDGoc;
+    }
     // Setter 1: Nhận Enum (Dùng cho Controller/Logic nội bộ)
     public void setTrangThai(TrangThaiHoaDon trangThai) { this.trangThai = trangThai; }
 

@@ -37,7 +37,7 @@ public class MainApp extends Application {
 
     public void gotoLogin() {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/dangNhap.fxml"));
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/DangNhap.fxml"));
             Parent root = loader.load();
             DangNhap dangNhapController = loader.getController();
             dangNhapController.setMainApp(this);

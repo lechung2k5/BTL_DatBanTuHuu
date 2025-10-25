@@ -65,20 +65,16 @@ promptText="8" />
                </VBox>
             </HBox>
             
-            <HBox alignment="CENTER_LEFT" spacing="10.0" VBox.vgrow="NEVER">
-           
-    <children>
-                  <Button fx:id="btnBack" mnemonicParsing="false" styleClass="btn-secondary" text="&lt; Quay lại" />
-                  <Region HBox.hgrow="ALWAYS" />
-                  <Button fx:id="btnCapNhat" mnemonicParsing="false" styleClass="btn-primary" text="Cập nhật" />
-                  <Button fx:id="btnDoiBan" mnemonicParsing="false" styleClass="btn-secondary" text="Đổi bàn" />
-                  <Button fx:id="btnTachBan" mnemonicParsing="false" styleClass="btn-warning" text="Tách bàn" />
-      
-            <Button fx:id="btnGoiMon" mnemonicParsing="false" styleClass="btn-tertiary" text="Gọi món" />
-                  <Button fx:id="btnHuyBan" mnemonicParsing="false" styleClass="btn-danger" text="Hủy đặt" />
-               </children>
-               <VBox.margin><Insets top="10.0" /></VBox.margin>
-            </HBox>
+			<HBox alignment="CENTER_LEFT" spacing="10.0" VBox.vgrow="NEVER">
+			    <children>
+			        <Button fx:id="btnBack" mnemonicParsing="false" styleClass="btn-secondary" text="&lt; Quay lại" />
+			        <Region HBox.hgrow="ALWAYS" />
+			        <Button fx:id="btnCapNhat" mnemonicParsing="false" styleClass="btn-primary" text="Cập nhật" /> 
+			    </children>
+			    <VBox.margin>
+			        <Insets top="10.0" />
+			    </VBox.margin>
+			</HBox>
          </children>
      
     <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0" /></padding>

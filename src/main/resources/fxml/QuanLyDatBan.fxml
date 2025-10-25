@@ -105,13 +105,14 @@
                      <HBox spacing="15.0">
                         <children>
                            <VBox spacing="4.0" HBox.hgrow="ALWAYS">
-                                <Label text="Tên khách hàng" />
-                                <TextField fx:id="txtTenKhachHang" promptText="Nhập tên khách hàng (VD: Anh Nam)" />
-                           </VBox>
-                           <VBox spacing="4.0" HBox.hgrow="ALWAYS">
                                <Label text="Số điện thoại" />
                                <TextField fx:id="txtSoDienThoai" promptText="Nhập số điện thoại (VD:0377019956)" />
                            </VBox>
+                           <VBox spacing="4.0" HBox.hgrow="ALWAYS">
+                                <Label text="Tên khách hàng" />
+                                <TextField fx:id="txtTenKhachHang" promptText="Nhập tên khách hàng (VD: Anh Nam)" />
+                           </VBox>
+
                         </children>
                      </HBox>
                      <HBox spacing="15.0">
@@ -185,9 +186,17 @@
                         <TableColumn fx:id="colOrderHuy" text="Hủy" prefWidth="75"/>
                      </columns>
                  </TableView>
-                 <HBox alignment="CENTER_RIGHT" spacing="10">
+				<HBox alignment="CENTER_LEFT" spacing="10">
+                    <Button fx:id="btnSuaMon" mnemonicParsing="false" text="Sửa" styleClass="action-button-edit" />
+                    <Button fx:id="btnDoiBan" mnemonicParsing="false" text="Đổi Bàn" styleClass="action-button-switch" />
+                    <Button fx:id="btnTachBan" mnemonicParsing="false" text="Tách Bàn" styleClass="action-button-split" />
+                    <Button fx:id="btnGopBan" mnemonicParsing="false" text="Gộp Bàn" styleClass="action-button-merge" />
+                    <Button fx:id="btnHuyBan" mnemonicParsing="false" text="Hủy Bàn" styleClass="action-button-cancel" />
+                    
+                    <Region HBox.hgrow="ALWAYS" />
+                    
                     <Button fx:id="btnLuuDatHang" text="Lưu đặt hàng" styleClass="action-button-save"/>
-                     <Button fx:id="btnThanhToan" text="Thanh toán" styleClass="confirm-button"/>
+                    <Button fx:id="btnThanhToan" text="Thanh toán" styleClass="confirm-button"/>
                  </HBox>
             </VBox>
          </VBox>
@@ -201,19 +210,19 @@
              <Label text="HÓA ĐƠN" styleClass="receipt-main-title"/>
              <VBox alignment="CENTER" spacing="1">
                  <Label text="NHÀ HÀNG TỨ HỮU" styleClass="receipt-restaurant-name"/>
-                 <Label text="Đ/c: TT. Long Thành, huyện Duyên Hải, Trà Vinh"/>
-                 <Label text="SĐT: 0987123456"/>
+                 <Label text="Đ/c: 77 Hồ Tùng Mậu, Phường Châu Đốc, An Giang"/>
+                 <Label text="SĐT: 0377019958"/>
              </VBox>
              <Label text="HÓA ĐƠN THANH TOÁN" styleClass="receipt-title"/>
-             <Label text="Số HĐ: HD000123"/>
-             <GridPane hgap="10">
-                <children>
-                     <Label text="Bàn: 16" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
-                     <Label text="Thu ngân: Nguyễn Văn A" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
-                     <Label text="Giờ vào: 18:00" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
-                     <Label text="Giờ ra: 22:45" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
-                 </children>
-             </GridPane>
+            <Label fx:id="lblSoHD" text="Số HĐ: HD000123"/>
+			<GridPane hgap="10">
+			   <children>
+			       <Label fx:id="lblBanHD" text="Bàn: N/A" GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+			       <Label fx:id="lblThuNgan" text="Thu ngân: N/A" GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+			       <Label fx:id="lblGioVao" text="Giờ vào: N/A" GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+			       <Label fx:id="lblGioRa" text="Giờ ra: N/A" GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+			   </children>
+			</GridPane>
              <TableView fx:id="tblHoaDon" prefHeight="250.0">
                  <columns>
                      <TableColumn text="STT" prefWidth="30"/><TableColumn text="Tên món" prefWidth="110"/><TableColumn text="SL" prefWidth="30"/><TableColumn text="Đơn giá" prefWidth="90"/><TableColumn text="Thành tiền" prefWidth="100"/>

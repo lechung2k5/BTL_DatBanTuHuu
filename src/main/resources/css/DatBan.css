@@ -79,6 +79,46 @@
 .confirm-button, .payment-button, .action-button-save, .confirm-button-large {
     -fx-background-radius: 8px; -fx-font-weight: bold; -fx-text-fill: white; -fx-font-size: 13px; -fx-padding: 8 18;
 }
+.action-button-edit, .action-button-switch, .action-button-split, .action-button-merge, .action-button-cancel{
+    -fx-background-radius: 8px; 
+    -fx-font-weight: bold; 
+    -fx-text-fill: white; /* Mặc định chữ trắng */
+    -fx-font-size: 13px; 
+    -fx-padding: 8 18;
+}
+
+/* Nút Sửa (Màu Đỏ) */
+.action-button-edit { -fx-background-color: #2624bf; }
+.action-button-edit:hover { -fx-background-color: #fa5252; }
+
+/* Nút Đổi Bàn (Màu Cam) */
+.action-button-switch { -fx-background-color: #f76707; }
+.action-button-switch:hover { -fx-background-color: #fd7e14; }
+
+/* Nút Tách Bàn (Màu Vàng - Chữ đen) */
+.action-button-split { 
+    -fx-background-color: #FF8DA1; 
+    
+}
+.action-button-split:hover { -fx-background-color: #ffd43b; }
+
+/* Nút Gộp Bàn (Màu Tím) */
+.action-button-merge { -fx-background-color: #5f3dc4; }
+.action-button-merge:hover { -fx-background-color: #7048e8; }
+.action-button-cancel { -fx-background-color: #ff0000; }
+.action-button-cancel:hover { -fx-background-color: #7048e8; }
+/* Các màu còn lại của cầu vồng:
+   - Màu Lục (Green) đã dùng cho "Lưu đặt hàng"
+   - Màu Lam (Blue) đã dùng cho "Thanh toán"
+*/
+/* ================================== */
+
+
+.vertical-divider { -fx-background-color: #fcc419; -fx-pref-width: 2px; }
+/* ================================== */
+
+
+.vertical-divider { -fx-background-color: #fcc419; -fx-pref-width: 2px; }
 .confirm-button { -fx-background-color: #228be6;}
 .confirm-button-large { -fx-background-color: #f7a940; -fx-font-size: 14px; -fx-padding: 10 30;}
 .payment-button { -fx-background-color: #40c057;}

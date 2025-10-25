@@ -1,12 +1,20 @@
 ﻿package entity;
 
+import java.text.Normalizer;
+import java.util.regex.Pattern;
+
 /**
  * Enum đại diện cho các Trạng Thái Hóa Đơn.
  */
 public enum TrangThaiHoaDon {
-    DAT("Dat", "Đặt"),                         // Mã trong DB, Tên hiển thị
-    DA_THANH_TOAN("DaThanhToan", "Đã Thanh Toán"),
-    DA_HUY("DaHuy", "Đã Hủy"), DANG_SU_DUNG("DangSuDung", "Đang Sử Dụng"); // Ví dụ thêm trạng thái Hủy
+    // === Đảm bảo tên hiển thị khớp với ComboBox trong UI ===
+    DAT("Dat", "Đã đặt"), 
+    DA_THANH_TOAN("DaThanhToan", "Đã thanh toán"),
+    DA_HUY("DaHuy", "Đã hủy"), 
+    DANG_SU_DUNG("DangSuDung", "Đang phục vụ"), // Đã sửa từ "Đang Sử Dụng" sang "Đang phục vụ"
+    HOA_DON_TAM("HoaDonTam", "Hóa đơn tạm"); 
+	
+    // ========================================================
 
     private final String dbValue;
     private final String displayName;
@@ -26,36 +34,58 @@ public enum TrangThaiHoaDon {
 
     /**
      * Tìm Enum tương ứng dựa vào giá trị lưu trong CSDL.
-     * @param dbValue Giá trị từ cột trangThai trong DB (vd: "DaThanhToan")
-     * @return Enum TrangThaiHoaDon tương ứng, hoặc null nếu không tìm thấy.
      */
     public static TrangThaiHoaDon fromDbValue(String dbValue) {
         if (dbValue == null) {
             return null;
         }
+        String trimmedDbValue = dbValue.trim(); 
         for (TrangThaiHoaDon tt : values()) {
-            if (tt.dbValue.equalsIgnoreCase(dbValue)) {
-                return tt;
+            if (tt.dbValue.equalsIgnoreCase(trimmedDbValue)) {
+                return tt; 
             }
         }
-        return null; // Hoặc ném Exception
+        System.err.println("CẢNH BÁO: Không tìm thấy TrangThaiHoaDon cho dbValue: '" + dbValue + "'");
+        return null;
     }
 
-     /**
+    /**
      * Tìm Enum tương ứng dựa vào tên hiển thị.
-     * @param displayName Tên hiển thị (vd: "Đã Thanh Toán")
+     * === FIX CUỐI CÙNG: Sử dụng Normalizer để loại bỏ dấu và khoảng trắng, đảm bảo so sánh chính xác ===
+     * @param displayName Tên hiển thị (vd: "Đã Thanh Toán", "Đang phục vụ")
      * @return Enum TrangThaiHoaDon tương ứng, hoặc null nếu không tìm thấy.
      */
     public static TrangThaiHoaDon fromDisplayName(String displayName) {
          if (displayName == null) {
             return null;
         }
+        
+        // Chuẩn hóa chuỗi đầu vào (Loại bỏ dấu, khoảng trắng, và chuyển sang chữ hoa)
+        String standardizedInput = standardizeString(displayName);
+
         for (TrangThaiHoaDon tt : values()) {
-            if (tt.displayName.equalsIgnoreCase(displayName)) {
+            // Chuẩn hóa displayName của Enum 
+            String standardizedEnumName = standardizeString(tt.displayName);
+            
+            if (standardizedEnumName.equals(standardizedInput)) {
                 return tt;
             }
         }
-        return null; // Hoặc ném Exception
+        return null; 
+    }
+    
+    /**
+     * Helper: Chuẩn hóa chuỗi bằng cách loại bỏ dấu tiếng Việt, khoảng trắng và chuyển thành chữ hoa.
+     */
+    private static String standardizeString(String input) {
+        if (input == null) return "";
+        // 1. Chuẩn hóa NFD (phân tách ký tự thành base + dấu)
+        String temp = Normalizer.normalize(input, Normalizer.Form.NFD);
+        // 2. Loại bỏ các ký tự dấu
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        temp = pattern.matcher(temp).replaceAll("");
+        // 3. Loại bỏ khoảng trắng và chuyển thành chữ hoa
+        return temp.replaceAll("\\s+", "").toUpperCase();
     }
 
 

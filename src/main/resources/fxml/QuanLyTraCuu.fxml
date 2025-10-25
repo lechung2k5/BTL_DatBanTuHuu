@@ -7,150 +7,144 @@
 <VBox fx:controller="ui.TraCuu"
       xmlns="http://javafx.com/javafx/21"
       xmlns:fx="http://javafx.com/fxml/1"
-      style="-fx-background-image: url('/images/background.jpg');
-             -fx-background-size: cover;
-             -fx-background-position: center center;
-             -fx-background-repeat: no-repeat;"
-      styleClass="tra-cuu-container">
-
+      style="-fx-background-color: #f5f5f5;"
+      spacing="20">
 
     <!-- Header -->
-    <HBox alignment="CENTER_LEFT" spacing="15" styleClass="header-section">
+    <HBox alignment="CENTER_LEFT" spacing="15" style="-fx-background-color: white; -fx-padding: 20; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);">
         <children>
-            <Label text="Tra cứu" styleClass="screen-title"/>
+            <Label text="Tra cứu" style="-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
             <Region HBox.hgrow="ALWAYS"/>
-
         </children>
-        <VBox.margin>
-            <Insets bottom="20"/>
-        </VBox.margin>
     </HBox>
 
-    <!-- Container chính với 2 phần bằng nhau -->
+    <!-- Container chính với 2 phần CHIA ĐỀU -->
     <HBox spacing="20" VBox.vgrow="ALWAYS">
         
-        <!-- ========== PHẦN BÊN TRÁI - HÓA ĐƠN ========== -->
-        <VBox spacing="15" styleClass="section-container" prefWidth="600" HBox.hgrow="ALWAYS">
+        <!-- ========== PHẦN BÊN TRÁI - HÓA ĐƠN (50%) ========== -->
+        <VBox spacing="15" 
+              style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);" 
+              HBox.hgrow="ALWAYS"
+              prefWidth="0"
+              minWidth="0">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
             
             <!-- Header Hóa đơn -->
-            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="section-header">
+            <HBox alignment="CENTER_LEFT" spacing="10">
                 <children>
-                    <Label text="Hóa đơn" styleClass="section-title"/>
+                    <Label text="Hóa đơn" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
                     
                     <!-- ComboBox sắp xếp -->
                     <ComboBox fx:id="cboSapXepHD" 
-                              promptText="Theo ngày, theo tháng..."
-                              styleClass="sort-combo"
-                              prefWidth="180">
+                              promptText="Sắp xếp..."
+                              prefWidth="120">
                         <HBox.margin>
                             <Insets left="10"/>
                         </HBox.margin>
                     </ComboBox>
                     
+                    <Region HBox.hgrow="ALWAYS"/>
+                    
                     <!-- Search Box -->
-                    <HBox alignment="CENTER_LEFT" styleClass="search-box-inline" HBox.hgrow="ALWAYS">
-                        <children>
-                            <Label text="🔍" style="-fx-font-size: 14px;">
-                                <HBox.margin>
-                                    <Insets left="10" right="8"/>
-                                </HBox.margin>
-                            </Label>
-                            <TextField fx:id="txtTimKiemHD" 
-                                      promptText="Nhập số điện thoại..."
-                                      styleClass="search-field-inline"
-                                      HBox.hgrow="ALWAYS"/>
-                        </children>
-                    </HBox>
+                    <TextField fx:id="txtTimKiemHD" 
+                              promptText="Tìm SĐT hoặc mã HD..."
+                              prefWidth="200">
+                    </TextField>
                 </children>
             </HBox>
 
             <!-- Bảng Hóa đơn -->
-<TableView fx:id="tblHoaDon" styleClass="result-table" VBox.vgrow="ALWAYS">
-    <columns>
-        <TableColumn fx:id="colMaHD" text="Mã hóa đơn" prefWidth="100" resizable="false"/>
-        <TableColumn fx:id="colNgayHD" text="Ngày lập" prefWidth="90" resizable="false"/>
-        <TableColumn fx:id="colHinhThuc" text="Hình thức thanh toán" prefWidth="150" resizable="false"/>
-        <TableColumn fx:id="colSDTKH" text="Số điện thoại khách hàng" prefWidth="160" resizable="false"/>
-        <TableColumn fx:id="colTongTien" text="Tổng tiền" prefWidth="100" resizable="false"/>
-        <TableColumn fx:id="colXemChiTiet" text="Chi tiết" prefWidth="150" resizable="false"/>
-    </columns>
-    <placeholder>
-        <Label text="Nhập số điện thoại để tìm kiếm hóa đơn" styleClass="placeholder-label"/>
-    </placeholder>
-</TableView>
-
-            <!-- Nút Xuất Excel -->
-            <HBox alignment="CENTER_RIGHT">
-                <children>
-                    <Button fx:id="btnXuatExcelHD" 
-                            text="📊 Xuất Excel" 
-                            styleClass="excel-button"
-                            onAction="#handleXuatExcelHoaDon"/>
-                </children>
-            </HBox>
-            
-        </VBox>
-
-        <!-- ========== PHẦN BÊN PHẢI - KHÁCH HÀNG ========== -->
-        <VBox spacing="15" styleClass="section-container" prefWidth="600" HBox.hgrow="ALWAYS">
-            
-            <!-- Header Khách hàng -->
-            <HBox alignment="CENTER_LEFT" spacing="10" styleClass="section-header">
-                <children>
-                    <Label text="Khách hàng" styleClass="section-title"/>
-                    
-                    <!-- ComboBox sắp xếp -->
-                    <ComboBox fx:id="cboSapXepKH" 
-                              promptText="Theo ngày, theo tháng..."
-                              styleClass="sort-combo"
-                              prefWidth="180">
-                        <HBox.margin>
-                            <Insets left="10"/>
-                        </HBox.margin>
-                    </ComboBox>
-                    
-                    <!-- Search Box -->
-                    <HBox alignment="CENTER_LEFT" styleClass="search-box-inline" HBox.hgrow="ALWAYS">
-                        <children>
-                            <Label text="🔍" style="-fx-font-size: 14px;">
-                                <HBox.margin>
-                                    <Insets left="10" right="8"/>
-                                </HBox.margin>
-                            </Label>
-                            <TextField fx:id="txtTimKiemKH" 
-                                      promptText="Nhập số điện thoại..."
-                                      styleClass="search-field-inline"
-                                      HBox.hgrow="ALWAYS"/>
-                        </children>
-                    </HBox>
-                </children>
-            </HBox>
-
-            <!-- Bảng Khách hàng -->
-            <TableView fx:id="tblKhachHang" styleClass="result-table" VBox.vgrow="ALWAYS">
+            <TableView fx:id="tblHoaDon" VBox.vgrow="ALWAYS">
                 <columns>
-                    <TableColumn fx:id="colMaKH" text="Mã khách hàng" prefWidth="110" resizable="false"/>
-                    <TableColumn fx:id="colHoTen" text="Họ và tên" prefWidth="120" resizable="false"/>
-                    <TableColumn fx:id="colSDT" text="Số điện thoại" prefWidth="110" resizable="false"/>
-                    <TableColumn fx:id="colDiaChi" text="Địa chỉ" prefWidth="80" resizable="false"/>
-                    <TableColumn fx:id="colEmail" text="Email" prefWidth="150" resizable="false"/>
-                    <TableColumn fx:id="colNgayDK" text="Ngày đăng ký" prefWidth="100" resizable="false"/>
-                    <TableColumn fx:id="colLoaiKH" text="Loại khách hàng" prefWidth="115" resizable="false"/>
-                    <TableColumn fx:id="colTongTienHD" text="Tổng tiền hóa đơn" prefWidth="130" resizable="false"/>
-                    <TableColumn fx:id="colLichSu" text="Lịch sử" prefWidth="80" resizable="false"/>
+                    <TableColumn fx:id="colMaHD" text="Mã HD" prefWidth="80"/>
+                    <TableColumn fx:id="colNgayHD" text="Ngày" prefWidth="90"/>
+                    <TableColumn fx:id="colHinhThuc" text="PTTT" prefWidth="100"/>
+                    <TableColumn fx:id="colSDTKH" text="SĐT KH" prefWidth="100"/>
+                    <TableColumn fx:id="colTongTien" text="Tổng tiền" prefWidth="110"/>
+                    <TableColumn fx:id="colXemChiTiet" text="Chi tiết" prefWidth="70"/>
                 </columns>
                 <placeholder>
-                    <Label text="Nhập số điện thoại để tìm kiếm khách hàng" styleClass="placeholder-label"/>
+                    <Label text="Nhập SĐT hoặc mã để tìm kiếm"/>
                 </placeholder>
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                </columnResizePolicy>
             </TableView>
 
             <!-- Nút Xuất Excel -->
             <HBox alignment="CENTER_RIGHT">
                 <children>
-                    <Button fx:id="btnXuatExcelKH" 
-                            text="📊 Xuất Excel" 
-                            styleClass="excel-button"
-                            onAction="#handleXuatExcelKhachHang"/>
+                    <Button text="📊 Xuất Excel" 
+                            onAction="#handleXuatExcelHoaDon"
+                            style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5; -fx-cursor: hand;"/>
+                </children>
+            </HBox>
+            
+        </VBox>
+
+        <!-- ========== PHẦN BÊN PHẢI - KHÁCH HÀNG (50%) ========== -->
+        <VBox spacing="15" 
+              style="-fx-background-color: white; -fx-background-radius: 10; -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 10, 0, 0, 2);" 
+              HBox.hgrow="ALWAYS"
+              prefWidth="0"
+              minWidth="0">
+            <padding>
+                <Insets top="20" right="20" bottom="20" left="20"/>
+            </padding>
+            
+            <!-- Header Khách hàng -->
+            <HBox alignment="CENTER_LEFT" spacing="10">
+                <children>
+                    <Label text="Khách hàng" style="-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #2c3e50;"/>
+                    
+                    <!-- ComboBox sắp xếp -->
+                    <ComboBox fx:id="cboSapXepKH" 
+                              promptText="Sắp xếp..."
+                              prefWidth="120">
+                        <HBox.margin>
+                            <Insets left="10"/>
+                        </HBox.margin>
+                    </ComboBox>
+                    
+                    <Region HBox.hgrow="ALWAYS"/>
+                    
+                    <!-- Search Box -->
+                    <TextField fx:id="txtTimKiemKH" 
+                              promptText="Tìm SĐT hoặc tên KH..."
+                              prefWidth="200">
+                    </TextField>
+                </children>
+            </HBox>
+
+            <!-- Bảng Khách hàng -->
+            <TableView fx:id="tblKhachHang" VBox.vgrow="ALWAYS">
+                <columns>
+                    <TableColumn fx:id="colMaKH" text="Mã KH" prefWidth="70"/>
+                    <TableColumn fx:id="colHoTen" text="Họ tên" prefWidth="120"/>
+                    <TableColumn fx:id="colSDT" text="SĐT" prefWidth="100"/>
+                    <TableColumn fx:id="colDiaChi" text="Địa chỉ" prefWidth="120"/>
+                    <TableColumn fx:id="colEmail" text="Email" prefWidth="120"/>
+                    <TableColumn fx:id="colNgayDK" text="Ngày ĐK" prefWidth="90"/>
+                    <TableColumn fx:id="colLoaiKH" text="Loại" prefWidth="70"/>
+                    <TableColumn fx:id="colTongTienHD" text="Tổng tiền" prefWidth="100"/>
+                    <TableColumn fx:id="colLichSu" text="Lịch sử" prefWidth="70"/>
+                </columns>
+                <placeholder>
+                    <Label text="Nhập SĐT hoặc tên để tìm kiếm"/>
+                </placeholder>
+                <columnResizePolicy>
+                    <TableView fx:constant="CONSTRAINED_RESIZE_POLICY"/>
+                </columnResizePolicy>
+            </TableView>
+
+            <!-- Nút Xuất Excel -->
+            <HBox alignment="CENTER_RIGHT">
+                <children>
+                    <Button text="📊 Xuất Excel" 
+                            onAction="#handleXuatExcelKhachHang"
+                            style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-padding: 10 20; -fx-background-radius: 5; -fx-cursor: hand;"/>
                 </children>
             </HBox>
             
@@ -159,7 +153,7 @@
     </HBox>
 
     <padding>
-        <Insets top="30" right="30" bottom="30" left="30"/>
+        <Insets top="20" right="20" bottom="20" left="20"/>
     </padding>
 
 </VBox>

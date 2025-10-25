@@ -11,12 +11,12 @@ import java.util.List;
 
 public class HoaDonDAO {
 
-    /**
+	/**
      * Lấy tất cả hóa đơn từ CSDL cho màn hình quản lý hóa đơn.
+     * === ĐÃ SỬA: Chỉ lấy các hóa đơn có trạng thái "Đã thanh toán" ===
      */
     public List<HoaDon> getAllHoaDon() {
-        // ... code của hàm getAllHoaDon() ...
-         List<HoaDon> danhSachHoaDon = new ArrayList<>();
+        List<HoaDon> danhSachHoaDon = new ArrayList<>();
         String sql = """
             SELECT
                 h.maHD, h.ngayLap, h.ptThanhToan, h.trangThai, h.maUuDai, h.gioVao, h.gioRa, h.tienCoc,
@@ -25,49 +25,70 @@ public class HoaDonDAO {
             FROM HoaDon h
             LEFT JOIN KhachHang kh ON h.maKH = kh.maKH
             LEFT JOIN NhanVien n ON h.maNV = n.maNV
+            WHERE h.trangThai = ? -- <<< THÊM ĐIỀU KIỆN LỌC
             ORDER BY h.ngayLap DESC
         """;
-        try (Connection conn = ConnectDB.getConnection(); PreparedStatement pstmt = conn.prepareStatement(sql); ResultSet rs = pstmt.executeQuery()) {
-            while (rs.next()) {
-                HoaDon hoaDon = new HoaDon(); 
-                hoaDon.setMaHD(rs.getString("maHD")); 
-                
-                // Chuyển đổi TIMESTAMP sang LocalDateTime (dùng getTimestamp)
-                hoaDon.setNgayLap(rs.getTimestamp("ngayLap") != null ? rs.getTimestamp("ngayLap").toLocalDateTime() : null); 
-                
-                // Sửa lỗi mơ hồ PTTThanhToan
-                String ptttStr = rs.getString("ptThanhToan");
-                if (ptttStr != null) {
-                    hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(ptttStr)); 
-                } else {
-                    // 🔥 FIX AMBIGUITY: Ép kiểu null thành PTTThanhToan
-                    hoaDon.setHinhThucTT((PTTThanhToan) null); 
+        
+        // Sửa lại try-with-resources để gán tham số
+        try (Connection conn = ConnectDB.getConnection(); 
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            // Gán giá trị cho điều kiện WHERE
+            pstmt.setString(1, TrangThaiHoaDon.DA_THANH_TOAN.getDbValue()); //
+
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    HoaDon hoaDon = new HoaDon(); 
+                    hoaDon.setMaHD(rs.getString("maHD")); 
+                    
+                    hoaDon.setNgayLap(rs.getTimestamp("ngayLap") != null ? rs.getTimestamp("ngayLap").toLocalDateTime() : null); 
+                    
+                    String ptttStr = rs.getString("ptThanhToan");
+                    if (ptttStr != null) {
+                        hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(ptttStr)); 
+                    } else {
+                        hoaDon.setHinhThucTT((PTTThanhToan) null); 
+                    }
+                    
+                    String trangThaiStr = rs.getString("trangThai");
+                    if (trangThaiStr != null) {
+                        hoaDon.setTrangThai(trangThaiStr); 
+                    } else {
+                        hoaDon.setTrangThai((String) null); 
+                    }
+                    
+                    hoaDon.setMaUuDai(rs.getString("maUuDai"));
+                    hoaDon.setGioVao(rs.getTimestamp("gioVao") != null ? rs.getTimestamp("gioVao").toLocalDateTime() : null);
+                    hoaDon.setGioRa(rs.getTimestamp("gioRa") != null ? rs.getTimestamp("gioRa").toLocalDateTime() : null);
+                    hoaDon.setTienCoc(rs.getDouble("tienCoc"));
+                    hoaDon.setTenNhanVien(rs.getString("tenNV"));
+                    hoaDon.setTongCongMonAn(rs.getDouble("tongCongMonAn"));
+                    
+                    // ... (logic load KhachHang, Ban sẽ là null nếu không join, 
+                    // nhưng logic trong entity HoaDon.java đã xử lý việc này)
+                    
+                    // Tải Khách Hàng (chỉ cần SĐT cho UI này)
+                    if (rs.getString("maKH") != null) {
+                        KhachHang kh = new KhachHang();
+                        kh.setSoDT(rs.getString("soDT"));
+                        hoaDon.setKhachHang(kh);
+                    }
+                    
+                    // Tải Bàn (chỉ cần mã bàn)
+                    if (rs.getString("maBan") != null) {
+                        Ban ban = new Ban();
+                        ban.setMaBan(rs.getString("maBan"));
+                        hoaDon.setBan(ban);
+                    }
+
+                    hoaDon.calculateTotals(); // Tính toán tổng tiền
+                    danhSachHoaDon.add(hoaDon);
                 }
-                
-                // 🔥 SỬA LỖI DÒNG 52: Sử dụng setter nhận String
-                String trangThaiStr = rs.getString("trangThai");
-                if (trangThaiStr != null) {
-                    hoaDon.setTrangThai(trangThaiStr); // Setter này sẽ gọi fromDbValue bên trong
-                } else {
-                    // Cột trangThai là NOT NULL trong DB, nhưng nếu DB trả về null (lỗi logic/data)
-                    // thì gọi setter nhận String với giá trị null
-                    hoaDon.setTrangThai((String) null); // Setter trong HoaDon.java sẽ xử lý
-                }
-                
-                // Các thuộc tính khác (giữ nguyên)
-                hoaDon.setMaUuDai(rs.getString("maUuDai"));
-                hoaDon.setGioVao(rs.getTimestamp("gioVao") != null ? rs.getTimestamp("gioVao").toLocalDateTime() : null);
-                hoaDon.setGioRa(rs.getTimestamp("gioRa") != null ? rs.getTimestamp("gioRa").toLocalDateTime() : null);
-                hoaDon.setTienCoc(rs.getDouble("tienCoc"));
-                hoaDon.setTenNhanVien(rs.getString("tenNV"));
-                hoaDon.setTongCongMonAn(rs.getDouble("tongCongMonAn"));
-                
-                // ... (logic load KhachHang, Ban)
-                
-                hoaDon.calculateTotals(); // Tính toán tổng tiền
-                danhSachHoaDon.add(hoaDon);
             }
-        } catch (SQLException e) { System.err.println("Lỗi khi lấy danh sách hóa đơn: " + e.getMessage()); e.printStackTrace(); }
+        } catch (SQLException e) { 
+            System.err.println("Lỗi khi lấy danh sách hóa đơn ĐÃ THANH TOÁN: " + e.getMessage()); 
+            e.printStackTrace(); 
+        }
         return danhSachHoaDon;
     }
 
@@ -236,4 +257,5 @@ public class HoaDonDAO {
         }
         return hoaDon;
     }
+    
 }
