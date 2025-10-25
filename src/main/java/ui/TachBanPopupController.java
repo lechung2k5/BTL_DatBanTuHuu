@@ -12,12 +12,16 @@ import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
+import java.io.IOException;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -186,11 +190,9 @@ public class TachBanPopupController {
         
         // NÚT THANH TOÁN (Logic giữ nguyên, giả định FXML fields tồn tại)
         if (btnThanhToanGoc != null) {
-            // FIX: Nút Thanh toán Gốc chỉ cần kiểm tra còn món trong HĐ gốc hay không
             btnThanhToanGoc.setOnAction(e -> handleThanhToanGopTach(false));
         }
         if (btnThanhToanMoi != null) {
-            // FIX: Nút Thanh toán Mới chỉ cần kiểm tra có món được tách ra hay không
             btnThanhToanMoi.setOnAction(e -> handleThanhToanGopTach(true));
         }
     }
@@ -245,7 +247,8 @@ public class TachBanPopupController {
     // ==========================================================
     
     /**
-     * 🔥 HÀM MỚI: Xử lý TÁCH MÓN VÀ THANH TOÁN GỘP (ĐƯỢC GỌI BỞI NÚT THANH TOÁN)
+     * 🔥 HÀM ĐÃ SỬA: Xử lý TÁCH MÓN VÀ MỞ POPUP PREVIEW THANH TOÁN
+     * LƯU Ý: KHÔNG GỌI CSDL CHO ĐẾN KHI NÚT XÁC NHẬN CUỐI CÙNG TRONG PREVIEW ĐƯỢC NHẤN.
      */
     private void handleThanhToanGopTach(boolean thanhToanMoi) {
         if (monMoiList.isEmpty() && thanhToanMoi) {
@@ -253,92 +256,79 @@ public class TachBanPopupController {
              return;
         }
 
-        // Kiểm tra xem HĐ gốc còn món không (nếu người dùng đã chuyển hết món)
         if (monTachList.isEmpty() && !thanhToanMoi) {
              showAlert(AlertType.ERROR, "Lỗi", "Không còn món nào trong Hóa đơn gốc để thanh toán.");
              return;
         }
-
-        Optional<ButtonType> result = showAlertConfirm("Xác nhận Thanh toán", 
-            "Bạn có chắc muốn TÁCH MÓN và Thanh toán " + (thanhToanMoi ? "Hóa đơn PHỤ" : "Hóa đơn GỐC") + " bằng Tiền Mặt?");
+        
+        Optional<ButtonType> result = showAlertConfirm("Xác nhận Tách Món", 
+            "Bạn có chắc muốn thực hiện TÁCH MÓN VÀ thanh toán? Thao tác này sẽ chuẩn bị giao dịch.");
 
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
-                // 1. Thực hiện Transaction Tách Món (Tạo HD phụ, cập nhật CTHD gốc)
-                // Hóa đơn mới được tạo
-                HoaDon hdMoiDuocTao = thucHienTransactionTachBan(); 
+                // 1. TÍNH TOÁN DỮ LIỆU TÁCH MỚI (chỉ trong bộ nhớ)
+                // Hóa đơn Mới (tạm thời) sẽ được tạo mã HD ngẫu nhiên để Preview
+                HoaDon hdMoiTam = new HoaDon();
+                // 🔥 Sửa: Không cần gọi getNextMaHD() ở đây, chỉ cần tạo mã tạm.
+                hdMoiTam.setMaHD("TMP" + "001"); // Mã tạm
                 
-                // 2. Lựa chọn HĐ cần thanh toán
-                String maHDToPay = thanhToanMoi ? hdMoiDuocTao.getMaHD() : hoaDonGoc.getMaHD(); 
+                // 2. Lựa chọn HĐ cần thanh toán và thông tin tiền cọc
+                HoaDon hdToPreview = thanhToanMoi ? hdMoiTam : hoaDonGoc;
                 
-                // 3. Thanh toán HĐ đã chọn
-                datBanDAO.capNhatTrangThaiHoaDon(maHDToPay, TrangThaiHoaDon.DA_THANH_TOAN.getDbValue(), true); // set gioRa = true
-                
-                // 4. Cleanup (Giải phóng bàn gốc nếu HĐ gốc được thanh toán)
-                if (maHDToPay.equals(hoaDonGoc.getMaHD()) && hoaDonGoc.getBan() != null) {
-                    datBanDAO.capNhatTrangThaiBan(hoaDonGoc.getBan().getMaBan(), TrangThaiBan.TRONG.getDbValue());
+                // 3. Tính toán tổng tiền món ăn (cho Preview)
+                double tongMonAn;
+                if (thanhToanMoi) {
+                     tongMonAn = monMoiList.stream().mapToDouble(m -> m.getDonGia() * m.getSoLuongTach()).sum();
+                } else {
+                     // Nếu thanh toán HĐ gốc: tính tổng số lượng món còn lại
+                     tongMonAn = monTachList.stream().mapToDouble(m -> m.getDonGia() * m.getSoLuongConLai()).sum();
                 }
-
-                // 5. Refresh UI và Đóng
-                mainController.loadBookingCards();
-                mainController.loadTableGrids();
-                closePopup();
                 
-                showAlert(AlertType.INFORMATION, "Thành công", "Đã Tách Món và Thanh toán Hóa đơn " + maHDToPay + ".");
+                // 4. MỞ POPUP XÁC NHẬN THANH TOÁN CUỐI CÙNG
+                // Tiền cọc gốc chỉ được áp dụng nếu HĐ gốc được thanh toán (thanhToanMoi = false)
+                openThanhToanPreviewPopup(hdToPreview, tongMonAn, hoaDonGoc.getTienCoc(), thanhToanMoi); 
+                
+                // Sau khi Popup Thanh toán đóng, cần đóng Popup Tách Bàn (vì giao dịch đã hoàn tất)
+                closePopup(); 
 
             } catch (Exception e) {
                 e.printStackTrace();
-                showAlert(AlertType.ERROR, "Lỗi CSDL", "Không thể hoàn tất giao dịch Thanh toán/Tách: " + e.getMessage());
+                showAlert(AlertType.ERROR, "Lỗi CSDL", "Không thể chuẩn bị giao dịch Tách: " + e.getMessage());
             }
         }
     }
-    
+
     /**
-     * Thực hiện giao dịch Tách Bàn (Tạo HĐ mới, cập nhật HĐ cũ).
+     * 🔥 HÀM MỚI: Mở Popup Thanh toán Preview.
      */
-    private HoaDon thucHienTransactionTachBan() throws SQLException {
-        // 1. TẠO HÓA ĐƠN PHỤ MỚI (Trạng thái HoaDonTam, KHÔNG CÓ BÀN)
-        HoaDon hdMoi = new HoaDon();
-        hdMoi.setNgayLap(LocalDateTime.now());
-        hdMoi.setGioVao(hoaDonGoc.getGioVao());
-        hdMoi.setKhachHang(hoaDonGoc.getKhachHang());
-        hdMoi.setBan(null); // KHÔNG GÁN BÀN MỚI
-        hdMoi.setTienCoc(0); 
-        hdMoi.setMaHDGoc(hoaDonGoc.getMaHD());
-        hdMoi.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
-
-        // Lưu Hóa đơn Mới (chưa có CTHD)
-        datBanDAO.luuHoaDonVaChiTiet(hdMoi, FXCollections.observableArrayList()); 
-
-        // 2. CẬP NHẬT/CHÈN MÓN QUA DAO
-        for (MonTach mon : allMonTach) {
-            if (mon.getSoLuongTach() > 0) {
-                int slMoiConLai = mon.getSoLuongGoc() - mon.getSoLuongTach();
-                double donGia = mon.getDonGia(); // Lấy đơn giá để tính thành tiền
-
-                // Cập nhật CTHD Gốc (Giảm số lượng món)
-                if (slMoiConLai == 0) {
-                    datBanDAO.xoaChiTietHoaDon(hoaDonGoc.getMaHD(), mon.getMaMon());
-                } else {
-                    datBanDAO.capNhatSoLuongCTHD(hoaDonGoc.getMaHD(), mon.getMaMon(), slMoiConLai, donGia);
-                }
-                
-                // Thêm CTHD Mới (Chèn số lượng món đã tách vào HĐ Mới)
-                datBanDAO.themChiTietHoaDon(hdMoi.getMaHD(), mon.getMaMon(), mon.getSoLuongTach(), donGia);
-            }
-        }
+    private void openThanhToanPreviewPopup(HoaDon hdToPay, double tongMonAn, double tienCocGoc, boolean isNewInvoice) throws IOException {
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ThanhToanPreview_Popup.fxml"));
+        VBox root = loader.load();
         
-        // 3. CẬP NHẬT TRẠNG THÁI HÀNH CHÍNH (Nếu HĐ Gốc không còn món)
-        boolean conMonConLai = allMonTach.stream()
-                                          .anyMatch(m -> m.getSoLuongConLai() > 0);
+        ThanhToanPreviewController controller = loader.getController();
         
-        if (!conMonConLai) {
-            // Nếu không còn món nào trong HĐ Gốc, chuyển HĐ Gốc sang trạng thái Phụ
-            datBanDAO.capNhatTrangThaiHoaDon(hoaDonGoc.getMaHD(), TrangThaiHoaDon.HOA_DON_TAM.getDbValue(), false);
-        }
-        
-        return hdMoi; // Trả về Hóa đơn mới được tạo
+        // Truyền Hóa đơn cần thanh toán, tổng món ăn, tiền cọc gốc, và trạng thái HĐ (Mới/Gốc)
+        controller.setInitialData(hdToPay, datBanDAO, mainController, tongMonAn, tienCocGoc, isNewInvoice); 
+
+        // 🔥 GỌI HÀM SETTER ĐỂ CHUYỂN DỮ LIỆU TÁCH
+        ObservableList<MonTach> monTachListSnapshot = FXCollections.observableArrayList(allMonTach);
+        controller.setMonTachList(monTachListSnapshot, hoaDonGoc.getMaHD()); 
+
+
+        Stage popupStage = new Stage();
+        popupStage.setTitle("Xác nhận Thanh toán: " + hdToPay.getMaHD());
+        popupStage.setScene(new Scene(root));
+        popupStage.showAndWait();
     }
+	/**
+     * Thực hiện giao dịch Tách Bàn (Tạo HĐ mới, cập nhật HĐ cũ).
+     * 🔥 HÀM NÀY ĐÃ BỊ XÓA KHỎI CONTROLLER, CẦN CHUYỂN LOGIC NÀY VÀO DAO!
+     */
+    /*
+    private HoaDon thucHienTransactionTachBan() throws SQLException {
+       // ... (Logic cũ bị loại bỏ)
+    }
+    */
 
 
     // ==========================================================

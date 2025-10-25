@@ -747,6 +747,13 @@ public class DatBan implements Initializable {
         return document;
     }
     /**
+     * 🔥 HÀM PUBLIC HELPER: Dùng để cho phép các Controller Popup gọi hàm in private.
+     */
+    public PDDocument getReceiptDocument(HoaDon hd) throws IOException {
+        // Gọi hàm private của DatBan
+        return createReceiptPdf(hd); 
+    }
+    /**
      * 🔥 HÀM SỬA CUỐI CÙNG CHO MOMO: Mở Popup hiển thị QR Thanh toán (Sử dụng LOGO và BIN BVBank).
      * * SẼ CẦN KẾT NỐI INTERNET ĐỂ TẢI ẢNH QR.
      */
@@ -2210,7 +2217,7 @@ public class DatBan implements Initializable {
      * Sẽ tìm và hiển thị tất cả các bàn (Gốc và Phụ) liên quan đến HĐ này.
      * Sẽ tô màu đỏ các bàn tương ứng trên sơ đồ.
      */
-    private void loadHoaDonToMainInterface(HoaDon hd) {
+    public void loadHoaDonToMainInterface(HoaDon hd) {
         System.out.println("LOG: Đang tải Hóa đơn " + (hd.getMaHD() != null ? hd.getMaHD() : "Mới") + " lên giao diện chính.");
 
         // === BƯỚC 1: RESET TẤT CẢ MÀU CỦA CỤM HÓA ĐƠN TRƯỚC ĐÓ ===

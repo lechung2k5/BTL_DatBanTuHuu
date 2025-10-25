@@ -5,21 +5,35 @@ import dao.KhachHangDAO;
 import entity.ChiTietHoaDon;
 import entity.HoaDon;
 import entity.KhachHang;
+import entity.TaiKhoan;
+import javafx.application.Platform;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import java.io.File;
-import java.io.FileOutputStream;
+
+import javax.print.*;
+import javax.print.attribute.HashPrintRequestAttributeSet;
+import javax.print.attribute.PrintRequestAttributeSet;
+import javax.print.attribute.standard.*;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.text.DecimalFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,6 +57,7 @@ public class TraCuu {
     private final DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("HH:mm");
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private List<HoaDon> cachedHD;
+    private final DecimalFormat currencyFormatter = new DecimalFormat("###,###");
 
     @FXML
     public void initialize() {
@@ -404,8 +419,18 @@ public class TraCuu {
         
         main.getChildren().addAll(title, info, tbl, sum, tot);
         d.getDialogPane().setContent(main); 
-        d.getDialogPane().setPrefWidth(600); 
-        d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
+        d.getDialogPane().setPrefWidth(600);
+        
+        // THÊM MỚI: Nút in hóa đơn
+        ButtonType btnPrint = new ButtonType("🖨️ In hóa đơn", ButtonBar.ButtonData.LEFT);
+        d.getDialogPane().getButtonTypes().addAll(btnPrint, ButtonType.CLOSE);
+        
+        Button printButton = (Button) d.getDialogPane().lookupButton(btnPrint);
+        printButton.setOnAction(e -> {
+            e.consume();
+            showPrintPreview(hd);
+        });
+        
         d.getDialogPane().setStyle("-fx-background-color: transparent;");
         d.show();
     }
@@ -512,6 +537,445 @@ public class TraCuu {
         d.getDialogPane().setStyle("-fx-background-color: transparent;");
         d.show();
     }
+
+    // === THÊM MỚI: CHỨC NĂNG IN HÓA ĐƠN ===
+    
+    private void showPrintPreview(HoaDon hd) {
+        if (hd == null || hd.getMaHD() == null) {
+            alert("Lỗi", "Không có hóa đơn hợp lệ để in.");
+            return;
+        }
+
+        List<ChiTietHoaDon> monAnList = hoaDonDAO.getChiTietHoaDon(hd.getMaHD());
+        
+        Stage previewStage = new Stage();
+        previewStage.initModality(Modality.APPLICATION_MODAL);
+        previewStage.setTitle("Xem trước hóa đơn - " + hd.getMaHD());
+        
+        ScrollPane scrollPane = new ScrollPane();
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background: #f5f5f5;");
+        
+        VBox receiptContent = createReceiptPreview(hd, monAnList);
+        scrollPane.setContent(receiptContent);
+        
+        Button btnPrint = new Button("✓ Xác nhận in");
+        btnPrint.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 10 30;");
+        btnPrint.setOnAction(e -> {
+            previewStage.close();
+            printReceipt(hd, monAnList);
+        });
+        
+        Button btnCancel = new Button("✕ Hủy");
+        btnCancel.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 10 30;");
+        btnCancel.setOnAction(e -> previewStage.close());
+        
+        HBox buttonBox = new HBox(15, btnPrint, btnCancel);
+        buttonBox.setAlignment(Pos.CENTER);
+        buttonBox.setPadding(new Insets(15));
+        buttonBox.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-width: 1 0 0 0;");
+        
+        BorderPane root = new BorderPane();
+        root.setCenter(scrollPane);
+        root.setBottom(buttonBox);
+        
+        Scene scene = new Scene(root, 400, 700);
+        previewStage.setScene(scene);
+        previewStage.show();
+    }
+
+    private VBox createReceiptPreview(HoaDon hd, List<ChiTietHoaDon> monAnList) {
+        VBox receipt = new VBox(5);
+        receipt.setPadding(new Insets(20));
+        receipt.setStyle("-fx-background-color: white; -fx-border-color: #ccc; -fx-border-width: 1;");
+        receipt.setMaxWidth(300);
+        
+        Label title = new Label("NHÀ HÀNG TỨ HỮU");
+        title.setFont(Font.font("System", FontWeight.BOLD, 16));
+        title.setStyle("-fx-text-alignment: center;");
+        title.setMaxWidth(Double.MAX_VALUE);
+        title.setAlignment(Pos.CENTER);
+        
+        Label address1 = new Label("Địa chỉ: 77 Hồ Tùng Mậu, Phường");
+        address1.setFont(Font.font("System", 10));
+        address1.setTextAlignment(TextAlignment.CENTER);
+        address1.setMaxWidth(Double.MAX_VALUE);
+        address1.setAlignment(Pos.CENTER);
+        
+        Label address2 = new Label("Châu Đốc, An Giang");
+        address2.setFont(Font.font("System", 10));
+        address2.setTextAlignment(TextAlignment.CENTER);
+        address2.setMaxWidth(Double.MAX_VALUE);
+        address2.setAlignment(Pos.CENTER);
+        
+        Label phone = new Label("SĐT: 0909 123 456");
+        phone.setFont(Font.font("System", 10));
+        phone.setTextAlignment(TextAlignment.CENTER);
+        phone.setMaxWidth(Double.MAX_VALUE);
+        phone.setAlignment(Pos.CENTER);
+        
+        Separator sep1 = new Separator();
+        sep1.setPadding(new Insets(5, 0, 5, 0));
+        
+        Label invoiceTitle = new Label("HÓA ĐƠN THANH TOÁN");
+        invoiceTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
+        invoiceTitle.setMaxWidth(Double.MAX_VALUE);
+        invoiceTitle.setAlignment(Pos.CENTER);
+        
+        Label invoiceId = new Label("Số HĐ: " + (hd.getMaHD() != null ? hd.getMaHD() : "N/A"));
+        invoiceId.setFont(Font.font("System", FontWeight.BOLD, 12));
+        invoiceId.setMaxWidth(Double.MAX_VALUE);
+        invoiceId.setAlignment(Pos.CENTER);
+        
+        Separator sep2 = new Separator();
+        sep2.setPadding(new Insets(5, 0, 5, 0));
+        
+        String tenThuNgan = "N/A";
+        try {
+            TaiKhoan tk = MainApp.getLoggedInUser();
+            if (tk != null && tk.getNhanVien() != null) {
+                tenThuNgan = tk.getNhanVien().getHoTen();
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi lấy tên nhân viên: " + e.getMessage());
+        }
+        
+        VBox infoBox = new VBox(3);
+        infoBox.getChildren().addAll(
+            createInfoLabel("Bàn: " + (hd.getMaBan() != null ? hd.getMaBan() : "N/A")),
+            createInfoLabel("Ngày: " + (hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(fmt) : "N/A")),
+            createInfoLabel("Giờ vào: " + (hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFmt) : "N/A")),
+            createInfoLabel("Giờ ra: " + (hd.getGioRa() != null ? hd.getGioRa().toLocalTime().format(timeFmt) : "N/A")),
+            createInfoLabel("Thu ngân: " + tenThuNgan),
+            createInfoLabel("Khách hàng: " + (hd.getSoDienThoaiKH() != null ? hd.getSoDienThoaiKH() : "N/A"))
+        );
+        
+        Separator sep3 = new Separator();
+        sep3.setPadding(new Insets(5, 0, 5, 0));
+        
+        VBox itemsList = new VBox(3);
+        for (int i = 0; i < monAnList.size(); i++) {
+            ChiTietHoaDon mon = monAnList.get(i);
+            
+            Label itemName = new Label((i + 1) + ". " + mon.getTenMon());
+            itemName.setFont(Font.font("System", 10));
+            
+            HBox itemDetails = new HBox(10);
+            itemDetails.setAlignment(Pos.CENTER_LEFT);
+            
+            Label sl = new Label("SL: " + mon.getSoLuong());
+            sl.setFont(Font.font("System", 9));
+            
+            Label dg = new Label("Giá: " + currencyFormatter.format(mon.getDonGia()));
+            dg.setFont(Font.font("System", 9));
+            
+            Region spacer = new Region();
+            HBox.setHgrow(spacer, Priority.ALWAYS);
+            
+            Label tt = new Label(currencyFormatter.format(mon.getThanhTien()));
+            tt.setFont(Font.font("System", FontWeight.BOLD, 9));
+            
+            itemDetails.getChildren().addAll(sl, dg, spacer, tt);
+            
+            VBox itemBox = new VBox(2, itemName, itemDetails);
+            itemsList.getChildren().add(itemBox);
+        }
+        
+        Separator sep4 = new Separator();
+        sep4.setPadding(new Insets(5, 0, 5, 0));
+        
+        VBox summaryBox = new VBox(3);
+        summaryBox.getChildren().addAll(
+            createSummaryRow("Tổng cộng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", true),
+            createSummaryRow("Phí dịch vụ (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", false),
+            createSummaryRow("Thuế VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", false),
+            createSummaryRow("Tiền đặt cọc bàn:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", false)
+        );
+        
+        Separator sep5 = new Separator();
+        sep5.setPadding(new Insets(5, 0, 5, 0));
+        
+        HBox totalBox = createSummaryRow("Tổng thanh toán:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", true);
+        totalBox.setStyle("-fx-font-size: 14px;");
+        
+        Separator sep6 = new Separator();
+        sep6.setPadding(new Insets(5, 0, 5, 0));
+        
+        String khachHangMember = "Khách vãng lai";
+        if (hd.getKhachHang() != null && hd.getKhachHang().getThanhVien() != null) {
+            khachHangMember = hd.getKhachHang().getThanhVien();
+        }
+        
+        String uuDai = (hd.getKhuyenMai() > 0) ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") : "0 VNĐ";
+        double tienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai();
+        
+        VBox paymentInfo = new VBox(3);
+        paymentInfo.getChildren().addAll(
+            createSummaryRow("Hình thức thanh toán:", hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A", false),
+            createSummaryRow("Khách hàng thành viên:", khachHangMember, false),
+            createSummaryRow("Ưu đãi áp dụng:", uuDai, false),
+            createSummaryRow("Số tiền khách trả:", currencyFormatter.format(tienKhachTra) + " VNĐ", true)
+        );
+        
+        Separator sep7 = new Separator();
+        sep7.setPadding(new Insets(5, 0, 5, 0));
+        
+        Label footer1 = new Label("Nhà hàng Tứ Hữu xin cám ơn");
+        footer1.setFont(Font.font("System", 10));
+        footer1.setMaxWidth(Double.MAX_VALUE);
+        footer1.setAlignment(Pos.CENTER);
+        
+        Label footer2 = new Label("và hẹn gặp lại!");
+        footer2.setFont(Font.font("System", 10));
+        footer2.setMaxWidth(Double.MAX_VALUE);
+        footer2.setAlignment(Pos.CENTER);
+        
+        receipt.getChildren().addAll(
+            title, address1, address2, phone,
+            sep1,
+            invoiceTitle, invoiceId,
+            sep2,
+            infoBox,
+            sep3,
+            itemsList,
+            sep4,
+            summaryBox,
+            sep5,
+            totalBox,
+            sep6,
+            paymentInfo,
+            sep7,
+            footer1, footer2
+        );
+        
+        return receipt;
+    }
+    
+    private Label createInfoLabel(String text) {
+        Label label = new Label(text);
+        label.setFont(Font.font("System", 10));
+        return label;
+    }
+    
+    private HBox createSummaryRow(String label, String value, boolean bold) {
+        HBox row = new HBox();
+        row.setAlignment(Pos.CENTER_LEFT);
+        
+        Label lblLabel = new Label(label);
+        if (bold) {
+            lblLabel.setFont(Font.font("System", FontWeight.BOLD, 11));
+        } else {
+            lblLabel.setFont(Font.font("System", 10));
+        }
+        
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        
+        Label lblValue = new Label(value);
+        if (bold) {
+            lblValue.setFont(Font.font("System", FontWeight.BOLD, 11));
+        } else {
+            lblValue.setFont(Font.font("System", 10));
+        }
+        
+        row.getChildren().addAll(lblLabel, spacer, lblValue);
+        return row;
+    }
+
+    private void printReceipt(HoaDon hd, List<ChiTietHoaDon> monAnList) {
+        new Thread(() -> {
+            try {
+                PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
+                
+                if (printServices == null || printServices.length == 0) {
+                    Platform.runLater(() -> alert("Lỗi Máy In", "Không tìm thấy máy in nào trong hệ thống.\nVui lòng kiểm tra kết nối máy in và thử lại."));
+                    return;
+                }
+                
+                PrintService thermalPrinter = findThermalPrinter(printServices);
+                
+                if (thermalPrinter == null) {
+                    Platform.runLater(() -> {
+                        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                        confirmAlert.setTitle("Không tìm thấy máy in nhiệt");
+                        confirmAlert.setHeaderText("Không tìm thấy máy in nhiệt!");
+                        confirmAlert.setContentText("Hệ thống không phát hiện máy in nhiệt.\nBạn có muốn in bằng máy in mặc định không?");
+                        
+                        confirmAlert.showAndWait().ifPresent(response -> {
+                            if (response == ButtonType.OK) {
+                                new Thread(() -> printWithDefaultPrinter(hd, monAnList)).start();
+                            }
+                        });
+                    });
+                    return;
+                }
+                
+                String receiptContent = generateReceiptText(hd, monAnList);
+                
+                DocFlavor flavor = DocFlavor.BYTE_ARRAY.AUTOSENSE;
+                Doc doc = new SimpleDoc(receiptContent.getBytes(StandardCharsets.UTF_8), flavor, null);
+                
+                PrintRequestAttributeSet attributes = new HashPrintRequestAttributeSet();
+                attributes.add(new Copies(1));
+                attributes.add(MediaSizeName.NA_LETTER);
+                attributes.add(Sides.ONE_SIDED);
+                
+                DocPrintJob printJob = thermalPrinter.createPrintJob();
+                printJob.print(doc, attributes);
+                
+                Platform.runLater(() -> alert("In Hóa đơn", "Đã gửi lệnh in hóa đơn " + hd.getMaHD() + " thành công!\nMáy in: " + thermalPrinter.getName()));
+                
+            } catch (PrintException e) {
+                String errorMsg = e.getMessage();
+                Platform.runLater(() -> alert("Lỗi In", "Lỗi khi in hóa đơn: " + errorMsg));
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> alert("Lỗi Hệ thống", "Lỗi không xác định: " + e.getMessage()));
+            }
+        }).start();
+    }
+    
+    private void printWithDefaultPrinter(HoaDon hd, List<ChiTietHoaDon> monAnList) {
+        try {
+            PrintService defaultPrinter = PrintServiceLookup.lookupDefaultPrintService();
+            
+            if (defaultPrinter == null) {
+                Platform.runLater(() -> alert("Lỗi Máy In", "Không tìm thấy máy in mặc định.\nVui lòng thiết lập máy in mặc định trong hệ thống."));
+                return;
+            }
+            
+            String receiptContent = generateReceiptText(hd, monAnList);
+            
+            DocFlavor flavor = DocFlavor.BYTE_ARRAY.AUTOSENSE;
+            Doc doc = new SimpleDoc(receiptContent.getBytes(StandardCharsets.UTF_8), flavor, null);
+            
+            PrintRequestAttributeSet attributes = new HashPrintRequestAttributeSet();
+            attributes.add(new Copies(1));
+            
+            DocPrintJob printJob = defaultPrinter.createPrintJob();
+            printJob.print(doc, attributes);
+            
+            Platform.runLater(() -> alert("In Hóa đơn", "Đã gửi lệnh in hóa đơn " + hd.getMaHD() + " thành công!\nMáy in: " + defaultPrinter.getName()));
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            Platform.runLater(() -> alert("Lỗi In", "Lỗi khi in với máy in mặc định: " + e.getMessage()));
+        }
+    }
+    
+    private PrintService findThermalPrinter(PrintService[] printServices) {
+        for (PrintService printer : printServices) {
+            String printerName = printer.getName().toLowerCase();
+            if (printerName.contains("xprinter") || 
+                printerName.contains("thermal") || 
+                printerName.contains("pos") ||
+                printerName.contains("receipt") ||
+                printerName.contains("80mm") ||
+                printerName.contains("rp80")) {
+                return printer;
+            }
+        }
+        return null;
+    }
+    
+    private String generateReceiptText(HoaDon hd, List<ChiTietHoaDon> monAnList) {
+        StringBuilder receipt = new StringBuilder();
+        
+        receipt.append(centerText("NHÀ HÀNG TỨ HỮU", 32)).append("\n");
+        receipt.append(centerText("Địa chỉ: 77 Hồ Tùng Mậu, Phường", 32)).append("\n");
+        receipt.append(centerText("Châu Đốc, An Giang", 32)).append("\n");
+        receipt.append(centerText("SĐT: 0909 123 456", 32)).append("\n");
+        receipt.append(line(32)).append("\n");
+        
+        receipt.append(centerText("HÓA ĐƠN THANH TOÁN", 32)).append("\n");
+        receipt.append(centerText("Số HĐ: " + (hd.getMaHD() != null ? hd.getMaHD() : "N/A"), 32)).append("\n");
+        receipt.append(line(32)).append("\n");
+        
+        String tenThuNgan = "N/A";
+        try {
+            TaiKhoan tk = MainApp.getLoggedInUser();
+            if (tk != null && tk.getNhanVien() != null) {
+                tenThuNgan = tk.getNhanVien().getHoTen();
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi lấy tên nhân viên: " + e.getMessage());
+        }
+        
+        receipt.append("Bàn: ").append(hd.getMaBan() != null ? hd.getMaBan() : "N/A").append("\n");
+        receipt.append("Ngày: ").append(hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(fmt) : "N/A").append("\n");
+        receipt.append("Giờ vào: ").append(hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFmt) : "N/A").append("\n");
+        receipt.append("Giờ ra: ").append(hd.getGioRa() != null ? hd.getGioRa().toLocalTime().format(timeFmt) : "N/A").append("\n");
+        receipt.append("Thu ngân: ").append(tenThuNgan).append("\n");
+        receipt.append("Khách hàng: ").append(hd.getSoDienThoaiKH() != null ? hd.getSoDienThoaiKH() : "N/A").append("\n");
+        receipt.append(line(32)).append("\n");
+        
+        receipt.append("STT Tên món            SL  Thành tiền\n");
+        receipt.append(line(32)).append("\n");
+        
+        for (int i = 0; i < monAnList.size(); i++) {
+            ChiTietHoaDon mon = monAnList.get(i);
+            receipt.append(String.format("%-3d", (i + 1)));
+            receipt.append(truncate(mon.getTenMon(), 20));
+            receipt.append(String.format("%3d ", mon.getSoLuong()));
+            receipt.append(String.format("%10s\n", currencyFormatter.format(mon.getThanhTien())));
+        }
+        
+        receipt.append(line(32)).append("\n");
+        
+        receipt.append(rightAlignRow("Tổng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", 32)).append("\n");
+        receipt.append(rightAlignRow("Phí DV (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", 32)).append("\n");
+        receipt.append(rightAlignRow("VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", 32)).append("\n");
+        receipt.append(rightAlignRow("Tiền cọc:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", 32)).append("\n");
+        receipt.append(line(32)).append("\n");
+        
+        receipt.append(rightAlignRow("TỔNG THANH TOÁN:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", 32)).append("\n");
+        receipt.append(line(32)).append("\n");
+        
+        String khachHangMember = "Khách vãng lai";
+        if (hd.getKhachHang() != null && hd.getKhachHang().getThanhVien() != null) {
+            khachHangMember = hd.getKhachHang().getThanhVien();
+        }
+        
+        String uuDai = (hd.getKhuyenMai() > 0) ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") : "0 VNĐ";
+        double tienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai();
+        
+        receipt.append(rightAlignRow("PTTT:", hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A", 32)).append("\n");
+        receipt.append(rightAlignRow("Loại KH:", khachHangMember, 32)).append("\n");
+        receipt.append(rightAlignRow("Ưu đãi:", uuDai, 32)).append("\n");
+        receipt.append(rightAlignRow("Tiền trả:", currencyFormatter.format(tienKhachTra) + " VNĐ", 32)).append("\n");
+        receipt.append(line(32)).append("\n");
+        
+        receipt.append(centerText("Nhà hàng Tứ Hữu xin cám ơn", 32)).append("\n");
+        receipt.append(centerText("và hẹn gặp lại!", 32)).append("\n");
+        receipt.append("\n\n\n");
+        
+        return receipt.toString();
+    }
+    
+    private String centerText(String text, int width) {
+        if (text.length() >= width) return text;
+        int padding = (width - text.length()) / 2;
+        return " ".repeat(padding) + text;
+    }
+    
+    private String line(int width) {
+        return "-".repeat(width);
+    }
+    
+    private String truncate(String text, int maxLength) {
+        if (text.length() <= maxLength) {
+            return String.format("%-" + maxLength + "s", text);
+        }
+        return text.substring(0, maxLength - 2) + "..";
+    }
+    
+    private String rightAlignRow(String label, String value, int width) {
+        int spaceNeeded = width - label.length() - value.length();
+        if (spaceNeeded < 1) spaceNeeded = 1;
+        return label + " ".repeat(spaceNeeded) + value;
+    }
+    
+    // === KẾT THÚC CHỨC NĂNG IN HÓA ĐƠN ===
 
     private void addInfo(GridPane g, int r, String l1, String v1, String l2, String v2) {
         Label lb1 = new Label(l1); 

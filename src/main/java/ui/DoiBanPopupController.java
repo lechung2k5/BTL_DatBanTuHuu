@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -183,63 +184,67 @@ public class DoiBanPopupController {
         }
     }
 
+ // DoiBanPopupController.java (Chỉ phần hàm handleTimBanTrong được sửa)
+
     /**
      * Xử lý khi nhấn nút "Tìm bàn trống"
      */
     private void handleTimBanTrong() {
-        LocalDate ngayMoi = datePickerThoiGianMoi.getValue(); //
-        String gioMoiStr = txtThoiGianMoi.getText(); //
-        Timestamp thoiGianMoiTs; //
-        LocalTime gioMoi; // <<< KHAI BÁO BIẾN CỤC BỘ
+        LocalDate ngayMoi = datePickerThoiGianMoi.getValue(); 
+        String gioMoiStr = txtThoiGianMoi.getText(); 
+        Timestamp thoiGianMoiTs; 
+        LocalTime gioMoi; 
 
         try {
-            if (ngayMoi == null || gioMoiStr == null || gioMoiStr.trim().isEmpty()) { //
+            if (ngayMoi == null || gioMoiStr == null || gioMoiStr.trim().isEmpty()) { 
                 showAlert(AlertType.WARNING, "Thiếu thời gian", "Vui lòng nhập Ngày và Giờ mới.");
                 return;
             }
-            gioMoi = LocalTime.parse(gioMoiStr, timeFormatter); // <<< GÁN GIÁ TRỊ
-            thoiGianMoiTs = Timestamp.valueOf(ngayMoi.atTime(gioMoi)); //
+            gioMoi = LocalTime.parse(gioMoiStr, timeFormatter); 
+            thoiGianMoiTs = Timestamp.valueOf(ngayMoi.atTime(gioMoi)); 
         } catch (Exception e) {
             showAlert(AlertType.ERROR, "Lỗi định dạng", "Giờ nhập không hợp lệ (cần HH:mm).");
             return;
         }
 
-        // 1. Lấy TẤT CẢ bàn kèm trạng thái availability
-        List<Map<String, Object>> allBanInfo = datBanDAO.getAllBanWithAvailability(thoiGianMoiTs); //
+        // Cần tải lại ds HĐ đang chờ cho logic hiển thị trạng thái chính xác
+        mainController.loadDsHoaDonDatTrongNgay(ngayMoi); 
 
-        banTrongList.clear(); //
-        selectionMap.clear(); // Clear map cũ
+        banTrongList.clear(); 
+        selectionMap.clear(); 
         
-        // --- 2. Lấy mã bàn cũ ---
-        Set<String> maBanCuSet = hoaDonGocVaPhu.stream() //
+        // --- Lấy mã bàn cũ ---
+        Set<String> maBanCuSet = hoaDonGocVaPhu.stream() 
                                   .filter(hd -> hd.getBan() != null)
                                   .map(hd -> hd.getBan().getMaBan())
                                   .collect(Collectors.toSet());
         // -----------------------
-        
-        // Cần tải lại ds HĐ đang chờ cho logic hiển thị trạng thái chính xác (Sử dụng HELPER MỚI)
-        mainController.loadDsHoaDonDatTrongNgay(ngayMoi); 
 
-        for (Map<String, Object> banInfo : allBanInfo) {
-            Ban ban = (Ban) banInfo.get("ban"); //
-            boolean isAvailableDAO = (Boolean) banInfo.get("isAvailable"); //
+        // 🔥 FIX: Lấy TẤT CẢ các bàn và kiểm tra trạng thái BẬN CỨNG (DAO đã xử lý loại trừ HĐ hiện tại)
+        // GIẢ ĐỊNH: DAO.getAllBanWithAvailability ĐÃ ĐƯỢC FIX ĐỂ LOẠI TRỪ CỤM HĐ ĐANG XEM. 
+        // DO KHÔNG CÓ CODE DAO ĐẦY ĐỦ Ở ĐÂY, CHÚNG TA PHẢI GỌI DAO ĐỂ LẤY TẤT CẢ BÀN
+        // VÀ DÙNG LOGIC MÀU CỦA CONTROLLER CHÍNH
+        
+        List<Ban> tatCaBan = datBanDAO.getAllBan(); // Lấy TẤT CẢ bàn (trạng thái TRỐNG/ĐANG SỬ DỤNG)
+        
+        for (Ban ban : tatCaBan) {
             
-            // Xử lý trạng thái hiển thị (dùng logic màu của DatBan)
+            // 1. Lấy trạng thái BẬN (logic 4/8 tiếng) tại thời điểm mới
+            TrangThaiBan trangThaiLogic = mainController.getTrangThaiHienThi(ban, gioMoi); 
+            
+            // 2. Tạo đối tượng Ban mới để hiển thị trong ListView
             Ban banHienThi = new Ban(ban.getMaBan(), ban.getViTri(), ban.getSucChua(), ban.getLoaiBan(), ban.getTrangThai());
             
-            // Lấy trạng thái màu (ĐỎ/CAM) dựa trên logic 4/8 tiếng VÀ thời điểm tìm kiếm (Sử dụng HELPER MỚI)
-            TrangThaiBan trangThaiTheoLogic48 = mainController.getTrangThaiHienThi(banHienThi, gioMoi); 
-            
-            // Logic ưu tiên:
-            if (maBanCuSet.contains(banHienThi.getMaBan())) {
-                 // Nếu là bàn cũ -> set trạng thái là TRỐNG (để cho phép chọn lại)
+            // 🔥 LOGIC MỚI: Chỉ loại trừ bàn cũ khỏi danh sách BẬN.
+            if (maBanCuSet.contains(ban.getMaBan())) {
+                 // Nếu là bàn cũ -> luôn set là TRỐNG để cho phép chọn (dù logic 4/8 tiếng báo ĐỎ/CAM)
                  banHienThi.setTrangThai(TrangThaiBan.TRONG);
-            } else if (isAvailableDAO) {
-                 // Nếu là bàn mới và available -> TRỐNG
-                 banHienThi.setTrangThai(TrangThaiBan.TRONG);
+            } else if (trangThaiLogic != TrangThaiBan.TRONG) {
+                 // Nếu là bàn mới và Bận theo Logic 4/8 tiếng -> giữ trạng thái BẬN
+                 banHienThi.setTrangThai(trangThaiLogic);
             } else {
-                 // Nếu NOT available -> Dùng trạng thái ĐỎ/CAM từ logic 4/8 tiếng để hiển thị BẬN
-                 banHienThi.setTrangThai(trangThaiTheoLogic48);
+                 // Ngược lại -> TRỐNG
+                 banHienThi.setTrangThai(TrangThaiBan.TRONG);
             }
             
             banTrongList.add(banHienThi); 
@@ -259,178 +264,131 @@ public class DoiBanPopupController {
 
 
     /**
-     * Xử lý khi nhấn nút "Xác nhận đổi"
+     * 🔥 HÀM ĐÃ SỬA: Xử lý xác nhận đổi bàn (Bao gồm các trường hợp: 1-1, N-N, N-M, N-1)
+     * ĐÃ TỐI ƯU: Loại bỏ vòng lặp cập nhật HĐ cũ và thay bằng các bước Cập nhật/Xóa rõ ràng.
+     */
+    /**
+     * 🔥 HÀM ĐÃ SỬA: Xử lý xác nhận đổi bàn (Bao gồm các trường hợp: 1-1, N-N, N-M, N-1)
+     * ĐÃ SỬA LỖI: Gọi hàm DAO mới để cập nhật trạng thái NHIỀU bàn cùng lúc.
      */
     private void handleXacNhanDoi() {
-        // === LẤY DANH SÁCH BÀN ĐƯỢC CHỌN TỪ MAP (DÙNG CHECKBOX) ===
+        // ... (phần code lấy selectedBanMoi, hoaDonGoc, maBanCuList, hoaDonPhuCuList, maBanMoiSet, maBanMoiGoc) ...
         List<Ban> selectedBanMoi = selectionMap.entrySet().stream()
-                                      .filter(entry -> entry.getValue().get())
-                                      .map(Map.Entry::getKey)
-                                      .collect(Collectors.toList());
+                                    .filter(entry -> entry.getValue().get())
+                                    .map(Map.Entry::getKey)
+                                    .collect(Collectors.toList());
 
         if (selectedBanMoi.isEmpty()) {
-            showAlert(AlertType.ERROR, "Chưa chọn bàn", "Vui lòng chọn ít nhất một bàn mới để đổi.");
+            showAlert(AlertType.ERROR, "Chưa chọn bàn", "Vui lòng chọn ít nhất một bàn mới.");
             return;
         }
-        // Kiểm tra bàn không được bận
+        // Kiểm tra bàn không được bận (chỉ kiểm tra các bàn mới không phải là bàn cũ)
         for (Ban ban : selectedBanMoi) {
-             if (ban.getTrangThai() != TrangThaiBan.TRONG) {
+             if (ban.getTrangThai() != TrangThaiBan.TRONG && !maBanCuSet.contains(ban.getMaBan())) {
                  showAlert(AlertType.ERROR, "Lỗi", "Bàn " + ban.getMaBan() + " đang bận. Vui lòng bỏ chọn bàn này.");
                  return;
              }
         }
+
+        HoaDon hoaDonGoc = hoaDonGocVaPhu.stream().filter(h -> h.getMaHDGoc() == null).findFirst().orElse(null);
+        if (hoaDonGoc == null) return; 
+
+        // Lấy mã bàn cũ và các HĐ phụ
+        List<String> maBanCuList = hoaDonGocVaPhu.stream().map(h -> h.getBan() != null ? h.getBan().getMaBan() : null)
+                                            .filter(Objects::nonNull).collect(Collectors.toList());
+        List<HoaDon> hoaDonPhuCuList = hoaDonGocVaPhu.stream().filter(h -> h.getMaHDGoc() != null).collect(Collectors.toList());
+        Set<String> maBanMoiSet = selectedBanMoi.stream().map(Ban::getMaBan).collect(Collectors.toSet());
         
+        // Bàn mới gốc là bàn đầu tiên được chọn
+        String maBanMoiGoc = selectedBanMoi.get(0).getMaBan();
+        String maHDGoc = hoaDonGoc.getMaHD();
 
-        // Lấy lại thời gian mới
-        LocalDate ngayMoi = datePickerThoiGianMoi.getValue();
-        String gioMoiStr = txtThoiGianMoi.getText();
-        Timestamp thoiGianDoiMoi;
-         try {
-            LocalTime gioMoi = LocalTime.parse(gioMoiStr, timeFormatter);
-            thoiGianDoiMoi = Timestamp.valueOf(ngayMoi.atTime(gioMoi));
-         } catch (Exception e) {
-             showAlert(AlertType.ERROR, "Lỗi thời gian", "Thời gian mới không hợp lệ.");
+        // --- Kiểm tra trùng lặp (Giữ nguyên) ---
+        if (new HashSet<>(maBanCuList).equals(maBanMoiSet) && maBanCuList.size() == maBanMoiSet.size()) {
+             showAlert(AlertType.WARNING, "Không đổi", "Bàn cũ và bàn mới giống nhau.");
              return;
-         }
+        }
+        // ----------------------------------------
 
-        Optional<ButtonType> result = showAlertConfirm("Xác nhận Đổi Bàn",
-            String.format("Bạn có chắc muốn đổi %d bàn cũ sang %d bàn mới đã chọn vào lúc %s không?",
-                          hoaDonGocVaPhu.size(),
-                          selectedBanMoi.size(),
-                          gioMoiStr));
-
+        Optional<ButtonType> result = showAlertConfirm("Xác nhận đổi bàn", 
+            String.format("Bạn có chắc chắn muốn đổi các bàn %s sang các bàn %s không?\n\n"
+                        + "Lưu ý: Các hóa đơn phụ/bàn cũ không còn được liên kết sẽ bị hủy/giải phóng.",
+                        String.join(", ", maBanCuList), String.join(", ", maBanMoiSet)));
+        
         if (result.isPresent() && result.get() == ButtonType.OK) {
             try {
-                // 6. Lấy danh sách Bàn Cũ và Set mã bàn MỚI
-                List<Ban> banCuList = hoaDonGocVaPhu.stream()
-                                      .map(HoaDon::getBan)
-                                      .filter(b -> b != null)
-                                      .collect(Collectors.toList());
-                Set<String> maBanMoiSetThucSu = selectedBanMoi.stream()
-                                            .map(Ban::getMaBan)
-                                            .collect(Collectors.toSet());
-
-                System.out.println("--- Starting Change Table ---");
-                System.out.println("  Old Tables: " + banCuList.stream().map(Ban::getMaBan).collect(Collectors.toList()));
-                System.out.println("  New Tables Selected: " + maBanMoiSetThucSu);
-
-                // === 7. LOGIC DAO (Sắp xếp lại) ===
-                int soBanCu = hoaDonGocVaPhu.size();
-                int soBanMoiThucSu = selectedBanMoi.size();
-                int soLuongXuLy = Math.min(soBanCu, soBanMoiThucSu);
-
-                // 7.1. Cập nhật HĐ hiện có (Gán bàn mới + giờ mới)
-                System.out.println("  Step 7.1: Updating existing Invoices...");
-                for (int i = 0; i < soLuongXuLy; i++) {
-                    HoaDon hd = hoaDonGocVaPhu.get(i);
-                    Ban banMoi = selectedBanMoi.get(i);
-                    System.out.println("    - Updating HD " + hd.getMaHD() + " to use Table " + banMoi.getMaBan() + " at " + thoiGianDoiMoi);
-                    datBanDAO.capNhatBanVaGioVaoChoHoaDon(hd.getMaHD(), banMoi.getMaBan(), thoiGianDoiMoi);
+                Timestamp thoiGianDoiMoi = Timestamp.valueOf(datePickerThoiGianMoi.getValue().atTime(LocalTime.parse(txtThoiGianMoi.getText(), timeFormatter)));
+                
+                // 1. XÓA TẤT CẢ HÓA ĐƠN PHỤ CŨ
+                List<String> maHDPhuCanXoa = hoaDonPhuCuList.stream().map(HoaDon::getMaHD).collect(Collectors.toList());
+                if (!maHDPhuCanXoa.isEmpty()) {
+                    datBanDAO.xoaHoaDonVaChiTiet(maHDPhuCanXoa);
+                    System.out.println("LOG: Đã xóa " + maHDPhuCanXoa.size() + " Hóa đơn Phụ cũ.");
                 }
 
-                // 7.2. Tạo HĐ Phụ mới nếu cần (GIỮ NGUYÊN)
-                System.out.println("  Step 7.2: Creating new Sub-Invoices if needed...");
-                if (soBanMoiThucSu > soBanCu) {
-                    HoaDon hdGoc = hoaDonGocVaPhu.get(0);
-                    for (int i = soBanCu; i < soBanMoiThucSu; i++) {
-                        Ban banMoiThem = selectedBanMoi.get(i);
-                         System.out.println("    - Creating new Sub-Invoice for Table " + banMoiThem.getMaBan());
+                // 2. CẬP NHẬT HÓA ĐƠN GỐC
+                datBanDAO.capNhatBanVaGioVaoChoHoaDon(maHDGoc, maBanMoiGoc, thoiGianDoiMoi); 
+                
+                // 3. TẠO HÓA ĐƠN PHỤ MỚI (Nếu có nhiều hơn 1 bàn mới)
+                if (selectedBanMoi.size() > 1) {
+                    for (int i = 1; i < selectedBanMoi.size(); i++) {
+                        Ban banMoi = selectedBanMoi.get(i);
                         HoaDon hoaDonPhuMoi = new HoaDon();
-                        // ... (set thông tin hoaDonPhuMoi) ...
                         hoaDonPhuMoi.setNgayLap(java.time.LocalDateTime.now());
                         hoaDonPhuMoi.setGioVao(thoiGianDoiMoi.toLocalDateTime());
-                        hoaDonPhuMoi.setKhachHang(hdGoc.getKhachHang());
-                        hoaDonPhuMoi.setBan(banMoiThem);
+                        hoaDonPhuMoi.setKhachHang(hoaDonGoc.getKhachHang());
+                        hoaDonPhuMoi.setBan(banMoi);
                         hoaDonPhuMoi.setTienCoc(0);
-                        hoaDonPhuMoi.setMaHDGoc(hdGoc.getMaHD());
+                        hoaDonPhuMoi.setMaHDGoc(maHDGoc);
                         hoaDonPhuMoi.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
 
-                        datBanDAO.luuHoaDonVaChiTiet(hoaDonPhuMoi, FXCollections.observableArrayList());
+                        datBanDAO.luuHoaDonVaChiTiet(hoaDonPhuMoi, FXCollections.emptyObservableList());
                     }
+                    System.out.println("LOG: Đã tạo " + (selectedBanMoi.size() - 1) + " Hóa đơn Phụ mới.");
                 }
-
-                // 7.3. Hủy HĐ Phụ cũ nếu cần (KHẮC PHỤ LỖI DÍNH BÀN: Hủy HĐ và trả bàn ngay)
-                System.out.println("  Step 7.3: Cancelling old Sub-Invoices if needed (and releasing tables)...");
-                if (soBanCu > soBanMoiThucSu) {
-                    for (int i = soBanMoiThucSu; i < soBanCu; i++) {
-                        HoaDon hdPhuCanHuy = hoaDonGocVaPhu.get(i);
-                        if (hdPhuCanHuy.getMaHDGoc() != null) {
-                             System.out.println("    - Cancelling old Sub-Invoice " + hdPhuCanHuy.getMaHD() + " (Table " + hdPhuCanHuy.getBan().getMaBan() + ")");
-                            
-                            // 1. Cập nhật trạng thái HĐ thành DA_HUY
-                            datBanDAO.capNhatTrangThaiHoaDon(hdPhuCanHuy.getMaHD(), TrangThaiHoaDon.DA_HUY.getDbValue(), true); 
-                            
-                            // 2. Cập nhật trạng thái BÀN thành TRONG NGAY LẬP TỨC
-                            if (hdPhuCanHuy.getBan() != null) {
-                                datBanDAO.capNhatTrangThaiBan(hdPhuCanHuy.getBan().getMaBan(), "Trong");
-                                System.out.println("    -> Table " + hdPhuCanHuy.getBan().getMaBan() + " set to 'Trong' immediately.");
-                            }
-                        }
-                    }
-                }
-
-                // === 8. CẬP NHẬT TRẠNG THÁI BÀN MỚI (GIỮ NGUYÊN) ===
-                System.out.println("  Step 8: Updating status for NEW tables...");
-                 for (int i = 0; i < soBanMoiThucSu; i++) {
-                     Ban banMoi = selectedBanMoi.get(i);
-                     HoaDon hdTuongUng;
-                     // Tìm HĐ tương ứng (hoặc HĐ Gốc nếu i=0, hoặc HĐ Phụ mới nếu i >= soBanCu)
-                     if (i < soLuongXuLy) { // HĐ cũ được cập nhật
-                         hdTuongUng = hoaDonGocVaPhu.get(i);
-                     } else { // HĐ Phụ mới được tạo (lấy trạng thái mặc định)
-                         hdTuongUng = null; // Hoặc tạo HĐ tạm để lấy trạng thái DANG_SU_DUNG
-                     }
-
-                    String trangThaiBanMoi;
-                    if (hdTuongUng != null && hdTuongUng.getMaHDGoc() == null) { // Nếu là HĐ Gốc
-                        TrangThaiHoaDon tt = hdTuongUng.getTrangThai();
-                        if (tt != null) {
-                            trangThaiBanMoi = tt.getDbValue();
-                        } else {
-                            trangThaiBanMoi = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
-                        }
-                    } else { // HĐ Phụ (cũ hoặc mới)
-                        trangThaiBanMoi = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue(); // Luôn là Đang Sử Dụng
-                    }
-                    System.out.println("    - Setting Table " + banMoi.getMaBan() + " to status: " + trangThaiBanMoi);
-                    datBanDAO.capNhatTrangThaiBan(banMoi.getMaBan(), trangThaiBanMoi);
-                 }
-
-                // === 9. TRẢ BÀN CŨ KHÔNG CÒN ĐƯỢC DÙNG (CLEANUP CÒN LẠI) ===
-                System.out.println("  Step 9: Releasing old tables NOT used by the new set...");
-                // Lấy tất cả mã bàn cũ
-                Set<String> maBanCuSet = banCuList.stream()
-                                                  .map(Ban::getMaBan)
-                                                  .collect(Collectors.toSet());
                 
-                // Các bàn CŨ cần được trả về trạng thái 'Trong'
-                Set<String> maBanCanTra = new HashSet<>(maBanCuSet);
-                // Loại bỏ những bàn CŨ mà đang được TÁI SỬ DỤNG
-                maBanCanTra.removeAll(maBanMoiSetThucSu);
+                // 4. GIẢI PHÓNG VÀ KHÓA BÀN
                 
-                // Chỉ duyệt qua các bàn cần trả và set trạng thái (Đây là những bàn CŨ không phải HĐ Phụ bị hủy và không được tái sử dụng)
-                for (String maBanTra : maBanCanTra) {
-                    datBanDAO.capNhatTrangThaiBan(maBanTra, "Trong");
+                // 4.1. Giải phóng các bàn cũ KHÔNG còn được sử dụng
+                Set<String> maBanCuKhongDuocChonLai = new HashSet<>(maBanCuList);
+                maBanCuKhongDuocChonLai.removeAll(maBanMoiSet); 
+                
+                if (!maBanCuKhongDuocChonLai.isEmpty()) {
+                    // 🔥 GỌI HÀM DAO MỚI ĐỂ CẬP NHẬT NHIỀU BÀN
+                    datBanDAO.capNhatTrangThaiNhieuBan(maBanCuKhongDuocChonLai, TrangThaiBan.TRONG.getDbValue()); 
+                    System.out.println("LOG: Đã giải phóng các bàn cũ: " + maBanCuKhongDuocChonLai);
                 }
-                // =============================
 
-                showAlert(AlertType.INFORMATION, "Thành công", "Đã đổi " + soBanMoiThucSu + " bàn thành công!");
+                // 4.2. Cập nhật trạng thái BẬN cho TẤT CẢ các bàn mới được chọn
+                String trangThaiBanMoi = (hoaDonGoc.getTrangThai() == TrangThaiHoaDon.DAT) ? 
+                                          TrangThaiHoaDon.DAT.getDbValue() : TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
+                
+                // 🔥 GỌI HÀM DAO MỚI ĐỂ CẬP NHẬT NHIỀU BÀN
+                datBanDAO.capNhatTrangThaiNhieuBan(maBanMoiSet, trangThaiBanMoi); 
+                System.out.println("LOG: Đã khóa " + maBanMoiSet.size() + " bàn mới với trạng thái: " + trangThaiBanMoi);
+
+                
+                // 5. KẾT THÚC
+                showAlert(AlertType.INFORMATION, "Thành công", 
+                          String.format("Đã đổi/gộp bàn thành công!\nTừ: %s\nSang: %s", 
+                                        String.join(", ", maBanCuList), String.join(", ", maBanMoiSet)));
 
                 if (mainController != null) {
-                    mainController.loadBookingCards();
                     mainController.loadTableGrids();
-                    mainController.clearFormDatBan();
+                    mainController.loadBookingCards();
+                    HoaDon hdMoi = datBanDAO.getHoaDonByMaHD(maHDGoc);
+                    mainController.loadHoaDonToMainInterface(hdMoi); 
                 }
                 closePopup();
             } catch (Exception e) {
                 e.printStackTrace();
-                showAlert(AlertType.ERROR, "Lỗi CSDL", "Không thể đổi bàn: " + e.getMessage());
+                showAlert(AlertType.ERROR, "Lỗi CSDL", "Không thể đổi/gộp bàn: " + e.getMessage());
             }
         }
     }
-
     /**
      * Cập nhật trạng thái enable/disable của nút Xác nhận
+     * 🔥 ĐÃ SỬA: CHỈ CẦN CHỌN ÍT NHẤT 1 BÀN (cho phép gộp bàn)
      */
     private void updateXacNhanButtonState() {
         // Lấy danh sách bàn đang được chọn từ Checkbox Map
@@ -438,8 +396,8 @@ public class DoiBanPopupController {
                                   .filter(BooleanProperty::get)
                                   .count();
         
-        // Chỉ enable khi số lượng chọn BẰNG số bàn cũ
-        btnXacNhanDoi.setDisable(countSelected != soBanCanChon); 
+        // Chỉ enable khi số lượng chọn LỚN HƠN 0
+        btnXacNhanDoi.setDisable(countSelected == 0); 
     }
 
     /**
