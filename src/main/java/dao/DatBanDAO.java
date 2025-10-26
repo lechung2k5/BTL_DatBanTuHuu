@@ -311,11 +311,10 @@ public class DatBanDAO {
     }
 
     /**
-     * Trả về danh sách Hóa đơn Đã Đặt/Đang Sử Dụng trong ngày HOẶC đang hoạt động từ ngày hôm trước.
-     * Đã cập nhật hoàn chỉnh: Sử dụng Enum và Setters, tạo đối tượng đầy đủ.
+     * Trả về danh sách Hóa đơn Đã Đặt/Đang Sử Dụng/Chờ Xác Nhận trong ngày HOẶC đang hoạt động từ ngày hôm trước.
+     * 🔥 ĐÃ SỬA: Thêm trạng thái CHO_XAC_NHAN vào bộ lọc.
      */
     public List<HoaDon> getDsDatBanHomNay(LocalDate date) {
-        // ... (Logic giữ nguyên)
         List<HoaDon> list = new ArrayList<>();
         String sql = """
             SELECT
@@ -328,10 +327,11 @@ public class DatBanDAO {
             LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
             LEFT JOIN NhanVien n ON hd.maNV = n.maNV
             WHERE
-                hd.trangThai IN (?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam'
+                hd.trangThai IN (?, ?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam', 'ChoXacNhan' 🔥 THÊM ?
                 AND (
                     CAST(hd.gioVao AS DATE) = ?
-                    OR (hd.trangThai IN (?, ?) AND CAST(hd.gioVao AS DATE) < ?) -- 'DangSuDung', 'HoaDonTam'
+                    -- Chỉ lấy HĐ 'DangSuDung'/'HoaDonTam'/'ChoXacNhan' từ ngày hôm trước
+                    OR (hd.trangThai IN (?, ?, ?) AND CAST(hd.gioVao AS DATE) < ?) -- 🔥 THÊM ?
                 )
              ORDER BY hd.gioVao ASC
         """;
@@ -339,76 +339,59 @@ public class DatBanDAO {
         try (Connection con = ConnectDB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
+            // Tham số cho WHERE hd.trangThai IN (...)
             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
             ps.setString(2, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
-            ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
-            ps.setDate(4, java.sql.Date.valueOf(date));
-            ps.setString(5, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
-            ps.setString(6, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
-            ps.setDate(7, java.sql.Date.valueOf(date));
+            ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
+            ps.setString(4, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
+
+            // Tham số cho điều kiện ngày
+            ps.setDate(5, java.sql.Date.valueOf(date)); // CAST(hd.gioVao AS DATE) = ?
+
+            // Tham số cho OR (hd.trangThai IN (...) AND CAST(hd.gioVao AS DATE) < ?)
+            ps.setString(6, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
+            ps.setString(7, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
+            ps.setString(8, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
+            ps.setDate(9, java.sql.Date.valueOf(date)); // CAST(hd.gioVao AS DATE) < ?
 
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
+                 // ... (Code tạo đối tượng HoaDon giữ nguyên) ...
                 HoaDon hoaDon = new HoaDon();
-
-                // Thông tin Hóa đơn
-                hoaDon.setMaHD(rs.getString("maHD"));
+                // ... (set các thuộc tính) ...
+                 hoaDon.setMaHD(rs.getString("maHD"));
                 hoaDon.setMaUuDai(rs.getString("maUuDai"));
                 hoaDon.setTienCoc(rs.getDouble("tienCoc"));
                 hoaDon.setTenNhanVien(rs.getString("tenNV"));
                 hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(rs.getString("ptThanhToan")));
-                // Setter nhận String (đã sửa ở HoaDon.java)
-                hoaDon.setTrangThai(rs.getString("trangThai")); 
-                Timestamp tsNgayLap = rs.getTimestamp("ngayLap");
-                hoaDon.setNgayLap( (tsNgayLap != null) ? tsNgayLap.toLocalDateTime() : null );
-                Timestamp tsGioVao = rs.getTimestamp("gioVao");
-                hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
-                Timestamp tsGioRa = rs.getTimestamp("gioRa");
-                hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
-                hoaDon.setMaHDGoc(rs.getString("maHDGoc")); // Thêm maHDGoc
-
-                // Thông tin Khách hàng
-                if (rs.getString("maKH") != null) {
-                    LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null;
-                    KhachHang kh = new KhachHang(
-                        rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"),
-                        rs.getString("khEmail"), ngayDK, rs.getString("khDiaChi"),
-                        rs.getString("khThanhVien")
-                    );
-                    hoaDon.setKhachHang(kh);
-                } else { hoaDon.setKhachHang(null); }
-
-                // Thông tin Bàn
-                if (rs.getString("maBan") != null) {
-                    Ban ban = new Ban(
-                        rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"),
-                        LoaiBan.fromString(rs.getString("banLoaiBan")),
-                        TrangThaiBan.fromDbValue(rs.getString("banTrangThai"))
-                    );
-                    hoaDon.setBan(ban);
-                } else { hoaDon.setBan(null); }
-
-                // Tạm thời chưa tính tổng món ăn ở đây
-                hoaDon.setTongCongMonAn(0);
-
+                hoaDon.setTrangThai(rs.getString("trangThai")); // Setter nhận String
+                Timestamp tsNgayLap = rs.getTimestamp("ngayLap"); hoaDon.setNgayLap( (tsNgayLap != null) ? tsNgayLap.toLocalDateTime() : null );
+                Timestamp tsGioVao = rs.getTimestamp("gioVao"); hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
+                Timestamp tsGioRa = rs.getTimestamp("gioRa"); hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
+                hoaDon.setMaHDGoc(rs.getString("maHDGoc"));
+                 // Khách hàng
+                if (rs.getString("maKH") != null) { LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null; KhachHang kh = new KhachHang( rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"), rs.getString("khEmail"), ngayDK, rs.getString("khDiaChi"), rs.getString("khThanhVien") ); hoaDon.setKhachHang(kh); } else { hoaDon.setKhachHang(null); }
+                 // Bàn
+                if (rs.getString("maBan") != null) { Ban ban = new Ban( rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"), LoaiBan.fromString(rs.getString("banLoaiBan")), TrangThaiBan.fromDbValue(rs.getString("banTrangThai")) ); hoaDon.setBan(ban); } else { hoaDon.setBan(null); }
+                 hoaDon.setTongCongMonAn(0); // Tạm thời
                 list.add(hoaDon);
             }
         } catch (SQLException e) {
             System.err.println("Lỗi khi lấy danh sách đặt bàn hôm nay: " + e.getMessage());
             e.printStackTrace();
-            return new ArrayList<>();
+            // return new ArrayList<>(); // Trả về list rỗng nếu lỗi
         }
         return list;
     }
     /**
-     * 🔥 HÀM MỚI: Lấy TẤT CẢ các hóa đơn đang ở trạng thái chờ xử lý (Đang phục vụ, Đã đặt, Hóa đơn tạm)
-     * Sắp xếp theo: Đang phục vụ/Hóa đơn tạm > Đã đặt, sau đó theo Giờ vào sớm nhất.
-     * @return Danh sách HoaDon đang chờ.
+   /**
+     * 🔥 HÀM MỚI: Lấy TẤT CẢ các hóa đơn đang ở trạng thái chờ xử lý (Đang phục vụ, Đã đặt, Hóa đơn tạm, Chờ xác nhận)
+     * Sắp xếp theo: Đang phục vụ/Hóa đơn tạm > Chờ xác nhận > Đã đặt, sau đó theo Giờ vào sớm nhất.
+     * 🔥 ĐÃ SỬA: Thêm trạng thái CHO_XAC_NHAN vào bộ lọc và sắp xếp.
      */
     public List<HoaDon> getDsHoaDonDangCho() {
         List<HoaDon> list = new ArrayList<>();
-        // Câu SQL mới: Thêm HoaDonTam
         String sql = """
             SELECT
                 hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
@@ -420,14 +403,15 @@ public class DatBanDAO {
             LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
             LEFT JOIN NhanVien n ON hd.maNV = n.maNV
             WHERE
-                hd.trangThai IN (?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam'
+                hd.trangThai IN (?, ?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam', 'ChoXacNhan' 🔥 THÊM ?
             ORDER BY
-                -- Ưu tiên 1: Trạng thái (Đang phục vụ/Tạm -> Đã đặt)
+                -- Ưu tiên 1: Trạng thái
                 CASE hd.trangThai
                     WHEN ? THEN 1 -- 'DangSuDung'
                     WHEN ? THEN 1 -- 'HoaDonTam'
-                    WHEN ? THEN 2 -- 'Dat'
-                    ELSE 3
+                    WHEN ? THEN 2 -- 'ChoXacNhan' 🔥 THÊM MỚI
+                    WHEN ? THEN 3 -- 'Dat'       🔥 SỬA THỨ TỰ
+                    ELSE 4
                 END ASC,
                 -- Ưu tiên 2: Giờ vào sớm nhất
                 hd.gioVao ASC
@@ -439,61 +423,75 @@ public class DatBanDAO {
             // Tham số cho WHERE
             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
             ps.setString(2, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
-            ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
+            ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
+            ps.setString(4, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
 
-            // Tham số cho ORDER BY
-            ps.setString(4, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
-            ps.setString(5, TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Thêm HoaDonTam
-            ps.setString(6, TrangThaiHoaDon.DAT.getDbValue());
+            // Tham số cho ORDER BY CASE
+            ps.setString(5, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
+            ps.setString(6, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
+            ps.setString(7, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
+            ps.setString(8, TrangThaiHoaDon.DAT.getDbValue());       // 🔥 Tham số mới
 
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                HoaDon hoaDon = new HoaDon();
-
-                // Thông tin Hóa đơn
-                hoaDon.setMaHD(rs.getString("maHD"));
-                hoaDon.setMaUuDai(rs.getString("maUuDai"));
-                hoaDon.setTienCoc(rs.getDouble("tienCoc"));
-                hoaDon.setTenNhanVien(rs.getString("tenNV"));
-                hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(rs.getString("ptThanhToan")));
-                hoaDon.setTrangThai(rs.getString("trangThai")); 
-                Timestamp tsNgayLap = rs.getTimestamp("ngayLap");
-                hoaDon.setNgayLap( (tsNgayLap != null) ? tsNgayLap.toLocalDateTime() : null );
-                Timestamp tsGioVao = rs.getTimestamp("gioVao");
-                hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
-                Timestamp tsGioRa = rs.getTimestamp("gioRa");
-                hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
-
-                // Thông tin Khách hàng
-                if (rs.getString("maKH") != null) {
-                    LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null;
-                    KhachHang kh = new KhachHang(
-                        rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"),
-                        rs.getString("khEmail"), ngayDK, rs.getString("khDiaChi"),
-                        rs.getString("khThanhVien")
-                    );
-                    hoaDon.setKhachHang(kh);
-                } else { hoaDon.setKhachHang(null); }
-
-                // Thông tin Bàn
-                if (rs.getString("maBan") != null) {
-                    Ban ban = new Ban(
-                        rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"),
-                        LoaiBan.fromString(rs.getString("banLoaiBan")),
-                        TrangThaiBan.fromDbValue(rs.getString("banTrangThai"))
-                    );
-                    hoaDon.setBan(ban);
-                } else { hoaDon.setBan(null); }
-
+                // ... (Code tạo đối tượng HoaDon giữ nguyên) ...
+                 HoaDon hoaDon = new HoaDon();
+                // ... (set các thuộc tính) ...
+                 hoaDon.setMaHD(rs.getString("maHD"));
+                 hoaDon.setMaUuDai(rs.getString("maUuDai"));
+                 hoaDon.setTienCoc(rs.getDouble("tienCoc"));
+                 hoaDon.setTenNhanVien(rs.getString("tenNV"));
+                 hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(rs.getString("ptThanhToan")));
+                 hoaDon.setTrangThai(rs.getString("trangThai")); // Setter nhận String
+                 Timestamp tsNgayLap = rs.getTimestamp("ngayLap"); hoaDon.setNgayLap( (tsNgayLap != null) ? tsNgayLap.toLocalDateTime() : null );
+                 Timestamp tsGioVao = rs.getTimestamp("gioVao"); hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
+                 Timestamp tsGioRa = rs.getTimestamp("gioRa"); hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
+                 // Khách hàng
+                 if (rs.getString("maKH") != null) { LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null; KhachHang kh = new KhachHang( rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"), rs.getString("khEmail"), ngayDK, rs.getString("khDiaChi"), rs.getString("khThanhVien") ); hoaDon.setKhachHang(kh); } else { hoaDon.setKhachHang(null); }
+                 // Bàn
+                 if (rs.getString("maBan") != null) { Ban ban = new Ban( rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"), LoaiBan.fromString(rs.getString("banLoaiBan")), TrangThaiBan.fromDbValue(rs.getString("banTrangThai")) ); hoaDon.setBan(ban); } else { hoaDon.setBan(null); }
                 list.add(hoaDon);
             }
         } catch (SQLException e) {
             System.err.println("Lỗi khi lấy danh sách hóa đơn đang chờ: " + e.getMessage());
             e.printStackTrace();
-            return new ArrayList<>();
+            // return new ArrayList<>(); // Trả về list rỗng nếu lỗi
         }
         return list;
+    }
+ // [Thêm hàm mới này vào file DatBanDAO.java]
+
+    /**
+     * 🔥 DAO MỚI: Cập nhật trạng thái Hóa đơn từ "Chờ xác nhận" sang "Đã đặt".
+     * Chỉ cập nhật nếu trạng thái hiện tại đúng là "Chờ xác nhận".
+     * @param maHD Mã hóa đơn cần xác nhận.
+     * @return true nếu cập nhật thành công (1 dòng bị ảnh hưởng), false nếu không.
+     * @throws SQLException Nếu có lỗi CSDL.
+     */
+    public boolean xacNhanTienCoc(String maHD) throws SQLException {
+        String sql = "UPDATE HoaDon SET trangThai = ? WHERE maHD = ? AND trangThai = ?";
+        int rowsAffected = 0;
+
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, TrangThaiHoaDon.DAT.getDbValue()); // Trạng thái mới: Đã đặt
+            ps.setString(2, maHD);
+            ps.setString(3, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // Điều kiện: Phải đang chờ xác nhận
+
+            rowsAffected = ps.executeUpdate();
+
+            if (rowsAffected > 0) {
+                System.out.println("LOG DAO: Đã xác nhận tiền cọc cho HD " + maHD + ", chuyển sang 'Đã đặt'.");
+            } else {
+                System.out.println("LOG DAO: Không thể xác nhận cọc cho HD " + maHD + " (Có thể không tìm thấy hoặc trạng thái không phải 'Chờ xác nhận').");
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi xác nhận tiền cọc cho HD " + maHD + ": " + e.getMessage());
+            throw e; // Ném lỗi để Controller xử lý
+        }
+        return rowsAffected > 0;
     }
     /**
      * Cập nhật trạng thái của một bàn trong CSDL.
@@ -1300,13 +1298,17 @@ public class DatBanDAO {
     /**
      * 🔥 DAO MỚI (TRANSACTION): Thực hiện toàn bộ nghiệp vụ TÁCH MÓN và THANH TOÁN.
      * BẢO ĐẢM TÍNH TOÀN VẸN CSDL (All or Nothing).
+     *
+     * === ĐÃ SỬA: Thêm tham số 'maUuDai' ===
      */
     public boolean thucHienTachBanVaThanhToan(
             String maHDGoc, 
             ObservableList<TachBanPopupController.MonTach> monTachListSnapshot,
             String maHDToPay, // Mã HĐ sẽ thanh toán (HĐ mới hoặc HĐ gốc)
             PTTThanhToan pttt, 
-            String maNhanVien) 
+            String maNhanVien,
+            String maUuDai // 🔥 THAM SỐ MỚI
+    ) 
     {
         Connection con = null;
         try {
@@ -1331,16 +1333,27 @@ public class DatBanDAO {
                 hdMoiDuocTao.setMaHDGoc(maHDGoc);
                 hdMoiDuocTao.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
                 
+                // 🔥 GÁN MÃ ƯU ĐÃI CHO HĐ MỚI TRƯỚC KHI LƯU
+                hdMoiDuocTao.setMaUuDai(maUuDai); 
+                
                 // LƯU VÀ GÁN MÃ HD THẬT
                 String maHDMoi = getNextMaHD();
                 hdMoiDuocTao.setMaHD(maHDMoi);
-                luuHoaDon(con, hdMoiDuocTao); // Helper
+                luuHoaDon(con, hdMoiDuocTao); // Helper (hàm luuHoaDon phải hỗ trợ lưu maUuDai)
                 maHDToPay = maHDMoi; // Cập nhật mã HD cần thanh toán là mã THẬT
+            
+            } else {
+                // 🔥 NẾU THANH TOÁN HĐ GỐC: Cập nhật ưu đãi cho HĐ Gốc
+                // (Vì maHDToPay chính là maHDGoc)
+                capNhatUuDaiHoaDon(con, maHDGoc, maUuDai); // Gọi helper mới
             }
+
 
             // --- 2. CẬP NHẬT CHI TIẾT MÓN ĂN (TÁCH THỰC SỰ) ---
             for (TachBanPopupController.MonTach mon : monTachListSnapshot) {
-                if (mon.getSoLuongTach() > 0) {
+                // Chỉ xử lý những món có tách (dù là tách 0 món cũng chạy)
+                // if (mon.getSoLuongTach() > 0) { // Bỏ điều kiện này để xử lý cả TH thanh toán HĐ gốc
+                    
                     double donGia = mon.getDonGia();
                     int slConLai = mon.getSoLuongConLai();
                     int slTach = mon.getSoLuongTach();
@@ -1349,23 +1362,30 @@ public class DatBanDAO {
                     if (slConLai == 0) {
                         xoaChiTietHoaDon(con, maHDGoc, mon.getMaMon()); // Helper
                     } else {
-                        capNhatSoLuongCTHD(con, maHDGoc, mon.getMaMon(), slConLai, donGia); // Helper
+                        // Chỉ cập nhật nếu số lượng gốc khác số lượng còn lại
+                        if (slConLai != mon.getSoLuongGoc()) {
+                           capNhatSoLuongCTHD(con, maHDGoc, mon.getMaMon(), slConLai, donGia); // Helper
+                        }
                     }
                     
-                    // Thêm CTHD Mới (Chèn số lượng món đã tách vào HĐ Mới/Tạm)
-                    if (isPayingNewInvoice) {
+                    // Thêm CTHD Mới (Chèn số lượng món đã tách vào HĐ Mới)
+                    // Chỉ thêm nếu đang thanh toán HĐ mới VÀ có món được tách
+                    if (isPayingNewInvoice && slTach > 0) {
                         themChiTietHoaDon(con, maHDToPay, mon.getMaMon(), slTach, donGia); // Helper
                     }
-                }
+                // } // Bỏ điều kiện
             }
             
             // --- 3. CẬP NHẬT TRẠNG THÁI HĐ GỐC (Nếu không còn món) ---
             boolean conMonConLai = monTachListSnapshot.stream().anyMatch(m -> m.getSoLuongConLai() > 0);
             if (!conMonConLai) {
-                capNhatTrangThaiHoaDon(con, maHDGoc, TrangThaiHoaDon.HOA_DON_TAM.getDbValue(), false); // Helper
+                // Nếu HĐ gốc hết món, chuyển thành HĐ Tạm (trừ khi nó đang được thanh toán)
+                if (!maHDToPay.equals(maHDGoc)) {
+                    capNhatTrangThaiHoaDon(con, maHDGoc, TrangThaiHoaDon.HOA_DON_TAM.getDbValue(), false); // Helper
+                }
             }
 
-            // --- 4. THANH TOÁN HÓA ĐƠN THỰC SỰ ---
+            // --- 4. THANH TOÁN HÓA ĐƠN THỰC SỰ (HĐ Mới hoặc HĐ Gốc) ---
             thanhToanHoaDon(con, maHDToPay, pttt, maNhanVien); // Helper
 
             con.commit(); // Hoàn tất Transaction
@@ -1381,6 +1401,7 @@ public class DatBanDAO {
                 }
             }
             System.err.println("LỖI THỰC HIỆN TRANSACTION: " + e.getMessage());
+            e.printStackTrace(); // In chi tiết lỗi
             return false;
         } finally {
             if (con != null) {
@@ -1392,9 +1413,25 @@ public class DatBanDAO {
         }
     }
 
-	public void thucHienTachBanVaCapNhat(String maHDGocSnapshot, ObservableList<MonTach> monTachListSnapshot,
-			boolean isNewInvoice) {
-		// TODO Auto-generated method stub
-		
-	}
+    /**
+     * 🔥 HÀM HELPER MỚI (NỘI BỘ): Cập nhật mã ưu đãi cho Hóa đơn.
+     * Dùng bên trong Transaction.
+     */
+    private void capNhatUuDaiHoaDon(Connection con, String maHD, String maUuDai) throws SQLException {
+        String sql = "UPDATE HoaDon SET maUuDai = ? WHERE maHD = ?";
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
+            if (maUuDai != null && !maUuDai.isEmpty()) {
+                ps.setString(1, maUuDai);
+            } else {
+                // Nếu không chọn KM, set giá trị trong CSDL là NULL
+                ps.setNull(1, java.sql.Types.VARCHAR);
+            }
+            ps.setString(2, maHD);
+            ps.executeUpdate();
+            System.out.println("LOG DAO (Helper): Đã cập nhật mã ưu đãi " + maUuDai + " cho HD " + maHD);
+        } catch (SQLException e) {
+            System.err.println("Lỗi helper capNhatUuDaiHoaDon: " + e.getMessage());
+            throw e; // Ném lỗi để transaction rollback
+        }
+    }
 }

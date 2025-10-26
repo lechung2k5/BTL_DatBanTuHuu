@@ -306,16 +306,18 @@ public class TachBanPopupController {
         VBox root = loader.load();
         
         ThanhToanPreviewController controller = loader.getController();
-        
-        // Truyền Hóa đơn cần thanh toán, tổng món ăn, tiền cọc gốc, và trạng thái HĐ (Mới/Gốc)
-        controller.setInitialData(hdToPay, datBanDAO, mainController, tongMonAn, tienCocGoc, isNewInvoice); 
 
-        // 🔥 GỌI HÀM SETTER ĐỂ CHUYỂN DỮ LIỆU TÁCH
-        ObservableList<MonTach> monTachListSnapshot = FXCollections.observableArrayList(allMonTach);
-        controller.setMonTachList(monTachListSnapshot, hoaDonGoc.getMaHD()); 
+     // 🔥 BƯỚC 1: TRUYỀN DỮ LIỆU TÁCH (SNAPSHOT) TRƯỚC
+	     ObservableList<MonTach> monTachListSnapshot = FXCollections.observableArrayList(allMonTach);
+	     controller.setMonTachList(monTachListSnapshot, hoaDonGoc.getMaHD()); //
+	
+	     // 🔥 BƯỚC 2: GỌI SETINITIALDATA SAU (Để nó có thể sử dụng dữ liệu vừa truyền)
+	     controller.setInitialData(hdToPay, datBanDAO, mainController, tongMonAn, tienCocGoc, isNewInvoice); 
+	
+	     Stage popupStage = new Stage(); 
 
 
-        Stage popupStage = new Stage();
+      
         popupStage.setTitle("Xác nhận Thanh toán: " + hdToPay.getMaHD());
         popupStage.setScene(new Scene(root));
         popupStage.showAndWait();

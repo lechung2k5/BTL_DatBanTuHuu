@@ -94,6 +94,7 @@ public class GopBanPopupController implements Initializable {
 
     /**
      * Nhận Hóa đơn Master (HĐ được chọn từ DatBan) và tải danh sách HĐ có thể gộp.
+     * 🔥 ĐÃ SỬA: Chỉ lọc Hóa đơn có trạng thái "Đang phục vụ".
      */
     public void setInitialData(HoaDon masterHD, DatBanDAO dao, DatBan parentCtrl) {
         this.hoaDonMaster = masterHD;
@@ -105,14 +106,15 @@ public class GopBanPopupController implements Initializable {
         // 1. Tải TẤT CẢ HĐ đang hoạt động
         List<HoaDon> allActiveHDs = datBanDAO.getDsHoaDonDangCho();
 
-        // 2. Lọc: Chỉ lấy HĐ đang DANG_SU_DUNG hoặc HOA_DON_TAM, và không phải HĐ Master
+        // 2. Lọc: Chỉ lấy HĐ đang DANG_SU_DUNG, và không phải HĐ Master
         List<HoaDon> canGop = allActiveHDs.stream()
                 .filter(hd -> !hd.getMaHD().equals(masterHD.getMaHD()))
-                .filter(hd -> hd.getTrangThai() == TrangThaiHoaDon.DANG_SU_DUNG || hd.getTrangThai() == TrangThaiHoaDon.HOA_DON_TAM)
+                // 🔥 SỬA DÒNG NÀY: Bỏ điều kiện || HOA_DON_TAM
+                .filter(hd -> hd.getTrangThai() == TrangThaiHoaDon.DANG_SU_DUNG)
                 .collect(Collectors.toList());
 
         hdCanGopList.setAll(canGop);
-        
+
         // Khởi tạo selectionMap cho danh sách mới
         selectionMap.clear();
         for (HoaDon hd : hdCanGopList) {

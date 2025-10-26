@@ -41,8 +41,8 @@ public class HoaDon {
         this.phiDichVu = this.tongCongMonAn * 0.05; // Giả định 5%
         this.thueVAT = this.tongCongMonAn * 0.08;   // Giả định 8%
 
-        // TODO: Cần logic phức tạp hơn để tính khuyến mãi dựa trên maUuDai và tổng tiền món
-        this.khuyenMai = 0.0;
+        // 🔥 ĐÃ XÓA DÒNG "this.khuyenMai = 0.0;"
+        // Giờ khuyến mãi sẽ được giữ nguyên giá trị được set từ bên ngoài
 
         this.tongTienThanhToan = this.tongCongMonAn + this.phiDichVu + this.thueVAT - this.tienCoc - this.khuyenMai;
         if (this.tongTienThanhToan < 0) {
@@ -111,6 +111,10 @@ public class HoaDon {
     public void setTienCoc(double tienCoc) {
         this.tienCoc = tienCoc;
         calculateTotals(); // Tính lại tổng tiền khi tiền cọc thay đổi
+    }
+    public void setKhuyenMai(double khuyenMai) {
+        this.khuyenMai = khuyenMai;
+        calculateTotals(); // Tính lại tổng tiền khi khuyến mãi thay đổi
     }
     // Không cần setters cho các trường tính toán
 }

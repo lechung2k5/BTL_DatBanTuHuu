@@ -21,8 +21,10 @@ import entity.UuDai; // Đảm bảo đã import
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.sql.SQLException;
 import java.text.DecimalFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -86,6 +88,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.DatePicker;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.TableCell;
@@ -139,6 +142,7 @@ public class DatBan implements Initializable {
     private ToggleGroup paymentGroup;
     private List<UuDai> dsUuDaiDangApDung = new ArrayList<>(); // 🔥 Danh sách ưu đãi đang áp dụng
     private UuDai selectedUuDai = null; // 🔥 Ưu đãi đang được chọn
+    private boolean daThanhToanCoc = false;
     
     
     // === CỘT 1 (Left Panel) ===
@@ -166,6 +170,7 @@ public class DatBan implements Initializable {
     @FXML private Label lblBanDangChon;
     @FXML private Button btnTimKhach;
     @FXML private Button btnXacNhanBan;
+
     
     // === CỘT 3 (Right Panel) - GỌI MÓN & HÓA ĐƠN ===
     @FXML private ToggleButton toggleKhaiVi, toggleNuong, toggleLau, toggleXaoHap, toggleChien, toggleDacSan, toggleDoUong;
@@ -264,6 +269,10 @@ public class DatBan implements Initializable {
         txtThoiGian.setText(LocalTime.now().format(timeFormatter));
 
         btnXacNhanBan.setOnAction(e -> handleXacNhanBan()); 
+        if (btnThanhToanCoc != null) {
+            btnThanhToanCoc.setOnAction(e -> openThanhToanCocPopup());
+            btnThanhToanCoc.setDisable(true); // Vô hiệu hóa ban đầu
+        }
         btnTim.setOnAction(e -> handleTimBanTrong());
         btnLuuDatHang.setOnAction(e -> handleLuuDatHang());
         btnThanhToan.setOnAction(e -> handleThanhToan());
@@ -944,7 +953,137 @@ public class DatBan implements Initializable {
         if (btnGopBan != null) btnGopBan.setDisable(true);
         if (btnHuyBan != null) btnHuyBan.setDisable(true);
     }
+ // [Thêm hàm mới này vào file DatBan.java]
 
+    /**
+     * 🔥 HÀM MỚI: Mở Popup hiển thị QR Thanh toán Tiền Cọc.
+     * Chỉ hoạt động khi Hóa đơn đang ở trạng thái "Chờ xác nhận".
+     */
+    private void openThanhToanCocPopup() {
+        // 1. Kiểm tra hóa đơn và trạng thái
+        if (currentHoaDon == null || currentHoaDon.getMaHD() == null) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi", "Vui lòng chọn một Hóa đơn để thanh toán cọc.");
+            return;
+        }
+        if (currentHoaDon.getTrangThai() != TrangThaiHoaDon.CHO_XAC_NHAN) {
+             showAlert(Alert.AlertType.WARNING, "Lỗi", "Chỉ có thể thanh toán cọc cho Hóa đơn đang ở trạng thái 'Chờ xác nhận'.");
+             return;
+        }
+
+        // 2. Lấy số tiền cọc từ TextField
+        double tienCoc = 0;
+        try {
+            String tienCocRaw = txtTienCoc.getText().replaceAll("[^0-9.]", "");
+            tienCoc = Double.parseDouble(tienCocRaw.isEmpty() ? "0" : tienCocRaw);
+        } catch (NumberFormatException e) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Số tiền cọc không hợp lệ.");
+            return;
+        }
+
+        if (tienCoc <= 0) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi", "Số tiền cọc phải lớn hơn 0.");
+            return;
+        }
+
+        // 3. Thông tin QR (Giống Ngân hàng, chỉ khác nội dung)
+        final String YOUR_BANK_CODE = "970422"; // MB Bank BIN (Ví dụ)
+        final String YOUR_ACCOUNT_NUMBER = "0927432020905"; // Số tài khoản của bạn
+        String maHD = currentHoaDon.getMaHD();
+
+        // Nội dung: Rõ ràng là thanh toán cọc
+        String rawContent = "Coc" + maHD.toUpperCase().replace(" ", "_"); // VD: CocHD079
+        String encodedContent;
+        try {
+            encodedContent = java.net.URLEncoder.encode(rawContent, "UTF-8");
+        } catch (java.io.UnsupportedEncodingException e) {
+            encodedContent = rawContent;
+        }
+
+        // 4. Tạo URL Quicklink
+        String qrUrl = String.format(
+            "https://img.vietqr.io/image/%s-%s-compact.png?amount=%d&addInfo=%s",
+            YOUR_BANK_CODE,
+            YOUR_ACCOUNT_NUMBER,
+            (int) Math.ceil(tienCoc), // Số tiền cọc
+            encodedContent
+        );
+
+        // 5. Tải ảnh QR
+        Image qrImage = generateQrCodeImageFromUrl(qrUrl, 250);
+        if (qrImage == null || qrImage.isError()) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi kết nối", "Không thể tải mã QR VietQR. Vui lòng kiểm tra lại kết nối.");
+            return;
+        }
+
+        // 6. Tạo giao diện Popup (Tương tự Ngân hàng)
+        ImageView qrView = new ImageView(qrImage);
+        qrView.setFitWidth(250); qrView.setFitHeight(250);
+
+        Label lblTitle = new Label("Quét Mã Để Thanh Toán Tiền Cọc"); // Sửa tiêu đề
+        lblTitle.setStyle("-fx-font-size: 1.5em; -fx-font-weight: bold;");
+
+        Label lblAmount = new Label("Số tiền cọc: " + String.format("%,.0f Đ", tienCoc)); // Sửa text
+        lblAmount.setStyle("-fx-font-size: 1.2em; -fx-font-weight: 500; -fx-text-fill: red;");
+
+        Label lblContent = new Label("Nội dung: " + rawContent);
+        lblContent.setStyle("-fx-font-size: 1.0em; -fx-font-weight: 400;");
+
+        Button btnHuy = new Button("Hủy");
+        Button btnXacNhanCoc = new Button("Xác nhận đã cọc"); // Sửa text nút
+
+        btnHuy.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
+        btnXacNhanCoc.setStyle("-fx-background-color: #ffc107; -fx-text-fill: black; -fx-padding: 10px 20px; -fx-font-weight: bold;"); // Màu vàng cho cọc
+
+        HBox buttonBox = new HBox(15, btnHuy, btnXacNhanCoc);
+        buttonBox.setAlignment(Pos.CENTER);
+
+        VBox root = new VBox(20, lblTitle, qrView, lblAmount, lblContent, buttonBox);
+        root.setPadding(new Insets(20)); root.setAlignment(Pos.CENTER); root.setPrefSize(400, 550);
+
+        Stage popupStage = new Stage();
+        popupStage.setTitle("Thanh toán tiền cọc cho HD: " + maHD); // Sửa tiêu đề cửa sổ
+        popupStage.setScene(new Scene(root));
+
+        // 7. GÁN SỰ KIỆN CHO NÚT
+        btnHuy.setOnAction(e -> popupStage.close());
+
+        btnXacNhanCoc.setOnAction(e -> {
+            String maHDCanXacNhan = currentHoaDon.getMaHD();
+
+            try {
+                // 🔥 GỌI DAO ĐỂ CẬP NHẬT TRẠNG THÁI TỪ "ChoXacNhan" -> "Dat"
+                if (datBanDAO.xacNhanTienCoc(maHDCanXacNhan)) { // <<< Gọi hàm DAO mới
+
+                    // Tải lại HĐ để lấy trạng thái mới
+                    HoaDon hdDaDat = datBanDAO.getHoaDonByMaHD(maHDCanXacNhan);
+                    if (hdDaDat != null) {
+                        currentHoaDon = hdDaDat; // Cập nhật HĐ hiện tại
+                        this.daThanhToanCoc = true;
+                        showAlert(Alert.AlertType.INFORMATION, "Thành công",
+                                  "Đã xác nhận thanh toán cọc cho Hóa đơn " + maHDCanXacNhan + ".\nTrạng thái chuyển thành: Đã đặt.");
+
+                        // Cập nhật giao diện chính
+                        loadBookingCards(); // Cập nhật card list
+                        loadTableGrids();   // Cập nhật màu bàn
+                        // Cập nhật lại form nếu cần (trạng thái HĐ)
+                        loadHoaDonToMainInterface(currentHoaDon); // Tải lại để cập nhật nút
+
+                    } else {
+                         showAlert(Alert.AlertType.ERROR, "Lỗi", "Đã xác nhận cọc, nhưng không tải lại được hóa đơn.");
+                    }
+                } else {
+                    showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể cập nhật trạng thái hóa đơn (có thể HĐ không ở trạng thái 'Chờ xác nhận').");
+                }
+            } catch(SQLException sqlEx) {
+                 showAlert(Alert.AlertType.ERROR, "Lỗi CSDL", "Lỗi khi xác nhận tiền cọc: " + sqlEx.getMessage());
+                 sqlEx.printStackTrace();
+            }
+
+            popupStage.close();
+        });
+
+        popupStage.show();
+    }
     // 🔥 HÀM loadDsBan() TẠI VỊ TRÍ CŨ (giữ nguyên nếu bạn có)
 
     public void loadDsBan() {
@@ -1687,107 +1826,122 @@ public class DatBan implements Initializable {
     
     /**
      * 🔥 XỬ LÝ LƯU THÔNG TIN ĐẶT HÀNG / KHÁCH ĐẾN QUÁN
-     * === ĐÃ SỬA LOGIC (Gốc - Phụ) ĐỂ XỬ LÝ NHIỀU BÀN (Dùng maHDGoc) ===
-     * Chỉ tạo 1 Hóa Đơn GỐC (có món, có cọc) và N Hóa Đơn PHỤ (không món, không cọc).
+     * === ĐÃ SỬA: Set trạng thái "Chờ xác nhận" nếu có cọc nhưng chưa thanh toán ===
      */
     private void handleLuuDatHang() {
-        if (selectedBanList.isEmpty()) { //
+        if (selectedBanList.isEmpty()) {
             showAlert(Alert.AlertType.ERROR, "Lỗi", "Vui lòng chọn ít nhất một bàn.");
             return;
         }
-        
         if (!isBookingConfirmed) {
             showAlert(Alert.AlertType.WARNING, "Thiếu bước Xác nhận", "Vui lòng nhấn nút 'Xác nhận bàn' trước khi lưu đặt hàng.");
             return;
         }
 
         try {
-            // 1. LẤY THÔNG TIN CHUNG
+            // 1. LẤY THÔNG TIN CHUNG (Giữ nguyên)
             String tenKH = txtTenKhachHang.getText();
             String sdt = txtSoDienThoai.getText();
-            
-            if (sdt.isEmpty()) {
-                 showAlert(Alert.AlertType.ERROR, "Lỗi", "Vui lòng nhập Số điện thoại khách hàng.");
-                 return;
-            }
-            
+            if (sdt.isEmpty()) { /* ... báo lỗi ... */ return; }
             KhachHang khachHang = datBanDAO.timHoacTaoKhachHang(sdt, tenKH);
+            LocalDate ngayDen = datePickerThoiGianDen.getValue(); // <<< Sửa tên biến
+            // ------------------------------------
 
-            LocalDate ngayDen = datePickerThoiGianDen.getValue();
             LocalTime gioDen = LocalTime.parse(txtThoiGian.getText(), timeFormatter);
             java.time.LocalDateTime thoiGianDen = ngayDen.atTime(gioDen);
-            
-            String trangThaiBanDau;
-            if (thoiGianDen.isBefore(java.time.LocalDateTime.now().plusMinutes(15))) {
-                trangThaiBanDau = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue(); //
-            } else {
-                trangThaiBanDau = TrangThaiHoaDon.DAT.getDbValue();
-            }
-            
+
             double tongTienCoc = 0;
             try {
-                 String tienCocRaw = txtTienCoc.getText().replaceAll("[^0-9.]", ""); 
+                 String tienCocRaw = txtTienCoc.getText().replaceAll("[^0-9.]", "");
                  tongTienCoc = Double.parseDouble(tienCocRaw.isEmpty() ? "0" : tienCocRaw);
-            } catch (NumberFormatException e) {
-                showAlert(Alert.AlertType.ERROR, "Lỗi", "Tiền cọc không hợp lệ.");
-                return;
+            } catch (NumberFormatException e) { /* ... báo lỗi ... */ return; }
+
+
+            // --- 🔥 LOGIC XÁC ĐỊNH TRẠNG THÁI BAN ĐẦU ---
+            String trangThaiBanDau;
+            boolean coCocVaChuaThanhToan = (tongTienCoc > 0 && !this.daThanhToanCoc);
+
+            if (coCocVaChuaThanhToan) {
+                trangThaiBanDau = TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue();
+                System.out.println("LOG: Lưu HĐ với trạng thái 'Chờ xác nhận' do có cọc chưa thanh toán.");
+            } else {
+                // Logic cũ: Dựa vào thời gian đến
+                if (thoiGianDen.isBefore(java.time.LocalDateTime.now().plusMinutes(15))) {
+                    trangThaiBanDau = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
+                } else {
+                    trangThaiBanDau = TrangThaiHoaDon.DAT.getDbValue();
+                }
+                System.out.println("LOG: Lưu HĐ với trạng thái '" + trangThaiBanDau + "' (Không cọc hoặc đã thanh toán cọc).");
             }
+            // -----------------------------------------
 
-            // 2. TÁCH BÀN GỐC VÀ BÀN PHỤ
-            Ban banGoc = selectedBanList.get(0); //
-            List<Ban> banPhuList = new ArrayList<>(selectedBanList.subList(1, selectedBanList.size())); //
+            // 2. TÁCH BÀN GỐC VÀ BÀN PHỤ (Giữ nguyên)
+            Ban banGoc = selectedBanList.get(0);
+            List<Ban> banPhuList = new ArrayList<>(selectedBanList.subList(1, selectedBanList.size()));
 
-            // 3. TẠO HÓA ĐƠN GỐC (Chứa tất cả món và tiền cọc)
+            // 3. TẠO HÓA ĐƠN GỐC
             HoaDon hoaDonGoc = new HoaDon();
             hoaDonGoc.setNgayLap(java.time.LocalDateTime.now());
             hoaDonGoc.setGioVao(thoiGianDen);
-            hoaDonGoc.setKhachHang(khachHang); 
-            hoaDonGoc.setBan(banGoc); //
-            hoaDonGoc.setTrangThai(trangThaiBanDau); //
-            hoaDonGoc.setTienCoc(tongTienCoc); //
-            hoaDonGoc.setMaHDGoc(null); // Gốc thì là NULL
-            
-            // Lưu HĐ Gốc VỚI danh sách món
-            datBanDAO.luuHoaDonVaChiTiet(hoaDonGoc, monOrderList); //
-            datBanDAO.capNhatTrangThaiBan(banGoc.getMaBan(), trangThaiBanDau); //
-            
-            System.out.println("LOG: Đã lưu HD GỐC " + hoaDonGoc.getMaHD() + " cho bàn " + banGoc.getMaBan());
+            hoaDonGoc.setKhachHang(khachHang);
+            hoaDonGoc.setBan(banGoc);
+            hoaDonGoc.setTrangThai(trangThaiBanDau); // <<< SỬ DỤNG TRẠNG THÁI ĐÃ XÁC ĐỊNH
+            hoaDonGoc.setTienCoc(tongTienCoc);
+            hoaDonGoc.setMaHDGoc(null);
 
-            // 4. TẠO CÁC HÓA ĐƠN PHỤ (Không món, không cọc, trạng thái "HoaDonTam")
+            // Lưu HĐ Gốc VỚI danh sách món
+            datBanDAO.luuHoaDonVaChiTiet(hoaDonGoc, monOrderList);
+            // Cập nhật trạng thái bàn Gốc theo trạng thái hóa đơn
+            datBanDAO.capNhatTrangThaiBan(banGoc.getMaBan(), getTrangThaiBanFromHoaDon(trangThaiBanDau)); // <<< Dùng hàm helper
+
+            System.out.println("LOG: Đã lưu HD GỐC " + hoaDonGoc.getMaHD() + " cho bàn " + banGoc.getMaBan() + " với trạng thái " + trangThaiBanDau);
+
+            // 4. TẠO CÁC HÓA ĐƠN PHỤ (Luôn là HoaDonTam)
             for (Ban banPhu : banPhuList) {
                 HoaDon hoaDonPhu = new HoaDon();
                 hoaDonPhu.setNgayLap(java.time.LocalDateTime.now());
                 hoaDonPhu.setGioVao(thoiGianDen);
                 hoaDonPhu.setKhachHang(khachHang);
                 hoaDonPhu.setBan(banPhu);
-                hoaDonPhu.setTienCoc(0); // KHÔNG cọc
-                hoaDonPhu.setMaHDGoc(hoaDonGoc.getMaHD()); // <<< LIÊN KẾT VỚI HĐ GỐC
-                hoaDonPhu.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); //
+                hoaDonPhu.setTienCoc(0);
+                hoaDonPhu.setMaHDGoc(hoaDonGoc.getMaHD());
+                hoaDonPhu.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Phụ luôn là Tạm
 
-                // Lưu HĐ Phụ KHÔNG CÓ món
                 datBanDAO.luuHoaDonVaChiTiet(hoaDonPhu, FXCollections.observableArrayList());
-                datBanDAO.capNhatTrangThaiBan(banPhu.getMaBan(), trangThaiBanDau); //
-                
+                // Cập nhật trạng thái bàn Phụ theo trạng thái hóa đơn GỐC
+                datBanDAO.capNhatTrangThaiBan(banPhu.getMaBan(), getTrangThaiBanFromHoaDon(trangThaiBanDau)); // <<< Dùng hàm helper
+
                 System.out.println("LOG: Đã lưu HD PHỤ " + hoaDonPhu.getMaHD() + " cho bàn " + banPhu.getMaBan());
             }
 
             // 5. HOÀN TẤT
-            showAlert(Alert.AlertType.INFORMATION, "Thành công", 
-                String.format("Đã lưu đặt hàng thành công!\n- HĐ Gốc: %s (Bàn %s)\n- HĐ Phụ: %d bàn",
+            showAlert(Alert.AlertType.INFORMATION, "Thành công",
+                String.format("Đã lưu đặt hàng thành công!\nTrạng thái: %s\n- HĐ Gốc: %s (Bàn %s)\n- HĐ Phụ: %d bàn",
+                              TrangThaiHoaDon.fromDbValue(trangThaiBanDau).getDisplayName(), // Hiển thị tên trạng thái
                               hoaDonGoc.getMaHD(), banGoc.getMaBan(), banPhuList.size()));
-            
+
             isBookingConfirmed = false;
+            this.daThanhToanCoc = false; // <<< RESET BIẾN CỌC SAU KHI LƯU
             clearFormDatBan();
             loadBookingCards();
-            loadTableGrids(); 
-            
+            loadTableGrids();
+
         } catch (Exception e) {
             e.printStackTrace();
             showAlert(Alert.AlertType.ERROR, "Lỗi hệ thống", "Lỗi khi lưu đặt hàng: " + e.getMessage());
         }
     }
+    private String getTrangThaiBanFromHoaDon(String trangThaiHoaDonDbValue) {
+        TrangThaiHoaDon ttHD = TrangThaiHoaDon.fromDbValue(trangThaiHoaDonDbValue);
+        if (ttHD == TrangThaiHoaDon.DANG_SU_DUNG) {
+            return TrangThaiBan.DANG_SU_DUNG.getDbValue(); // Bàn đang sử dụng
+        } else {
+            // Bao gồm DAT, CHO_XAC_NHAN (và cả HOA_DON_TAM nếu có bàn)
+            return TrangThaiBan.DA_DAT.getDbValue(); // Bàn đã đặt (hoặc chờ cọc)
+        }
+    }
 
-    /**
+	/**
      * HÀM XỬ LÝ NÚT XÁC NHẬN (Cập nhật UI và tính tiền cọc)
      */
     private void handleXacNhanBan() {
@@ -1851,53 +2005,50 @@ public class DatBan implements Initializable {
     // =========================================================
     // LOGIC TÍNH TOÁN TRẠNG THÁI HIỂN THỊ MỚI
     // =========================================================
-
     /**
      * Tính toán trạng thái hiển thị của bàn dựa trên MỘT thời điểm kiểm tra.
-     * Logic: Ưu tiên trạng thái ĐANG PHỤC VỤ (CAM), còn lại áp dụng logic ĐÃ ĐẶT (ĐỎ).
-     * === ĐÃ SỬA: Loại bỏ chuyển trạng thái DAT sang DANG_SU_DUNG trong logic màu ===
+     * 🔥 ĐÃ SỬA: Coi trạng thái CHO_XAC_NHAN tương đương như DAT (Đã đặt - màu đỏ).
      */
     public TrangThaiBan getTrangThaiHienThi(Ban banGoc, LocalTime thoiGianKiemTra) {
-        // [Copy-paste toàn bộ nội dung của hàm getTrangThaiHienThi đã được sửa ở bước trước vào đây]
-        // (Để giữ cho phản hồi này ngắn gọn, hãy sử dụng lại mã của hàm getTrangThaiHienThi đã gửi trước đó)
-        
-        // 1. Tìm HĐ đang hoạt động (Dat, DangSuDung, HoaDonTam) sớm nhất cho bàn này
-        Optional<HoaDon> hdDangCho = dsHoaDonDatTrongNgay.stream() 
+        // 1. Tìm HĐ đang hoạt động sớm nhất cho bàn này
+        Optional<HoaDon> hdDangCho = dsHoaDonDatTrongNgay.stream()
             .filter(hd -> hd.getBan() != null && hd.getBan().getMaBan().equals(banGoc.getMaBan()) && hd.getGioVao() != null)
-            .filter(hd -> hd.getTrangThai() != null && 
-                          (hd.getTrangThai().getDbValue().equals("Dat") || 
-                           hd.getTrangThai().getDbValue().equals("DangSuDung") || 
-                           hd.getTrangThai().getDbValue().equals("HoaDonTam")))
-            .min(Comparator.comparing(hd -> hd.getGioVao())); 
+            // Lọc các trạng thái giữ bàn
+            .filter(hd -> hd.getTrangThai() != null &&
+                          (hd.getTrangThai() == TrangThaiHoaDon.DAT ||
+                           hd.getTrangThai() == TrangThaiHoaDon.DANG_SU_DUNG ||
+                           hd.getTrangThai() == TrangThaiHoaDon.HOA_DON_TAM ||
+                           hd.getTrangThai() == TrangThaiHoaDon.CHO_XAC_NHAN)) // <<< THÊM MỚI
+            .min(Comparator.comparing(HoaDon::getGioVao));
 
         if (hdDangCho.isPresent()) {
-            String trangThaiDb = hdDangCho.get().getTrangThai().getDbValue();
-            
+            TrangThaiHoaDon trangThaiHD = hdDangCho.get().getTrangThai();
+
             // 2. Ưu tiên CAM (DANG_SU_DUNG / HOA_DON_TAM)
-            if (trangThaiDb.equals("DangSuDung") || trangThaiDb.equals("HoaDonTam")) {
-                return TrangThaiBan.DANG_SU_DUNG;
+            if (trangThaiHD == TrangThaiHoaDon.DANG_SU_DUNG || trangThaiHD == TrangThaiHoaDon.HOA_DON_TAM) {
+                return TrangThaiBan.DANG_SU_DUNG; // Cam
             }
-            
-            // 3. Xử lý ĐỎ (ĐÃ ĐẶT - DAT)
-            if (trangThaiDb.equals("Dat")) {
-                LocalTime gioVao = hdDangCho.get().getGioVao().toLocalTime(); 
+
+            // 3. Xử lý ĐỎ (ĐÃ ĐẶT - DAT hoặc Chờ xác nhận - CHO_XAC_NHAN)
+            if (trangThaiHD == TrangThaiHoaDon.DAT || trangThaiHD == TrangThaiHoaDon.CHO_XAC_NHAN) { // <<< THÊM MỚI
+                LocalTime gioVao = hdDangCho.get().getGioVao().toLocalTime();
                 LocalTime gioCanhBaoSom = gioVao.minusHours(4); // Mốc 4 tiếng
-                
-                // Case 1: Thời gian tìm kiếm ĐÃ ĐẾN hoặc QUA giờ đặt
+
+                // Case 1: Thời gian tìm kiếm ĐÃ ĐẾN hoặc QUA giờ vào -> Cam
                 if (thoiGianKiemTra.isAfter(gioVao) || thoiGianKiemTra.equals(gioVao)) {
-                     return TrangThaiBan.DANG_SU_DUNG; // Chuyển ngay sang trạng thái Đang Sử Dụng (Cam)
-                } 
-                
-                // Case 2: Thời gian tìm kiếm TRƯỚC giờ đặt (Kiểm tra 4 tiếng cứng)
-                if (thoiGianKiemTra.isAfter(gioCanhBaoSom) || thoiGianKiemTra.equals(gioCanhBaoSom)) { 
-                    // Nếu nằm trong vòng [4 tiếng trước, Giờ vào) -> Đỏ
-                    return TrangThaiBan.DA_DAT; 
+                     return TrangThaiBan.DANG_SU_DUNG;
                 }
+
+                // Case 2: Thời gian tìm kiếm TRƯỚC giờ vào (Kiểm tra 4 tiếng cứng) -> Đỏ
+                if (thoiGianKiemTra.isAfter(gioCanhBaoSom) || thoiGianKiemTra.equals(gioCanhBaoSom)) {
+                    return TrangThaiBan.DA_DAT; // Đỏ
+                }
+                // Nếu trước 4 tiếng -> Trống (sẽ rơi vào fallback)
             }
         }
 
-        // 4. Fallback: Nếu không rơi vào các trường hợp bận -> Luôn là Trống (Trắng)
-        return TrangThaiBan.TRONG; 
+        // 4. Fallback: Trống (Trắng)
+        return TrangThaiBan.TRONG;
     }
     // =========================================================
     // LOGIC TẢI BẢNG VÀ CHỌN BÀN
@@ -2328,6 +2479,11 @@ public class DatBan implements Initializable {
         // 8. Cập nhật trạng thái và nút
         isBookingConfirmed = true; 
         updateButtonVisibility(true); 
+        if (btnThanhToanCoc != null) {
+            // Chỉ bật nút khi HĐ đang ở trạng thái "Chờ xác nhận"
+            boolean enableCocButton = (currentHoaDon != null && currentHoaDon.getTrangThai() == TrangThaiHoaDon.CHO_XAC_NHAN);
+            btnThanhToanCoc.setDisable(!enableCocButton);
+        }
 
         // 9. Tắt panel thanh toán nếu đang mở
         if (vboxReceipt != null) {
@@ -2336,99 +2492,56 @@ public class DatBan implements Initializable {
     }
     /**
      * Tạo một VBox card hiển thị thông tin tóm tắt của Hóa đơn.
-     * === ĐÃ SỬA: Hiển thị danh sách bàn duy nhất, bỏ chữ "(Gốc)" ===
+     * 🔥 ĐÃ SỬA: Thêm hiển thị cho trạng thái CHO_XAC_NHAN.
      */
     private VBox createBookingCard(HoaDon hd) {
-        VBox card = new VBox(8); //
-        card.getStyleClass().add("booking-card"); //
-        card.setPadding(new Insets(15)); //
+        VBox card = new VBox(8);
+        card.getStyleClass().add("booking-card");
+        card.setPadding(new Insets(15));
 
-        String maGiaoDich = hd.getMaHD(); //
-        String trangThaiDb = hd.getTrangThai() != null ? hd.getTrangThai().getDbValue() : "Unknown"; //
-        String trangThaiViet = switch (trangThaiDb) { //
+        String maGiaoDich = hd.getMaHD();
+        String trangThaiDb = hd.getTrangThai() != null ? hd.getTrangThai().getDbValue() : "Unknown";
+        String trangThaiViet = switch (trangThaiDb) {
             case "Dat" -> "Đã đặt";
             case "DangSuDung" -> "Đang phục vụ";
             case "HoaDonTam" -> "Hóa đơn tạm";
-            default -> trangThaiDb;
+            case "ChoXacNhan" -> "Chờ xác nhận"; // <<< THÊM MỚI
+            default -> trangThaiDb; // Giữ nguyên dbValue nếu không khớp
         };
-        String gioVao = (hd.getGioVao() != null)
-                           ? hd.getGioVao().toLocalTime().format(timeFormatter) : "N/A"; //
-        String sdtKhach = (hd.getKhachHang() != null && hd.getKhachHang().getSoDT() != null)
-                           ? hd.getKhachHang().getSoDT() : "N/A"; //
+        String gioVao = (hd.getGioVao() != null) ? hd.getGioVao().toLocalTime().format(timeFormatter) : "N/A";
+        String sdtKhach = (hd.getKhachHang() != null && hd.getKhachHang().getSoDT() != null) ? hd.getKhachHang().getSoDT() : "N/A";
 
-
-        // === LOGIC MỚI: LẤY DANH SÁCH BÀN DUY NHẤT ===
+        // === Logic lấy danh sách bàn duy nhất (Giữ nguyên) ===
         String danhSachBanDayDu = "N/A";
         try {
-            List<HoaDon> allRelatedHDs = new ArrayList<>(); //
-            String maHDGocDeTim; //
-
-            if (hd.getMaHDGoc() == null) { //
-                maHDGocDeTim = hd.getMaHD(); //
-                allRelatedHDs.add(hd); //
-            } else {
-                maHDGocDeTim = hd.getMaHDGoc(); //
-                HoaDon hdGocTimDuoc = datBanDAO.getHoaDonByMaHD(maHDGocDeTim); //
-                if (hdGocTimDuoc != null) { //
-                    allRelatedHDs.add(hdGocTimDuoc); //
-                }
-                // (Bỏ log lỗi)
-            }
-
-            // Chỉ lấy HĐ Phụ đang ở trạng thái HoaDonTam
-            List<HoaDon> hdPhuList = datBanDAO.getHoaDonPhuByMaHDGoc(maHDGocDeTim); //
-            for(HoaDon hp : hdPhuList){ //
-                if(!allRelatedHDs.stream().anyMatch(h -> h.getMaHD().equals(hp.getMaHD()))){ //
-                    allRelatedHDs.add(hp); //
-                }
-            }
-
-            // Sử dụng Set để lấy mã bàn duy nhất
-            Set<String> uniqueBanSet = allRelatedHDs.stream()
-                .filter(h -> h.getBan() != null) // Lọc bỏ HĐ không có bàn
-                .map(h -> h.getBan().getMaBan()) // Lấy mã bàn
-                .collect(Collectors.toSet()); // Thu thập vào Set (tự động loại trùng)
-
-            // Tạo chuỗi hiển thị từ Set (có thể sắp xếp nếu muốn)
-            danhSachBanDayDu = uniqueBanSet.isEmpty() ? "N/A" : String.join(", ", new TreeSet<>(uniqueBanSet)); // Sắp xếp A-Z
-
-        } catch (Exception e) { //
-             System.err.println("Lỗi khi lấy danh sách bàn đầy đủ cho card HD " + hd.getMaHD() + ": " + e.getMessage());
-             e.printStackTrace();
-             Ban banHienTai = hd.getBan();
-             danhSachBanDayDu = (banHienTai != null ? banHienTai.getMaBan() : "Lỗi");
-        }
+            // ... (Code lấy danh sách bàn giữ nguyên) ...
+             List<HoaDon> allRelatedHDs = new ArrayList<>(); String maHDGocDeTim;
+            if (hd.getMaHDGoc() == null) { maHDGocDeTim = hd.getMaHD(); allRelatedHDs.add(hd); } else { maHDGocDeTim = hd.getMaHDGoc(); HoaDon hdGocTimDuoc = datBanDAO.getHoaDonByMaHD(maHDGocDeTim); if (hdGocTimDuoc != null) { allRelatedHDs.add(hdGocTimDuoc); } }
+             List<HoaDon> hdPhuList = datBanDAO.getHoaDonPhuByMaHDGoc(maHDGocDeTim); for(HoaDon hp : hdPhuList){ if(!allRelatedHDs.stream().anyMatch(h -> h.getMaHD().equals(hp.getMaHD()))){ allRelatedHDs.add(hp); } }
+             Set<String> uniqueBanSet = allRelatedHDs.stream().filter(h -> h.getBan() != null).map(h -> h.getBan().getMaBan()).collect(Collectors.toSet());
+             danhSachBanDayDu = uniqueBanSet.isEmpty() ? "N/A" : String.join(", ", new TreeSet<>(uniqueBanSet));
+        } catch (Exception e) { System.err.println("Lỗi lấy danh sách bàn cho card HD " + hd.getMaHD() + ": " + e.getMessage()); e.printStackTrace(); Ban banHienTai = hd.getBan(); danhSachBanDayDu = (banHienTai != null ? banHienTai.getMaBan() : "Lỗi"); }
         // ===========================================
 
+        Label lblMaHD = new Label(maGiaoDich != null ? maGiaoDich : "Mã: N/A");
+        lblMaHD.getStyleClass().add("booking-card-id");
+        Label lblSDT = new Label("SĐT: " + sdtKhach);
+        Label lblTrangThai = new Label("Trạng thái: " + trangThaiViet);
+        // Sử dụng dbValue để đặt class CSS (ví dụ: booking-status-choxacnhan)
+        lblTrangThai.getStyleClass().add("booking-status-" + trangThaiDb.toLowerCase());
+        Label lblThoiGian = new Label("Thời gian đặt: " + gioVao);
+        Label lblBan = new Label("Bàn: " + danhSachBanDayDu);
 
-        Label lblMaHD = new Label(maGiaoDich != null ? maGiaoDich : "Mã: N/A"); //
-        lblMaHD.getStyleClass().add("booking-card-id"); //
-        Label lblSDT = new Label("SĐT: " + sdtKhach); //
-        Label lblTrangThai = new Label("Trạng thái: " + trangThaiViet); //
-        lblTrangThai.getStyleClass().add("booking-status-" + trangThaiDb.toLowerCase()); //
-        Label lblThoiGian = new Label("Thời gian đặt: " + gioVao); //
-
-        // === SỬA LABEL BÀN ===
-        Label lblBan = new Label("Bàn: " + danhSachBanDayDu); // <<< Sử dụng chuỗi mới
-        // ====================
-
-        Button btnXemChiTiet = new Button("Xem chi tiết"); //
+        Button btnXemChiTiet = new Button("Xem chi tiết");
         // ... (style và sự kiện của btnXemChiTiet giữ nguyên) ...
-         btnXemChiTiet.setMaxWidth(Double.MAX_VALUE);
-        btnXemChiTiet.getStyleClass().add("view-details-button");
-        btnXemChiTiet.setPrefHeight(45);
-        btnXemChiTiet.setOnAction(e -> {
-            // 🔥 LOG VÀ GỌI HÀM: Mở Popup Chi Tiết Đặt Bàn
-            System.out.println("LOG CLICK: Button Xem Chi Tiết clicked for HD: " + hd.getMaHD());
-            openChiTietDatBanPopup(hd); // <<< GỌI HÀM MỞ POPUP MỚI
-            e.consume(); //
-        });
+         btnXemChiTiet.setMaxWidth(Double.MAX_VALUE); btnXemChiTiet.getStyleClass().add("view-details-button"); btnXemChiTiet.setPrefHeight(45);
+         btnXemChiTiet.setOnAction(e -> { System.out.println("LOG CLICK: Button Xem Chi Tiết clicked for HD: " + hd.getMaHD()); openChiTietDatBanPopup(hd); e.consume(); });
 
-        card.getChildren().addAll(lblMaHD, lblSDT, lblTrangThai, lblThoiGian, lblBan, btnXemChiTiet); //
 
-        return card; //
+        card.getChildren().addAll(lblMaHD, lblSDT, lblTrangThai, lblThoiGian, lblBan, btnXemChiTiet);
+
+        return card;
     }
-
  // ui.DatBan.java
 
     /**
@@ -2787,10 +2900,14 @@ public class DatBan implements Initializable {
         }
         selectedBanList.clear(); // Xóa danh sách bàn đang chọn
         selectedButtonList.clear(); // Xóa danh sách nút đang chọn
-
+     // 🔥 THÊM MỚI: Vô hiệu hóa nút Thanh toán cọc
+        if (btnThanhToanCoc != null) {
+            btnThanhToanCoc.setDisable(true);
+        }
         // 3. Reset trạng thái logic
         isBookingConfirmed = false; //
         currentHoaDon = null; // Reset hóa đơn đang xem
+        this.daThanhToanCoc = false;
 
         // 4. Cập nhật hiển thị nút về trạng thái TẠO MỚI
         updateButtonVisibility(false); //
@@ -3038,44 +3155,127 @@ public class DatBan implements Initializable {
         }
     }
    
+ // [Trong file DatBan.java]
+
     /**
-     * 🔥 XỬ LÝ HỦY BÀN
+     * 🔥 XỬ LÝ HỦY BÀN (ĐÃ SỬA: Thêm Popup hiển thị tiền hoàn cọc + Inline CSS)
      */
     private void handleHuyBan() {
         if (currentHoaDon == null) {
             showAlert(Alert.AlertType.ERROR, "Lỗi", "Không có hóa đơn nào được chọn để hủy.");
             return;
         }
-        // Kiểm tra HĐ Gốc
-        if (currentHoaDon.getTrangThai() != null && currentHoaDon.getTrangThai().getDbValue().equals("DaThanhToan")) { // === SỬA === (Kiểm tra null)
+        if (currentHoaDon.getTrangThai() != null && currentHoaDon.getTrangThai().getDbValue().equals("DaThanhToan")) {
             showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể hủy Hóa đơn đã thanh toán.");
             return;
         }
+        if (currentHoaDon.getGioVao() == null) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể xác định giờ vào của hóa đơn để tính hoàn cọc.");
+            return;
+        }
 
-        // 2. Xác nhận (Quan trọng)
-        Optional<ButtonType> result = showAlertConfirm("XÁC NHẬN HỦY", 
-            "Bạn có chắc muốn HỦY toàn bộ cụm Hóa đơn Gốc " + currentHoaDon.getMaHD() + " và các Hóa đơn Phụ liên quan?\nBàn liên quan sẽ được trả trống. KHÔNG THỂ HOÀN TÁC!");
-        
-        if (result.isPresent() && result.get() == ButtonType.OK) {
+        // --- 1. Tính toán thời gian còn lại và tiền hoàn cọc ---
+        LocalDateTime gioVao = currentHoaDon.getGioVao();
+        LocalDateTime now = LocalDateTime.now();
+        long minutesToArrival = java.time.Duration.between(now, gioVao).toMinutes();
+
+        double tienCoc = currentHoaDon.getTienCoc();
+        double refundPercentage = 0.0;
+        String policyApplied;
+
+        if (minutesToArrival >= 120) { // Hủy trước >= 2 giờ
+            refundPercentage = 0.8;
+            policyApplied = "Hủy trước ≥2 giờ: hoàn 80% tiền cọc.";
+        } else if (minutesToArrival >= 60) { // Hủy trong 1–2 giờ
+            refundPercentage = 0.5;
+            policyApplied = "Hủy trong 1–2 giờ: hoàn 50% tiền cọc.";
+        } else { // Hủy < 1 giờ hoặc đã qua giờ vào
+            refundPercentage = 0.0;
+            if (now.isAfter(gioVao.plusMinutes(30))) {
+                 policyApplied = "Đến muộn trên 30 phút: không hoàn tiền cọc.";
+            } else {
+                 policyApplied = "Hủy sát giờ (<1 giờ): không hoàn tiền cọc.";
+            }
+        }
+
+        double refundAmount = tienCoc * refundPercentage;
+        DecimalFormat currencyFormatter = new DecimalFormat("###,### VNĐ");
+
+        // --- 2. Tạo Alert và ÁP DỤNG CSS ---
+        Alert confirmationAlert = new Alert(Alert.AlertType.CONFIRMATION);
+        confirmationAlert.setTitle("XÁC NHẬN HỦY BÀN");
+        confirmationAlert.setHeaderText("Hủy Hóa đơn " + currentHoaDon.getMaHD() + "?");
+
+        String contentText = String.format(
+            "Chính sách áp dụng: %s\n" +
+            "Tiền cọc đã nhận: %s\n" +
+            "Số tiền hoàn lại cho khách: %s (%.0f%%)\n\n" +
+            "Bạn có chắc chắn muốn hủy toàn bộ cụm Hóa đơn này và trả bàn về trống không?",
+            policyApplied,
+            currencyFormatter.format(tienCoc),
+            currencyFormatter.format(refundAmount),
+            refundPercentage * 100
+        );
+        confirmationAlert.setContentText(contentText);
+
+        // Đổi tên nút
+        ButtonType confirmButton = new ButtonType("Xác nhận Hủy");
+        ButtonType cancelButton = ButtonType.CANCEL;
+        confirmationAlert.getButtonTypes().setAll(confirmButton, cancelButton);
+
+        // --- 🔥 THÊM CSS TRỰC TIẾP ---
+        DialogPane dialogPane = confirmationAlert.getDialogPane();
+        dialogPane.setStyle(
+            "-fx-background-color: #f8f9fa; " + // Nền sáng
+            "-fx-border-color: #dee2e6; " +     // Viền xám nhạt
+            "-fx-border-width: 1px;"
+        );
+        // Style Header Text
+        dialogPane.lookup(".header-panel .label").setStyle(
+            "-fx-font-size: 1.2em; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: #dc3545;" // Màu đỏ cảnh báo
+        );
+        // Style Content Text
+        dialogPane.lookup(".content.label").setStyle(
+            "-fx-font-size: 1.0em; " +
+            "-fx-line-spacing: 5px;"
+        );
+        // Style Buttons
+        Button confirmBtnNode = (Button) dialogPane.lookupButton(confirmButton);
+        confirmBtnNode.setStyle(
+            "-fx-background-color: #dc3545; " + // Nút xác nhận màu đỏ
+            "-fx-text-fill: white; " +
+            "-fx-font-weight: bold; " +
+            "-fx-padding: 8px 15px;"
+        );
+        Button cancelBtnNode = (Button) dialogPane.lookupButton(cancelButton);
+        cancelBtnNode.setStyle(
+             "-fx-background-color: #6c757d; " + // Nút hủy màu xám
+             "-fx-text-fill: white; " +
+             "-fx-padding: 8px 15px;"
+        );
+        // -----------------------------
+
+        Optional<ButtonType> result = confirmationAlert.showAndWait();
+
+        // --- 3. Xử lý kết quả từ Popup ---
+        if (result.isPresent() && result.get() == confirmButton) {
              try {
-                // Lấy tất cả Hóa đơn liên quan (Gốc và Phụ)
-                List<HoaDon> allRelatedHDs = new ArrayList<>(currentHoaDonGocVaPhu); // Lấy từ list đã load sẵn
+                List<HoaDon> allRelatedHDs = new ArrayList<>(currentHoaDonGocVaPhu);
 
-                // 3. Xử lý TẤT CẢ Hóa đơn liên quan
                 for (HoaDon hdToHuy : allRelatedHDs) {
-                    // Hủy Hóa đơn (Gốc hoặc Phụ)
-                    datBanDAO.capNhatTrangThaiHoaDon(hdToHuy.getMaHD(), TrangThaiHoaDon.DA_HUY.getDbValue(), true); // true = set giờ ra
-
-                    // Trả Bàn liên quan về trạng thái "Trong"
+                    datBanDAO.capNhatTrangThaiHoaDon(hdToHuy.getMaHD(), TrangThaiHoaDon.DA_HUY.getDbValue(), true);
                     if (hdToHuy.getBan() != null) {
-                        datBanDAO.capNhatTrangThaiBan(hdToHuy.getBan().getMaBan(), "Trong");
+                        datBanDAO.capNhatTrangThaiBan(hdToHuy.getBan().getMaBan(), TrangThaiBan.TRONG.getDbValue());
                         System.out.println("LOG: Đã hủy HD " + hdToHuy.getMaHD() + " và trả bàn " + hdToHuy.getBan().getMaBan());
                     }
                 }
-                
-                showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã hủy toàn bộ cụm Hóa đơn gốc " + currentHoaDon.getMaHD() + " và các hóa đơn phụ liên quan.");
-                
-                // 4. Reset
+
+                showAlert(Alert.AlertType.INFORMATION, "Thành công",
+                    "Đã hủy toàn bộ cụm Hóa đơn gốc " + currentHoaDon.getMaHD() +
+                    ".\nSố tiền cần hoàn lại cho khách: " + currencyFormatter.format(refundAmount));
+
                 clearFormDatBan();
                 loadBookingCards();
                 loadTableGrids();
@@ -3084,6 +3284,8 @@ public class DatBan implements Initializable {
                 e.printStackTrace();
                 showAlert(Alert.AlertType.ERROR, "Lỗi CSDL", "Không thể hủy hóa đơn: " + e.getMessage());
              }
+        } else {
+            showAlert(Alert.AlertType.INFORMATION, "Đã hủy", "Thao tác hủy bàn đã được hủy bỏ.");
         }
     }
     // =========================================================

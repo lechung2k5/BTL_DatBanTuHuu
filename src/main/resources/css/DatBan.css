@@ -32,6 +32,13 @@
 /* ==================== CỘT TRÁI: DANH SÁCH ĐẶT BÀN ==================== */
 .booking-card { -fx-background-color: white; -fx-background-radius: 8px; -fx-padding: 12px; }
 .booking-card-id { -fx-font-weight: bold; -fx-font-size: 13px; }
+.booking-status-choxacnhan {
+    -fx-font-weight: bold;
+    -fx-text-fill: #e8590c; /* Màu cam đậm */
+    -fx-background-color: #fff3bf; /* Nền vàng nhạt */
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 5px;
+}
 .create-booking-button {
     -fx-background-color: #ff9100; -fx-text-fill: white; -fx-font-weight: bold;
     -fx-font-size: 14px; -fx-background-radius: 8px; -fx-padding: 10px 20px;
