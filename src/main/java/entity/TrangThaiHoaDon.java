@@ -1,68 +1,88 @@
 ﻿package entity;
 
+import java.text.Normalizer;
+import java.util.regex.Pattern;
+
 /**
  * Enum đại diện cho các Trạng Thái Hóa Đơn.
+ * 🔥 ĐÃ THÊM: Trạng thái CHO_XAC_NHAN
  */
 public enum TrangThaiHoaDon {
-	DAT("Dat", "Đặt"), // Mã trong DB, Tên hiển thị
-	DA_THANH_TOAN("DaThanhToan", "Đã Thanh Toán"), DA_HUY("DaHuy", "Đã Hủy"),
-	DANG_SU_DUNG("DangSuDung", "Đang Sử Dụng"); // Ví dụ thêm trạng thái Hủy
+    // === Đảm bảo tên hiển thị khớp với ComboBox trong UI ===
+    DAT("Dat", "Đã đặt"),
+    DA_THANH_TOAN("DaThanhToan", "Đã thanh toán"),
+    DA_HUY("DaHuy", "Đã hủy"),
+    DANG_SU_DUNG("DangSuDung", "Đang phục vụ"),
+    HOA_DON_TAM("HoaDonTam", "Hóa đơn tạm"),
+    CHO_XAC_NHAN("ChoXacNhan", "Chờ xác nhận"); // <<< THÊM MỚI
 
-	private final String dbValue;
-	private final String displayName;
+    // ========================================================
 
-	TrangThaiHoaDon(String dbValue, String displayName) {
-		this.dbValue = dbValue;
-		this.displayName = displayName;
-	}
+    private final String dbValue;
+    private final String displayName;
 
-	public String getDbValue() {
-		return dbValue;
-	}
+    TrangThaiHoaDon(String dbValue, String displayName) {
+        this.dbValue = dbValue;
+        this.displayName = displayName;
+    }
 
-	public String getDisplayName() {
-		return displayName;
-	}
+    public String getDbValue() {
+        return dbValue;
+    }
 
-	/**
-	 * Tìm Enum tương ứng dựa vào giá trị lưu trong CSDL.
-	 * 
-	 * @param dbValue Giá trị từ cột trangThai trong DB (vd: "DaThanhToan")
-	 * @return Enum TrangThaiHoaDon tương ứng, hoặc null nếu không tìm thấy.
-	 */
-	public static TrangThaiHoaDon fromDbValue(String dbValue) {
-		if (dbValue == null) {
-			return null;
-		}
-		for (TrangThaiHoaDon tt : values()) {
-			if (tt.dbValue.equalsIgnoreCase(dbValue)) {
-				return tt;
-			}
-		}
-		return null; // Hoặc ném Exception
-	}
+    public String getDisplayName() {
+        return displayName;
+    }
 
-	/**
-	 * Tìm Enum tương ứng dựa vào tên hiển thị.
-	 * 
-	 * @param displayName Tên hiển thị (vd: "Đã Thanh Toán")
-	 * @return Enum TrangThaiHoaDon tương ứng, hoặc null nếu không tìm thấy.
-	 */
-	public static TrangThaiHoaDon fromDisplayName(String displayName) {
-		if (displayName == null) {
-			return null;
-		}
-		for (TrangThaiHoaDon tt : values()) {
-			if (tt.displayName.equalsIgnoreCase(displayName)) {
-				return tt;
-			}
-		}
-		return null; // Hoặc ném Exception
-	}
+    /**
+     * Tìm Enum tương ứng dựa vào giá trị lưu trong CSDL.
+     */
+    public static TrangThaiHoaDon fromDbValue(String dbValue) {
+        if (dbValue == null) {
+            return null;
+        }
+        String trimmedDbValue = dbValue.trim();
+        for (TrangThaiHoaDon tt : values()) {
+            if (tt.dbValue.equalsIgnoreCase(trimmedDbValue)) {
+                return tt;
+            }
+        }
+        System.err.println("CẢNH BÁO: Không tìm thấy TrangThaiHoaDon cho dbValue: '" + dbValue + "'");
+        return null; // Hoặc ném Exception nếu muốn chặt chẽ hơn
+    }
 
-	@Override
-	public String toString() {
-		// Mặc định trả về tên hiển thị
-		return displayName;
-	}
+    /**
+     * Tìm Enum tương ứng dựa vào tên hiển thị.
+     */
+    public static TrangThaiHoaDon fromDisplayName(String displayName) {
+         if (displayName == null) {
+            return null;
+        }
+        String standardizedInput = standardizeString(displayName);
+        for (TrangThaiHoaDon tt : values()) {
+            String standardizedEnumName = standardizeString(tt.displayName);
+            if (standardizedEnumName.equals(standardizedInput)) {
+                return tt;
+            }
+        }
+         System.err.println("CẢNH BÁO: Không tìm thấy TrangThaiHoaDon cho displayName: '" + displayName + "'");
+        return null; // Hoặc ném Exception
+    }
+
+    /**
+     * Helper: Chuẩn hóa chuỗi.
+     */
+    private static String standardizeString(String input) {
+        if (input == null) return "";
+        String temp = Normalizer.normalize(input, Normalizer.Form.NFD);
+        Pattern pattern = Pattern.compile("\\p{InCombiningDiacriticalMarks}+");
+        temp = pattern.matcher(temp).replaceAll("");
+        return temp.replaceAll("\\s+", "").toUpperCase();
+    }
+
+
+    @Override
+    public String toString() {
+        return displayName;
+    }
 }

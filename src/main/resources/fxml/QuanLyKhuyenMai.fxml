@@ -38,11 +38,12 @@
                            <children>
                               <TableView fx:id="tblKhuyenMai" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
                                  <columns>
-                                    <TableColumn fx:id="colTenKM" prefWidth="350.0" text="Tên khuyến mãi" />
-                                    <TableColumn fx:id="colMaKM" prefWidth="120.0" text="Mã" />
-                                    <TableColumn fx:id="colThoiGian" prefWidth="200.0" text="Thời gian" />
-                                    <TableColumn fx:id="colTrangThai" prefWidth="180.0" text="Trạng thái" />
-                                    <TableColumn fx:id="colHanhDong" prefWidth="120.0" text="Hành động" />
+                                    <TableColumn fx:id="colTenKM" prefWidth="300.0" text="Tên khuyến mãi" />
+                                    <TableColumn fx:id="colMaKM" prefWidth="100.0" text="Mã" />
+                                    <TableColumn fx:id="colThoiGian" prefWidth="180.0" text="Thời gian" />
+                                    <TableColumn fx:id="colTrangThai" prefWidth="150.0" text="Trạng thái" />
+                                    <TableColumn fx:id="colGiaTri" prefWidth="100.0" text="Giá trị" />
+                                    <TableColumn fx:id="colHanhDong" prefWidth="100.0" text="Hành động" />
                                  </columns>
                               </TableView>
                            </children>
@@ -50,8 +51,22 @@
                         <!-- Form Section -->
                         <VBox spacing="8.0">
                            <children>
-                              <Label styleClass="form-label" text="Tên khuyến mãi:" />
-                              <TextField fx:id="txtTenKM" promptText="Giảm 10% cho hóa đơn 2,000,000" />
+                              <HBox spacing="15.0">
+                                 <children>
+                                    <VBox HBox.hgrow="ALWAYS">
+                                       <children>
+                                          <Label styleClass="form-label" text="Tên khuyến mãi:" />
+                                          <TextField fx:id="txtTenKM" promptText="Giảm 10% cho hóa đơn 2,000,000" />
+                                       </children>
+                                    </VBox>
+                                    <VBox HBox.hgrow="ALWAYS">
+                                       <children>
+                                          <Label styleClass="form-label" text="Giá trị khuyến mãi:" />
+                                          <TextField fx:id="txtGiaTri" promptText="10" />
+                                       </children>
+                                    </VBox>
+                                 </children>
+                              </HBox>
                               <HBox spacing="15.0">
                                  <children>
                                     <VBox HBox.hgrow="ALWAYS">
