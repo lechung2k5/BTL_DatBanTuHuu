@@ -12,76 +12,63 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<VBox fx:id="rootVBox" prefHeight="750.0" prefWidth="950.0" spacing="15.0" styleClass="popup-container" stylesheets="@../css/DatBan.css" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.ChiTietDatBanController">
+<VBox fx:id="rootVBox" prefHeight="750.0" prefWidth="950.0" spacing="15.0"
+      styleClass="popup-container" stylesheets="@../css/ChiTietDatBan.css" xmlns="http://javafx.com/javafx/21"
+      xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.ChiTietDatBanController">
    <children>
-      <VBox styleClass="section-card" spacing="10.0">
-         <children>
-            <Label fx:id="lblMaHD" text="Chi tiết đặt bàn HDxxxxxx">
-               <font><Font name="System Bold" size="18.0" /></font>
-            </Label>
-        
-    <Label text="Thông tin đặt bàn">
-               <font><Font name="System Bold" size="14.0" /></font>
-            </Label>
-            
+      <VBox styleClass="section-card" spacing="10.0"> <children>
+            <Label fx:id="lblMaHD" text="Chi tiết đặt bàn HDxxxxxx"/>
+            <Label text="Thông tin đặt bàn"/>
+
             <HBox alignment="CENTER_LEFT" spacing="20.0">
                <VBox HBox.hgrow="ALWAYS" spacing="10.0">
-                  
-<children>
-                     <Label text="Tên khách hàng" styleClass="form-label" />
-                     <TextField fx:id="txtTenKhachHang" promptText="Anh Nam" />
-                     <Label text="Số lượng người" styleClass="form-label" />
-                     <TextField fx:id="txtSoLuongKhach" 
-promptText="8" />
+                  <children>
+                     <Label text="Tên khách hàng" styleClass="form-label"/>
+                     <TextField fx:id="txtTenKhachHang" promptText="Anh Nam" styleClass="form-input"/>
+                     <Label text="Số lượng người" styleClass="form-label"/>
+                     <TextField fx:id="txtSoLuongKhach" promptText="8" styleClass="form-input"/>
                   </children>
                </VBox>
                <VBox HBox.hgrow="ALWAYS" spacing="10.0">
                   <children>
-                     <Label text="Số điện thoại" styleClass="form-label" />
-     
-                <TextField fx:id="txtSoDienThoai" promptText="0377019958" />
-                     <Label text="Thời gian đến" styleClass="form-label" />
+                     <Label text="Số điện thoại" styleClass="form-label"/>
+                     <TextField fx:id="txtSoDienThoai" promptText="0377019958" styleClass="form-input"/>
+                     <Label text="Thời gian đến" styleClass="form-label"/>
                      <HBox spacing="5.0">
-                        <TextField fx:id="txtThoiGian" prefWidth="60.0" promptText="18:00" />
-     
-                   <DatePicker fx:id="datePickerThoiGianDen" HBox.hgrow="ALWAYS" />
+                        <TextField fx:id="txtThoiGian" prefWidth="60.0" promptText="18:00" styleClass="form-input"/>
+                        <DatePicker fx:id="datePickerThoiGianDen" HBox.hgrow="ALWAYS"/>
                      </HBox>
                   </children>
                </VBox>
                <VBox HBox.hgrow="ALWAYS" spacing="10.0">
-       
-           <children>
-                     <Label text="Yêu cầu đặc biệt" styleClass="form-label" />
-                     <TextField fx:id="txtYeuCau" promptText="phòng riêng/bàn tầng trệt" />
-                     <Label text="Bàn (Mã)" styleClass="form-label" />
-          
-           <HBox spacing="10.0">
-                        <TextField fx:id="txtMaBan" promptText="B023" />
-                        <Label text="Trạng thái:" />
-                        <ComboBox fx:id="comboTrangThai" prefWidth="150.0" promptText="Đang phục vụ" />
-    
-                 </HBox>
+                  <children>
+                     <Label text="Yêu cầu đặc biệt" styleClass="form-label"/>
+                     <TextField fx:id="txtYeuCau" promptText="phòng riêng/bàn tầng trệt" styleClass="form-input"/>
+                     <Label text="Bàn (Mã)" styleClass="form-label"/>
+                     <HBox spacing="10.0">
+                         <TextField fx:id="txtMaBan" promptText="B023" styleClass="form-input"/>
+                         <Label text="Trạng thái:" styleClass="form-label"/>
+                        <ComboBox fx:id="comboTrangThai" prefWidth="150.0" promptText="Đang phục vụ"/>
+                     </HBox>
                   </children>
                </VBox>
             </HBox>
-            
-			<HBox alignment="CENTER_LEFT" spacing="10.0" VBox.vgrow="NEVER">
-			    <children>
-			        <Button fx:id="btnBack" mnemonicParsing="false" styleClass="btn-secondary" text="&lt; Quay lại" />
-			        <Region HBox.hgrow="ALWAYS" />
-			        <Button fx:id="btnCapNhat" mnemonicParsing="false" styleClass="btn-primary" text="Cập nhật" /> 
-			    </children>
-			    <VBox.margin>
-			        <Insets top="10.0" />
-			    </VBox.margin>
-			</HBox>
+
+            <HBox alignment="CENTER_LEFT" spacing="10.0" VBox.vgrow="NEVER">
+                <children>
+                    <Button fx:id="btnBack" mnemonicParsing="false" text="&lt; Quay lại"/>
+                    <Region HBox.hgrow="ALWAYS" />
+                    <Button fx:id="btnCapNhat" mnemonicParsing="false" text="Cập nhật"/>
+                </children>
+                <VBox.margin>
+                    <Insets top="10.0" />
+                </VBox.margin>
+            </HBox>
          </children>
-     
-    <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0" /></padding>
+         <padding><Insets bottom="10.0" left="15.0" right="15.0" top="10.0" /></padding>
       </VBox>
 
-      <StackPane fx:id="contentContainer" VBox.vgrow="ALWAYS" styleClass="section-card">
-         </StackPane>
+      <StackPane fx:id="contentContainer" VBox.vgrow="ALWAYS" styleClass="section-card"> </StackPane>
 
    </children>
    <padding><Insets bottom="15.0" left="15.0" right="15.0" top="15.0" /></padding>

@@ -1,114 +1,101 @@
-/* Style cho màn hình chính */
+/* ==================== STYLE CHO MÀN HÌNH CHÍNH ==================== */
 .root {
     -fx-background-color: #f5f5f5;
 }
 
-/* Thanh top-bar chứa logo và thông tin người dùng */
+/* ==================== TOP BAR ==================== */
 .top-bar {
     -fx-background-color: #fff;
-    -fx-padding: 10 20;
+    /* 🔥 Tăng padding trên/dưới (ví dụ: từ 10 lên 15) */
+    -fx-padding: 20 25;
     -fx-alignment: center-left;
     -fx-spacing: 20;
+    -fx-border-color: #E0E0E0;
+    -fx-border-width: 0 0 1 0;          /* Viền mảnh dưới */
 }
 
-.profile-image {
-    -fx-border-radius: 50;
-}
+.profile-image { -fx-border-radius: 50; }
+.user-info { -fx-alignment: center-left; -fx-spacing: 3; }
+.user-name { -fx-font-size: 14px; -fx-font-weight: bold; }
+.user-role { -fx-font-size: 12px; -fx-text-fill: #666; }
+.logo-text { -fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #4b4b4b; }
 
-.user-info {
-    -fx-alignment: center-left;
-    -fx-spacing: 2;
-}
-
-.user-name {
-    -fx-font-size: 14px;
-    -fx-font-weight: bold;
-}
-
-.user-role {
-    -fx-font-size: 12px;
-    -fx-text-fill: #666;
-}
-
-/* Phần sidebar bên trái */
+/* ==================== SIDEBAR ==================== */
 .sidebar {
     -fx-background-color: #fff;
     -fx-pref-width: 250px;
-    -fx-padding: 20 0 0 0;
+    -fx-padding: 10 0 0 0;
 }
-
-.logo-text {
-    -fx-font-size: 24px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #4b4b4b;
-}
-
-/* Container cho các nút menu */
-.menu-items {
-    -fx-spacing: 5;
-    -fx-padding: 0 10;
-}
-
-/* Style chung cho các nút menu */
+.menu-items { -fx-spacing: 5; -fx-padding: 0 10; }
 .menu-button, .menu-button-active {
     -fx-background-color: transparent;
     -fx-pref-width: 220px;
     -fx-alignment: center-left;
-    -fx-font-size: 14px;
+    -fx-font-size: 14px; /* Giữ nguyên hoặc tăng nhẹ nếu muốn */
     -fx-text-fill: #4b4b4b;
     -fx-cursor: hand;
+    /* 🔥 Tăng padding trên/dưới (ví dụ: từ 12 lên 15) */
     -fx-padding: 15 20;
     -fx-graphic-text-gap: 15;
     -fx-background-radius: 5;
 }
-
-/* Hiệu ứng khi di chuột vào nút */
-.menu-button:hover {
-    -fx-background-color: #f0f0f0;
-}
-
-/* Nút được chọn */
+.menu-button:hover { -fx-background-color: #f0f0f0; }
 .menu-button-active {
     -fx-background-color: #ff9100;
     -fx-text-fill: white;
     -fx-font-weight: bold;
 }
 
-/* Content Area */
+/* ==================== CONTENT AREA ==================== */
+/* ... (Giữ nguyên) ... */
 .content-area {
     -fx-background-image: url("/images/background.jpg");
     -fx-padding: 20;
 }
-/* Style cho màn hình Dashboard */
-.dashboard-container {
-    -fx-background-color: #fff;
+
+/* ==================== DASHBOARD ==================== */
+/* ... (Giữ nguyên) ... */
+.dashboard-container { -fx-background-color: #fff; }
+.stats-card { -fx-background-color: #f5f5f5; -fx-padding: 10 20; -fx-background-radius: 5; }
+.stats-label { -fx-font-size: 14px; -fx-text-fill: #666; }
+.stats-value { -fx-font-size: 18px; -fx-font-weight: bold; }
+
+/* ==================== MENU BAR ==================== */
+/* [Trong file manHinhChinh.css] */
+
+/* ==================== MENU BAR (Cân bằng lại kích thước) ==================== */
+
+/* Style cho toàn bộ MenuBar */
+.menu-bar {
+    -fx-font-size: 11px;        /* << Có thể giảm font chung nếu muốn menu chính nhỏ hơn nữa */
+    -fx-padding: 1px 3px;       /* << Giữ padding tổng thể nhỏ */
+    -fx-background-color: #ECECEC;
+    -fx-border-width: 0 0 1 0;
+    -fx-border-color: #C0C0C0;
 }
 
-.stats-card {
-    -fx-background-color: #f5f5f5;
-    -fx-padding: 10 20;
-    -fx-background-radius: 5;
+/* Label menu chính (Hệ thống, Quản lý,...) */
+.menu-bar .menu .label {
+    /* 🔥 Giảm padding đáng kể để làm menu chính nhỏ lại */
+    -fx-padding: 1px 5px;
+    -fx-font-size: 11px; /* << Đảm bảo font menu chính nhỏ */
 }
 
-.stats-label {
-    -fx-font-size: 14px;
-    -fx-text-fill: #666;
+/* MenuItem con (Đổi mật khẩu, Thoát,...) */
+.menu-item .label {
+    -fx-font-size: 12px;        /* << Giữ font MenuItem lớn hơn chút (12px) */
+    -fx-padding: 4px 12px;      /* << Giữ padding MenuItem như cũ (lớn hơn) */
 }
 
-.stats-value {
-    -fx-font-size: 18px;
-    -fx-font-weight: bold;
+/* Đường phân cách */
+.separator-menu-item {
+    -fx-padding: 2px 0;         /* Giữ nguyên */
 }
 
-.calendar-header {
-    -fx-font-size: 18px;
-    -fx-font-weight: bold;
+/* Hiệu ứng hover */
+.menu-item:focused {
+    -fx-background-color: #D6D6D6; /* Giữ nguyên */
 }
-
-.calendar-day {
-    -fx-background-color: #e0f0e0;
-    -fx-min-width: 100px;
-    -fx-min-height: 100px;
-    -fx-border-color: #ccc;
-    -fx-border-width: 1;
+.menu-item:focused .label {
+    -fx-text-fill: black;          /* Giữ nguyên */
 }

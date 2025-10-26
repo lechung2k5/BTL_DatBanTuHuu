@@ -13,26 +13,30 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
-import javafx.scene.text.Font;
-import javafx.scene.text.FontWeight;
-import javafx.scene.text.TextAlignment;
 import javafx.stage.FileChooser;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import javax.print.*;
+// 🔥 THÊM IMPORT CHO IN HÓA ĐƠN
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+
 import javax.print.attribute.HashPrintRequestAttributeSet;
 import javax.print.attribute.PrintRequestAttributeSet;
-import javax.print.attribute.standard.*;
-import java.io.*;
-import java.nio.charset.StandardCharsets;
+import java.awt.print.PrinterJob;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.DecimalFormat;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -57,7 +61,6 @@ public class TraCuu {
     private final DateTimeFormatter timeFmt = DateTimeFormatter.ofPattern("HH:mm");
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private List<HoaDon> cachedHD;
-    private final DecimalFormat currencyFormatter = new DecimalFormat("###,###");
 
     @FXML
     public void initialize() {
@@ -143,16 +146,13 @@ public class TraCuu {
     private void loadData() {
         // Load Hóa đơn - Lấy chi tiết đầy đủ từ DAO
         for (HoaDon hd : cachedHD) {
-            // Lấy thông tin chi tiết hóa đơn từ DAO để có đủ thông tin tính toán
             HoaDon hdChiTiet = hoaDonDAO.getHoaDonChiTietByMaHD(hd.getMaHD());
             
             String sdt = "N/A";
             double tongTien = 0;
             
             if (hdChiTiet != null) {
-                // Lấy SĐT từ hóa đơn chi tiết
                 sdt = hdChiTiet.getSoDienThoaiKH() != null ? hdChiTiet.getSoDienThoaiKH() : "N/A";
-                // Tính tổng tiền (đã được tính trong entity HoaDon)
                 tongTien = hdChiTiet.getTongTienThanhToan();
             }
             
@@ -168,13 +168,8 @@ public class TraCuu {
 
         // Load Khách hàng
         for (KhachHang kh : khachHangDAO.getAllKhachHang()) {
-            // Lấy danh sách hóa đơn của khách hàng này từ DAO
             List<HoaDon> hoaDonKH = hoaDonDAO.getHoaDonByMaKH(kh.getMaKH());
-            
-            // Tính tổng tiền từ danh sách hóa đơn
-            double total = hoaDonKH.stream()
-                .mapToDouble(HoaDon::getTongTienThanhToan)
-                .sum();
+            double total = hoaDonKH.stream().mapToDouble(HoaDon::getTongTienThanhToan).sum();
             
             tatCaKhachHang.add(new KhachHangDisplay(
                 kh.getMaKH(), 
@@ -196,12 +191,10 @@ public class TraCuu {
             String d1 = a.getNgay();
             String d2 = b.getNgay();
             
-            // Xử lý trường hợp null hoặc rỗng
             if (d1 == null || d1.isEmpty() || d1.length() < 10) return 1;
             if (d2 == null || d2.isEmpty() || d2.length() < 10) return -1;
             
             try {
-                // Format: dd/MM/yyyy
                 String[] parts1 = d1.split("/");
                 String[] parts2 = d2.split("/");
                 
@@ -218,29 +211,19 @@ public class TraCuu {
                 int nam2 = Integer.parseInt(parts2[2]);
                 
                 if (k.equals("Theo năm")) {
-                    // Sắp xếp theo năm (từ thấp đến cao)
                     if (nam1 != nam2) return nam1 - nam2;
-                    // Nếu cùng năm thì sắp xếp theo tháng
                     if (thang1 != thang2) return thang1 - thang2;
-                    // Nếu cùng tháng thì sắp xếp theo ngày
                     return ngay1 - ngay2;
-                    
                 } else if (k.equals("Theo tháng")) {
-                    // Sắp xếp theo tháng/năm (từ thấp đến cao)
                     if (nam1 != nam2) return nam1 - nam2;
                     if (thang1 != thang2) return thang1 - thang2;
-                    // Nếu cùng tháng/năm thì sắp xếp theo ngày
                     return ngay1 - ngay2;
-                    
-                } else { // "Theo ngày" hoặc mặc định
-                    // Sắp xếp theo ngày đầy đủ (từ thấp đến cao)
+                } else {
                     if (nam1 != nam2) return nam1 - nam2;
                     if (thang1 != thang2) return thang1 - thang2;
                     return ngay1 - ngay2;
                 }
-                
             } catch (Exception e) {
-                // Nếu có lỗi parse, so sánh string thuần
                 return d1.compareTo(d2);
             }
         });
@@ -253,12 +236,10 @@ public class TraCuu {
             String d1 = a.getNgayDK();
             String d2 = b.getNgayDK();
             
-            // Xử lý trường hợp null hoặc rỗng
             if (d1 == null || d1.isEmpty() || d1.length() < 10) return 1;
             if (d2 == null || d2.isEmpty() || d2.length() < 10) return -1;
             
             try {
-                // Format: dd/MM/yyyy
                 String[] parts1 = d1.split("/");
                 String[] parts2 = d2.split("/");
                 
@@ -275,29 +256,19 @@ public class TraCuu {
                 int nam2 = Integer.parseInt(parts2[2]);
                 
                 if (k.equals("Theo năm")) {
-                    // Sắp xếp theo năm (từ thấp đến cao)
                     if (nam1 != nam2) return nam1 - nam2;
-                    // Nếu cùng năm thì sắp xếp theo tháng
                     if (thang1 != thang2) return thang1 - thang2;
-                    // Nếu cùng tháng thì sắp xếp theo ngày
                     return ngay1 - ngay2;
-                    
                 } else if (k.equals("Theo tháng")) {
-                    // Sắp xếp theo tháng/năm (từ thấp đến cao)
                     if (nam1 != nam2) return nam1 - nam2;
                     if (thang1 != thang2) return thang1 - thang2;
-                    // Nếu cùng tháng/năm thì sắp xếp theo ngày
                     return ngay1 - ngay2;
-                    
-                } else { // "Theo ngày" hoặc mặc định
-                    // Sắp xếp theo ngày đầy đủ (từ thấp đến cao)
+                } else {
                     if (nam1 != nam2) return nam1 - nam2;
                     if (thang1 != thang2) return thang1 - thang2;
                     return ngay1 - ngay2;
                 }
-                
             } catch (Exception e) {
-                // Nếu có lỗi parse, so sánh string thuần
                 return d1.compareTo(d2);
             }
         });
@@ -328,6 +299,7 @@ public class TraCuu {
             .collect(Collectors.toList()));
     }
 
+    // 🔥 SỬA HÀM NÀY: THÊM NÚT IN HÓA ĐƠN
     private void showFullDetailHD(String id) {
         HoaDon hd = hoaDonDAO.getHoaDonChiTietByMaHD(id);
         if (hd == null) { 
@@ -419,20 +391,412 @@ public class TraCuu {
         
         main.getChildren().addAll(title, info, tbl, sum, tot);
         d.getDialogPane().setContent(main); 
-        d.getDialogPane().setPrefWidth(600);
+        d.getDialogPane().setPrefWidth(600); 
         
-        // THÊM MỚI: Nút in hóa đơn
+        // 🔥 THÊM NÚT IN HÓA ĐƠN KẾ NÚT CLOSE
         ButtonType btnPrint = new ButtonType("🖨️ In hóa đơn", ButtonBar.ButtonData.LEFT);
         d.getDialogPane().getButtonTypes().addAll(btnPrint, ButtonType.CLOSE);
         
+        // 🔥 XỬ LÝ SỰ KIỆN NÚT IN
         Button printButton = (Button) d.getDialogPane().lookupButton(btnPrint);
         printButton.setOnAction(e -> {
-            e.consume();
-            showPrintPreview(hd);
+            e.consume(); // Ngăn dialog đóng
+            handleInHoaDon(hd);
         });
         
         d.getDialogPane().setStyle("-fx-background-color: transparent;");
         d.show();
+    }
+
+    // 🔥 HÀM XỬ LÝ IN HÓA ĐƠN (LẤY ĐẦY ĐỦ DỮ LIỆU TỪ DAO GIỐNG NÚT XEM)
+    private void handleInHoaDon(HoaDon hdDisplay) {
+        if (hdDisplay == null || hdDisplay.getMaHD() == null) {
+            alert("Lỗi", "Không có hóa đơn hợp lệ để in.");
+            return;
+        }
+        
+        // 🔥 QUAN TRỌNG: Lấy lại chi tiết đầy đủ từ DAO (giống hàm showFullDetailHD)
+        HoaDon hd = hoaDonDAO.getHoaDonChiTietByMaHD(hdDisplay.getMaHD());
+        if (hd == null) {
+            Platform.runLater(() -> alert("Lỗi", "Không thể tải chi tiết hóa đơn từ database."));
+            return;
+        }
+        
+        // Chạy trong Thread riêng để tránh treo UI
+        new Thread(() -> {
+            PDDocument document = null;
+            try {
+                // Tạo document PDF với dữ liệu đầy đủ
+                document = createReceiptPdf(hd);
+                
+                // Lấy Job in từ AWT/Swing
+                PrinterJob job = PrinterJob.getPrinterJob();
+                PrintRequestAttributeSet attr = new HashPrintRequestAttributeSet();
+                
+                // Mở hộp thoại chọn máy in
+                if (job.printDialog(attr)) {
+                    java.awt.print.PageFormat pageFormat = job.getPageFormat(attr);
+                    
+                    // Cài đặt nội dung in (PDFPrintable)
+                    org.apache.pdfbox.printing.PDFPrintable printableData = 
+                        new org.apache.pdfbox.printing.PDFPrintable(document);
+                    
+                    job.setPrintable(printableData, pageFormat);
+                    
+                    // Gửi lệnh in
+                    job.print(attr); 
+                    
+                    Platform.runLater(() -> {
+                        alert("In Hóa đơn", "Đã gửi lệnh in cho Hóa đơn " + hd.getMaHD() + " thành công.");
+                    });
+                } else {
+                    Platform.runLater(() -> alert("Hủy In", "Đã hủy thao tác in."));
+                }
+
+            } catch (java.awt.print.PrinterException e) {
+                Platform.runLater(() -> alert("Lỗi In", "Lỗi trong quá trình in ấn: " + e.getMessage()));
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> alert("Lỗi Hệ thống", "Lỗi khi tạo PDF: " + e.getMessage()));
+            } finally {
+                if (document != null) {
+                    try {
+                        document.close();
+                    } catch (IOException ignored) {}
+                }
+            }
+        }).start();
+    }
+
+    // 🔥 CLASS HELPER CHO VỊ TRÍ Y
+    private static class YPosition {
+        public float y;
+        public YPosition(float initialY) {
+            this.y = initialY;
+        }
+    }
+
+    // 🔥 HÀM TẠO PDF HÓA ĐƠN (DỰA TRÊN ẢNH CẤU TRÚC)
+    private PDDocument createReceiptPdf(HoaDon hd) throws IOException {
+        PDDocument document = new PDDocument();
+        PDPage page = new PDPage(PDRectangle.A4);
+        document.addPage(page);
+
+        final float PAGE_WIDTH = page.getMediaBox().getWidth();
+        final float MARGIN = 72; 
+        final float Y_START = page.getMediaBox().getHeight() - MARGIN;
+        final float LINE_HEIGHT = 16; 
+        
+        final YPosition pos = new YPosition(Y_START); 
+
+     // 🔥 SỬA PHẦN LOAD FONT (Copy từ DatBan.java - đã fix lỗi)
+        PDFont font = PDType1Font.HELVETICA;
+        PDFont fontBold = PDType1Font.HELVETICA_BOLD;
+
+        try {
+            InputStream fontStream = getClass().getResourceAsStream("/fonts/UTM Avo.ttf");
+            if (fontStream != null) {
+                try {
+                    font = PDType0Font.load(document, fontStream);
+                } finally {
+                    fontStream.close();
+                }
+            }
+            
+            InputStream fontBoldStream = getClass().getResourceAsStream("/fonts/UTM AvoBold.ttf");
+            if (fontBoldStream != null) {
+                try {
+                    fontBold = PDType0Font.load(document, fontBoldStream);
+                } finally {
+                    fontBoldStream.close();
+                }
+            }
+        } catch (Exception e) {
+            // Nếu lỗi, dùng font mặc định Helvetica
+            System.err.println("Sử dụng font mặc định do không load được font tùy chỉnh");
+            font = PDType1Font.HELVETICA;
+            fontBold = PDType1Font.HELVETICA_BOLD;
+        }
+        // Lấy chi tiết hóa đơn
+        List<ChiTietHoaDon> monAnList = hoaDonDAO.getChiTietHoaDon(hd.getMaHD());
+        
+        final DecimalFormat currencyFormatter = new DecimalFormat("###,###");
+        final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+        // Chuẩn bị dữ liệu hiển thị
+        String banStr = hd.getMaBan() != null ? hd.getMaBan() : "N/A";
+        String ngayStr = hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(dateFormatter) : "N/A";
+        String gioVaoStr = hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFormatter) : "N/A";
+        String gioRaStr = hd.getGioRa() != null ? hd.getGioRa().toLocalTime().format(timeFormatter) : "N/A";
+        String tenThuNgan = "N/A";
+        try {
+            TaiKhoan tk = MainApp.getLoggedInUser();
+            if (tk != null && tk.getNhanVien() != null) {
+                tenThuNgan = tk.getNhanVien().getHoTen(); 
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi khi lấy tên nhân viên đăng nhập: " + e.getMessage());
+        }
+        String thuNganStr = tenThuNgan;
+        String khachHangStr = hd.getSoDienThoaiKH() != null ? hd.getSoDienThoaiKH() : "N/A";
+        String hinhThucTTStr = hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A";
+
+        try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+        
+            // === 1. HEADER - TÊN NHÀ HÀNG ===
+            contentStream.beginText();
+            contentStream.setFont(fontBold, 14); 
+            float titleWidth = fontBold.getStringWidth("NHÀ HÀNG TỨ HỮU") / 1000 * 14;
+            contentStream.newLineAtOffset((PAGE_WIDTH - titleWidth) / 2, pos.y);
+            contentStream.showText("NHÀ HÀNG TỨ HỮU");
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.5f;
+            
+            // 1.2 Địa chỉ
+            contentStream.beginText();
+            contentStream.setFont(font, 10);
+            String address = "Địa chỉ: 77 Hồ Tùng Mậu, Phường Châu Đốc, An Giang";
+            float addressWidth = font.getStringWidth(address) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - addressWidth) / 2, pos.y);
+            contentStream.showText(address);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT;
+
+            // 1.3 SĐT
+            contentStream.beginText();
+            contentStream.setFont(font, 10);
+            String sdt = "SĐT: 0909 123 456";
+            float sdtWidth = font.getStringWidth(sdt) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - sdtWidth) / 2, pos.y);
+            contentStream.showText(sdt);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.5f;
+
+            // === 2. TIÊU ĐỀ HÓA ĐƠN ===
+            contentStream.beginText();
+            contentStream.setFont(fontBold, 16);
+            titleWidth = fontBold.getStringWidth("HÓA ĐƠN THANH TOÁN") / 1000 * 16;
+            contentStream.newLineAtOffset((PAGE_WIDTH - titleWidth) / 2, pos.y);
+            contentStream.showText("HÓA ĐƠN THANH TOÁN");
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.2f;
+
+            contentStream.beginText();
+            contentStream.setFont(fontBold, 12);
+            String maHDLabel = "Số HĐ: " + (hd.getMaHD() != null ? hd.getMaHD() : "N/A");
+            float maHDWidth = fontBold.getStringWidth(maHDLabel) / 1000 * 12;
+            contentStream.newLineAtOffset((PAGE_WIDTH - maHDWidth) / 2, pos.y);
+            contentStream.showText(maHDLabel);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.8f;
+
+            // === 3. THÔNG TIN CHUNG (2 CỘT) ===
+            final float COL_SEP = (PAGE_WIDTH - 2 * MARGIN) / 2;
+            final float FONT_SIZE_INFO = 10;
+            final float COL_1_START = MARGIN;
+            final float COL_2_START = MARGIN + COL_SEP;
+
+            contentStream.setFont(font, FONT_SIZE_INFO);
+            
+            // Dòng 1
+            contentStream.beginText();
+            contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Bàn: " + banStr);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Thu ngân: " + thuNganStr);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 0.9f;
+
+            // Dòng 2
+            contentStream.beginText();
+            contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Ngày: " + ngayStr);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Khách hàng: " + khachHangStr);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 0.9f;
+
+            // Dòng 3
+            contentStream.beginText();
+            contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Giờ vào: " + gioVaoStr);
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Giờ ra: " + gioRaStr);
+            contentStream.endText();
+            pos.y -= LINE_HEIGHT * 1.5f;
+
+            // === 4. BẢNG MÓN ĂN ===
+            final float FONT_SIZE_TABLE = 9; 
+            float colSTT = MARGIN;                    
+            float colTenMon = MARGIN + 30;           
+            float colSL = PAGE_WIDTH - MARGIN - 180;  
+            float colDonGia = PAGE_WIDTH - MARGIN - 110; 
+            float colThanhTien = PAGE_WIDTH - MARGIN - 30; 
+
+            // Tiêu đề cột
+            contentStream.beginText();
+            contentStream.setFont(fontBold, FONT_SIZE_TABLE);
+            contentStream.newLineAtOffset(colSTT, pos.y);
+            contentStream.showText("STT");
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colTenMon, pos.y));
+            contentStream.showText("Tên món");
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colSL, pos.y));
+            contentStream.showText("SL");
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colDonGia, pos.y));
+            contentStream.showText("Đơn giá (VNĐ)");
+            contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colThanhTien, pos.y));
+            contentStream.showText("Thành tiền");
+            contentStream.endText();
+            
+            // Dữ liệu món ăn
+            contentStream.setFont(font, FONT_SIZE_TABLE);
+            
+            float currentY = pos.y - LINE_HEIGHT * 1.2f; 
+            
+            for (int i = 0; i < monAnList.size(); i++) {
+                ChiTietHoaDon mon = monAnList.get(i);
+                
+                contentStream.beginText();
+                
+                // Cột STT
+                contentStream.newLineAtOffset(colSTT, currentY);
+                contentStream.showText(String.valueOf(i + 1));
+                
+                // Cột Tên món
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colTenMon, currentY));
+                contentStream.showText(mon.getTenMon());
+                
+                // Cột SL (Căn phải)
+                String slStr = String.valueOf(mon.getSoLuong());
+                float slWidth = font.getStringWidth(slStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colSL - slWidth + 15, currentY)); 
+                contentStream.showText(slStr);
+
+                // Cột Đơn giá (Căn phải)
+                String dgStr = currencyFormatter.format(mon.getDonGia());
+                float dgWidth = font.getStringWidth(dgStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colDonGia - dgWidth + 15, currentY)); 
+                contentStream.showText(dgStr);
+                
+                // Cột Thành tiền (Căn phải)
+                String ttStr = currencyFormatter.format(mon.getThanhTien());
+                float ttWidth = font.getStringWidth(ttStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colThanhTien - ttWidth + 15, currentY)); 
+                contentStream.showText(ttStr);
+                
+                contentStream.endText();
+                
+                currentY -= LINE_HEIGHT * 1.6f; 
+            }
+            
+            pos.y = currentY + LINE_HEIGHT * 1.6f; 
+            pos.y -= LINE_HEIGHT * 1.0f;
+
+            // === 5. TỔNG KẾT CHI TIẾT ===
+            final float FONT_SIZE_SUMMARY = 10;
+            final float SUMMARY_INDENT = MARGIN;
+            final float SUMMARY_VALUE_COL = PAGE_WIDTH - MARGIN;
+            
+            class SummaryDrawer {
+                private final PDFont regularFont;
+                private final PDFont boldFont;
+                
+                SummaryDrawer(final PDFont regularFont, final PDFont boldFont) {
+                    this.regularFont = regularFont;
+                    this.boldFont = boldFont;
+                }
+                
+                void draw(String label, String value, boolean isBold, boolean isTotal) throws IOException {
+                    float currentFontSize = isTotal ? 12 : FONT_SIZE_SUMMARY; 
+                    PDFont currentFont = isBold ? boldFont : regularFont;
+                    
+                    // 1. Vẽ Label
+                    contentStream.beginText();
+                    contentStream.setFont(currentFont, currentFontSize);
+                    contentStream.newLineAtOffset(SUMMARY_INDENT, pos.y);
+                    contentStream.showText(label);
+                    contentStream.endText();
+                    
+                    // 2. Vẽ Value (Căn phải)
+                    float valueWidth = currentFont.getStringWidth(value) / 1000 * currentFontSize;
+                    contentStream.beginText();
+                    contentStream.setFont(currentFont, currentFontSize);
+                    contentStream.newLineAtOffset(SUMMARY_VALUE_COL - valueWidth, pos.y); 
+                    contentStream.showText(value);
+                    contentStream.endText();
+                    
+                    pos.y -= LINE_HEIGHT * (isTotal ? 1.4f : 1.1f); 
+                }
+            }
+
+            SummaryDrawer drawer = new SummaryDrawer(font, fontBold);
+            
+            // 5.1. Các dòng tính toán
+            drawer.draw("Tổng cộng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", true, false); 
+            drawer.draw("Phí dịch vụ (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", false, false);
+            drawer.draw("Thuế VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", false, false);
+            drawer.draw("Tiền đặt cọc bàn:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", false, false);
+            
+            // 5.2. Đường kẻ phân chia
+            pos.y += LINE_HEIGHT * 0.5f;
+            contentStream.setLineWidth(0.5f);
+            contentStream.moveTo(SUMMARY_INDENT, pos.y);
+            contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
+            contentStream.stroke();
+            pos.y -= LINE_HEIGHT * 1.2f;
+
+            // 5.3. Vẽ "Tổng thanh toán"
+            drawer.draw("Tổng thanh toán:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", true, true);
+
+            pos.y -= LINE_HEIGHT * 0.5f;
+
+            // Đường kẻ dưới tổng thanh toán
+            contentStream.moveTo(SUMMARY_INDENT, pos.y);
+            contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
+            contentStream.stroke();
+            pos.y -= LINE_HEIGHT * 1.2f;
+            
+            // 5.4. Chi tiết Thanh toán, ưu đãi, Khách trả
+            // 🔥 LẤY THÔNG TIN KHÁCH HÀNG TỪ HoaDon (nếu có)
+            String khachHangMemberDetails = "Khách vãng lai"; 
+            if (hd.getKhachHang() != null && hd.getKhachHang().getThanhVien() != null) {
+                khachHangMemberDetails = hd.getKhachHang().getThanhVien();
+            }
+            
+            // 🔥 TÍNH ƯU ĐÃI TỪ KHUYẾN MÃI (đã có sẵn trong HoaDon)
+            String uuDaiStr = (hd.getKhuyenMai() > 0) 
+                ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") 
+                : "0 VNĐ";
+            
+            // 🔥 TÍNH SỐ TIỀN KHÁCH TRẢ = Tổng thanh toán + Khuyến mãi
+            double soTienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai(); 
+
+            drawer.draw("Hình thức thanh toán:", hinhThucTTStr, false, false);
+            drawer.draw("Khách hàng thành viên:", khachHangMemberDetails, false, false);
+            drawer.draw("Ưu đãi áp dụng:", uuDaiStr, false, false);
+            
+            // Số tiền khách trả
+            drawer.draw("Số tiền khách trả:", currencyFormatter.format(soTienKhachTra) + " VNĐ", true, false); 
+            
+            // Đường kẻ cuối cùng
+            pos.y -= LINE_HEIGHT * 0.2f;
+            contentStream.moveTo(SUMMARY_INDENT, pos.y);
+            contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
+            contentStream.stroke();
+            pos.y -= LINE_HEIGHT * 2.5f;
+
+            // === 6. FOOTER ===
+            contentStream.beginText();
+            contentStream.setFont(font, 10);
+            String footer = "Nhà hàng Tứ Hữu xin cám ơn và hẹn gặp lại!";
+            float footerWidth = font.getStringWidth(footer) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - footerWidth) / 2, pos.y);
+            contentStream.showText(footer);
+            contentStream.endText();
+        }
+
+        return document;
     }
 
     private void showFullHistoryKH(String id) {
@@ -538,445 +902,6 @@ public class TraCuu {
         d.show();
     }
 
-    // === THÊM MỚI: CHỨC NĂNG IN HÓA ĐƠN ===
-    
-    private void showPrintPreview(HoaDon hd) {
-        if (hd == null || hd.getMaHD() == null) {
-            alert("Lỗi", "Không có hóa đơn hợp lệ để in.");
-            return;
-        }
-
-        List<ChiTietHoaDon> monAnList = hoaDonDAO.getChiTietHoaDon(hd.getMaHD());
-        
-        Stage previewStage = new Stage();
-        previewStage.initModality(Modality.APPLICATION_MODAL);
-        previewStage.setTitle("Xem trước hóa đơn - " + hd.getMaHD());
-        
-        ScrollPane scrollPane = new ScrollPane();
-        scrollPane.setFitToWidth(true);
-        scrollPane.setStyle("-fx-background: #f5f5f5;");
-        
-        VBox receiptContent = createReceiptPreview(hd, monAnList);
-        scrollPane.setContent(receiptContent);
-        
-        Button btnPrint = new Button("✓ Xác nhận in");
-        btnPrint.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 10 30;");
-        btnPrint.setOnAction(e -> {
-            previewStage.close();
-            printReceipt(hd, monAnList);
-        });
-        
-        Button btnCancel = new Button("✕ Hủy");
-        btnCancel.setStyle("-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-font-size: 14px; -fx-font-weight: bold; -fx-padding: 10 30;");
-        btnCancel.setOnAction(e -> previewStage.close());
-        
-        HBox buttonBox = new HBox(15, btnPrint, btnCancel);
-        buttonBox.setAlignment(Pos.CENTER);
-        buttonBox.setPadding(new Insets(15));
-        buttonBox.setStyle("-fx-background-color: white; -fx-border-color: #ddd; -fx-border-width: 1 0 0 0;");
-        
-        BorderPane root = new BorderPane();
-        root.setCenter(scrollPane);
-        root.setBottom(buttonBox);
-        
-        Scene scene = new Scene(root, 400, 700);
-        previewStage.setScene(scene);
-        previewStage.show();
-    }
-
-    private VBox createReceiptPreview(HoaDon hd, List<ChiTietHoaDon> monAnList) {
-        VBox receipt = new VBox(5);
-        receipt.setPadding(new Insets(20));
-        receipt.setStyle("-fx-background-color: white; -fx-border-color: #ccc; -fx-border-width: 1;");
-        receipt.setMaxWidth(300);
-        
-        Label title = new Label("NHÀ HÀNG TỨ HỮU");
-        title.setFont(Font.font("System", FontWeight.BOLD, 16));
-        title.setStyle("-fx-text-alignment: center;");
-        title.setMaxWidth(Double.MAX_VALUE);
-        title.setAlignment(Pos.CENTER);
-        
-        Label address1 = new Label("Địa chỉ: 77 Hồ Tùng Mậu, Phường");
-        address1.setFont(Font.font("System", 10));
-        address1.setTextAlignment(TextAlignment.CENTER);
-        address1.setMaxWidth(Double.MAX_VALUE);
-        address1.setAlignment(Pos.CENTER);
-        
-        Label address2 = new Label("Châu Đốc, An Giang");
-        address2.setFont(Font.font("System", 10));
-        address2.setTextAlignment(TextAlignment.CENTER);
-        address2.setMaxWidth(Double.MAX_VALUE);
-        address2.setAlignment(Pos.CENTER);
-        
-        Label phone = new Label("SĐT: 0909 123 456");
-        phone.setFont(Font.font("System", 10));
-        phone.setTextAlignment(TextAlignment.CENTER);
-        phone.setMaxWidth(Double.MAX_VALUE);
-        phone.setAlignment(Pos.CENTER);
-        
-        Separator sep1 = new Separator();
-        sep1.setPadding(new Insets(5, 0, 5, 0));
-        
-        Label invoiceTitle = new Label("HÓA ĐƠN THANH TOÁN");
-        invoiceTitle.setFont(Font.font("System", FontWeight.BOLD, 14));
-        invoiceTitle.setMaxWidth(Double.MAX_VALUE);
-        invoiceTitle.setAlignment(Pos.CENTER);
-        
-        Label invoiceId = new Label("Số HĐ: " + (hd.getMaHD() != null ? hd.getMaHD() : "N/A"));
-        invoiceId.setFont(Font.font("System", FontWeight.BOLD, 12));
-        invoiceId.setMaxWidth(Double.MAX_VALUE);
-        invoiceId.setAlignment(Pos.CENTER);
-        
-        Separator sep2 = new Separator();
-        sep2.setPadding(new Insets(5, 0, 5, 0));
-        
-        String tenThuNgan = "N/A";
-        try {
-            TaiKhoan tk = MainApp.getLoggedInUser();
-            if (tk != null && tk.getNhanVien() != null) {
-                tenThuNgan = tk.getNhanVien().getHoTen();
-            }
-        } catch (Exception e) {
-            System.err.println("Lỗi lấy tên nhân viên: " + e.getMessage());
-        }
-        
-        VBox infoBox = new VBox(3);
-        infoBox.getChildren().addAll(
-            createInfoLabel("Bàn: " + (hd.getMaBan() != null ? hd.getMaBan() : "N/A")),
-            createInfoLabel("Ngày: " + (hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(fmt) : "N/A")),
-            createInfoLabel("Giờ vào: " + (hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFmt) : "N/A")),
-            createInfoLabel("Giờ ra: " + (hd.getGioRa() != null ? hd.getGioRa().toLocalTime().format(timeFmt) : "N/A")),
-            createInfoLabel("Thu ngân: " + tenThuNgan),
-            createInfoLabel("Khách hàng: " + (hd.getSoDienThoaiKH() != null ? hd.getSoDienThoaiKH() : "N/A"))
-        );
-        
-        Separator sep3 = new Separator();
-        sep3.setPadding(new Insets(5, 0, 5, 0));
-        
-        VBox itemsList = new VBox(3);
-        for (int i = 0; i < monAnList.size(); i++) {
-            ChiTietHoaDon mon = monAnList.get(i);
-            
-            Label itemName = new Label((i + 1) + ". " + mon.getTenMon());
-            itemName.setFont(Font.font("System", 10));
-            
-            HBox itemDetails = new HBox(10);
-            itemDetails.setAlignment(Pos.CENTER_LEFT);
-            
-            Label sl = new Label("SL: " + mon.getSoLuong());
-            sl.setFont(Font.font("System", 9));
-            
-            Label dg = new Label("Giá: " + currencyFormatter.format(mon.getDonGia()));
-            dg.setFont(Font.font("System", 9));
-            
-            Region spacer = new Region();
-            HBox.setHgrow(spacer, Priority.ALWAYS);
-            
-            Label tt = new Label(currencyFormatter.format(mon.getThanhTien()));
-            tt.setFont(Font.font("System", FontWeight.BOLD, 9));
-            
-            itemDetails.getChildren().addAll(sl, dg, spacer, tt);
-            
-            VBox itemBox = new VBox(2, itemName, itemDetails);
-            itemsList.getChildren().add(itemBox);
-        }
-        
-        Separator sep4 = new Separator();
-        sep4.setPadding(new Insets(5, 0, 5, 0));
-        
-        VBox summaryBox = new VBox(3);
-        summaryBox.getChildren().addAll(
-            createSummaryRow("Tổng cộng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", true),
-            createSummaryRow("Phí dịch vụ (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", false),
-            createSummaryRow("Thuế VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", false),
-            createSummaryRow("Tiền đặt cọc bàn:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", false)
-        );
-        
-        Separator sep5 = new Separator();
-        sep5.setPadding(new Insets(5, 0, 5, 0));
-        
-        HBox totalBox = createSummaryRow("Tổng thanh toán:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", true);
-        totalBox.setStyle("-fx-font-size: 14px;");
-        
-        Separator sep6 = new Separator();
-        sep6.setPadding(new Insets(5, 0, 5, 0));
-        
-        String khachHangMember = "Khách vãng lai";
-        if (hd.getKhachHang() != null && hd.getKhachHang().getThanhVien() != null) {
-            khachHangMember = hd.getKhachHang().getThanhVien();
-        }
-        
-        String uuDai = (hd.getKhuyenMai() > 0) ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") : "0 VNĐ";
-        double tienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai();
-        
-        VBox paymentInfo = new VBox(3);
-        paymentInfo.getChildren().addAll(
-            createSummaryRow("Hình thức thanh toán:", hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A", false),
-            createSummaryRow("Khách hàng thành viên:", khachHangMember, false),
-            createSummaryRow("Ưu đãi áp dụng:", uuDai, false),
-            createSummaryRow("Số tiền khách trả:", currencyFormatter.format(tienKhachTra) + " VNĐ", true)
-        );
-        
-        Separator sep7 = new Separator();
-        sep7.setPadding(new Insets(5, 0, 5, 0));
-        
-        Label footer1 = new Label("Nhà hàng Tứ Hữu xin cám ơn");
-        footer1.setFont(Font.font("System", 10));
-        footer1.setMaxWidth(Double.MAX_VALUE);
-        footer1.setAlignment(Pos.CENTER);
-        
-        Label footer2 = new Label("và hẹn gặp lại!");
-        footer2.setFont(Font.font("System", 10));
-        footer2.setMaxWidth(Double.MAX_VALUE);
-        footer2.setAlignment(Pos.CENTER);
-        
-        receipt.getChildren().addAll(
-            title, address1, address2, phone,
-            sep1,
-            invoiceTitle, invoiceId,
-            sep2,
-            infoBox,
-            sep3,
-            itemsList,
-            sep4,
-            summaryBox,
-            sep5,
-            totalBox,
-            sep6,
-            paymentInfo,
-            sep7,
-            footer1, footer2
-        );
-        
-        return receipt;
-    }
-    
-    private Label createInfoLabel(String text) {
-        Label label = new Label(text);
-        label.setFont(Font.font("System", 10));
-        return label;
-    }
-    
-    private HBox createSummaryRow(String label, String value, boolean bold) {
-        HBox row = new HBox();
-        row.setAlignment(Pos.CENTER_LEFT);
-        
-        Label lblLabel = new Label(label);
-        if (bold) {
-            lblLabel.setFont(Font.font("System", FontWeight.BOLD, 11));
-        } else {
-            lblLabel.setFont(Font.font("System", 10));
-        }
-        
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        
-        Label lblValue = new Label(value);
-        if (bold) {
-            lblValue.setFont(Font.font("System", FontWeight.BOLD, 11));
-        } else {
-            lblValue.setFont(Font.font("System", 10));
-        }
-        
-        row.getChildren().addAll(lblLabel, spacer, lblValue);
-        return row;
-    }
-
-    private void printReceipt(HoaDon hd, List<ChiTietHoaDon> monAnList) {
-        new Thread(() -> {
-            try {
-                PrintService[] printServices = PrintServiceLookup.lookupPrintServices(null, null);
-                
-                if (printServices == null || printServices.length == 0) {
-                    Platform.runLater(() -> alert("Lỗi Máy In", "Không tìm thấy máy in nào trong hệ thống.\nVui lòng kiểm tra kết nối máy in và thử lại."));
-                    return;
-                }
-                
-                PrintService thermalPrinter = findThermalPrinter(printServices);
-                
-                if (thermalPrinter == null) {
-                    Platform.runLater(() -> {
-                        Alert confirmAlert = new Alert(Alert.AlertType.CONFIRMATION);
-                        confirmAlert.setTitle("Không tìm thấy máy in nhiệt");
-                        confirmAlert.setHeaderText("Không tìm thấy máy in nhiệt!");
-                        confirmAlert.setContentText("Hệ thống không phát hiện máy in nhiệt.\nBạn có muốn in bằng máy in mặc định không?");
-                        
-                        confirmAlert.showAndWait().ifPresent(response -> {
-                            if (response == ButtonType.OK) {
-                                new Thread(() -> printWithDefaultPrinter(hd, monAnList)).start();
-                            }
-                        });
-                    });
-                    return;
-                }
-                
-                String receiptContent = generateReceiptText(hd, monAnList);
-                
-                DocFlavor flavor = DocFlavor.BYTE_ARRAY.AUTOSENSE;
-                Doc doc = new SimpleDoc(receiptContent.getBytes(StandardCharsets.UTF_8), flavor, null);
-                
-                PrintRequestAttributeSet attributes = new HashPrintRequestAttributeSet();
-                attributes.add(new Copies(1));
-                attributes.add(MediaSizeName.NA_LETTER);
-                attributes.add(Sides.ONE_SIDED);
-                
-                DocPrintJob printJob = thermalPrinter.createPrintJob();
-                printJob.print(doc, attributes);
-                
-                Platform.runLater(() -> alert("In Hóa đơn", "Đã gửi lệnh in hóa đơn " + hd.getMaHD() + " thành công!\nMáy in: " + thermalPrinter.getName()));
-                
-            } catch (PrintException e) {
-                String errorMsg = e.getMessage();
-                Platform.runLater(() -> alert("Lỗi In", "Lỗi khi in hóa đơn: " + errorMsg));
-            } catch (Exception e) {
-                e.printStackTrace();
-                Platform.runLater(() -> alert("Lỗi Hệ thống", "Lỗi không xác định: " + e.getMessage()));
-            }
-        }).start();
-    }
-    
-    private void printWithDefaultPrinter(HoaDon hd, List<ChiTietHoaDon> monAnList) {
-        try {
-            PrintService defaultPrinter = PrintServiceLookup.lookupDefaultPrintService();
-            
-            if (defaultPrinter == null) {
-                Platform.runLater(() -> alert("Lỗi Máy In", "Không tìm thấy máy in mặc định.\nVui lòng thiết lập máy in mặc định trong hệ thống."));
-                return;
-            }
-            
-            String receiptContent = generateReceiptText(hd, monAnList);
-            
-            DocFlavor flavor = DocFlavor.BYTE_ARRAY.AUTOSENSE;
-            Doc doc = new SimpleDoc(receiptContent.getBytes(StandardCharsets.UTF_8), flavor, null);
-            
-            PrintRequestAttributeSet attributes = new HashPrintRequestAttributeSet();
-            attributes.add(new Copies(1));
-            
-            DocPrintJob printJob = defaultPrinter.createPrintJob();
-            printJob.print(doc, attributes);
-            
-            Platform.runLater(() -> alert("In Hóa đơn", "Đã gửi lệnh in hóa đơn " + hd.getMaHD() + " thành công!\nMáy in: " + defaultPrinter.getName()));
-            
-        } catch (Exception e) {
-            e.printStackTrace();
-            Platform.runLater(() -> alert("Lỗi In", "Lỗi khi in với máy in mặc định: " + e.getMessage()));
-        }
-    }
-    
-    private PrintService findThermalPrinter(PrintService[] printServices) {
-        for (PrintService printer : printServices) {
-            String printerName = printer.getName().toLowerCase();
-            if (printerName.contains("xprinter") || 
-                printerName.contains("thermal") || 
-                printerName.contains("pos") ||
-                printerName.contains("receipt") ||
-                printerName.contains("80mm") ||
-                printerName.contains("rp80")) {
-                return printer;
-            }
-        }
-        return null;
-    }
-    
-    private String generateReceiptText(HoaDon hd, List<ChiTietHoaDon> monAnList) {
-        StringBuilder receipt = new StringBuilder();
-        
-        receipt.append(centerText("NHÀ HÀNG TỨ HỮU", 32)).append("\n");
-        receipt.append(centerText("Địa chỉ: 77 Hồ Tùng Mậu, Phường", 32)).append("\n");
-        receipt.append(centerText("Châu Đốc, An Giang", 32)).append("\n");
-        receipt.append(centerText("SĐT: 0909 123 456", 32)).append("\n");
-        receipt.append(line(32)).append("\n");
-        
-        receipt.append(centerText("HÓA ĐƠN THANH TOÁN", 32)).append("\n");
-        receipt.append(centerText("Số HĐ: " + (hd.getMaHD() != null ? hd.getMaHD() : "N/A"), 32)).append("\n");
-        receipt.append(line(32)).append("\n");
-        
-        String tenThuNgan = "N/A";
-        try {
-            TaiKhoan tk = MainApp.getLoggedInUser();
-            if (tk != null && tk.getNhanVien() != null) {
-                tenThuNgan = tk.getNhanVien().getHoTen();
-            }
-        } catch (Exception e) {
-            System.err.println("Lỗi lấy tên nhân viên: " + e.getMessage());
-        }
-        
-        receipt.append("Bàn: ").append(hd.getMaBan() != null ? hd.getMaBan() : "N/A").append("\n");
-        receipt.append("Ngày: ").append(hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(fmt) : "N/A").append("\n");
-        receipt.append("Giờ vào: ").append(hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFmt) : "N/A").append("\n");
-        receipt.append("Giờ ra: ").append(hd.getGioRa() != null ? hd.getGioRa().toLocalTime().format(timeFmt) : "N/A").append("\n");
-        receipt.append("Thu ngân: ").append(tenThuNgan).append("\n");
-        receipt.append("Khách hàng: ").append(hd.getSoDienThoaiKH() != null ? hd.getSoDienThoaiKH() : "N/A").append("\n");
-        receipt.append(line(32)).append("\n");
-        
-        receipt.append("STT Tên món            SL  Thành tiền\n");
-        receipt.append(line(32)).append("\n");
-        
-        for (int i = 0; i < monAnList.size(); i++) {
-            ChiTietHoaDon mon = monAnList.get(i);
-            receipt.append(String.format("%-3d", (i + 1)));
-            receipt.append(truncate(mon.getTenMon(), 20));
-            receipt.append(String.format("%3d ", mon.getSoLuong()));
-            receipt.append(String.format("%10s\n", currencyFormatter.format(mon.getThanhTien())));
-        }
-        
-        receipt.append(line(32)).append("\n");
-        
-        receipt.append(rightAlignRow("Tổng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", 32)).append("\n");
-        receipt.append(rightAlignRow("Phí DV (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", 32)).append("\n");
-        receipt.append(rightAlignRow("VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", 32)).append("\n");
-        receipt.append(rightAlignRow("Tiền cọc:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", 32)).append("\n");
-        receipt.append(line(32)).append("\n");
-        
-        receipt.append(rightAlignRow("TỔNG THANH TOÁN:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", 32)).append("\n");
-        receipt.append(line(32)).append("\n");
-        
-        String khachHangMember = "Khách vãng lai";
-        if (hd.getKhachHang() != null && hd.getKhachHang().getThanhVien() != null) {
-            khachHangMember = hd.getKhachHang().getThanhVien();
-        }
-        
-        String uuDai = (hd.getKhuyenMai() > 0) ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") : "0 VNĐ";
-        double tienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai();
-        
-        receipt.append(rightAlignRow("PTTT:", hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A", 32)).append("\n");
-        receipt.append(rightAlignRow("Loại KH:", khachHangMember, 32)).append("\n");
-        receipt.append(rightAlignRow("Ưu đãi:", uuDai, 32)).append("\n");
-        receipt.append(rightAlignRow("Tiền trả:", currencyFormatter.format(tienKhachTra) + " VNĐ", 32)).append("\n");
-        receipt.append(line(32)).append("\n");
-        
-        receipt.append(centerText("Nhà hàng Tứ Hữu xin cám ơn", 32)).append("\n");
-        receipt.append(centerText("và hẹn gặp lại!", 32)).append("\n");
-        receipt.append("\n\n\n");
-        
-        return receipt.toString();
-    }
-    
-    private String centerText(String text, int width) {
-        if (text.length() >= width) return text;
-        int padding = (width - text.length()) / 2;
-        return " ".repeat(padding) + text;
-    }
-    
-    private String line(int width) {
-        return "-".repeat(width);
-    }
-    
-    private String truncate(String text, int maxLength) {
-        if (text.length() <= maxLength) {
-            return String.format("%-" + maxLength + "s", text);
-        }
-        return text.substring(0, maxLength - 2) + "..";
-    }
-    
-    private String rightAlignRow(String label, String value, int width) {
-        int spaceNeeded = width - label.length() - value.length();
-        if (spaceNeeded < 1) spaceNeeded = 1;
-        return label + " ".repeat(spaceNeeded) + value;
-    }
-    
-    // === KẾT THÚC CHỨC NĂNG IN HÓA ĐƠN ===
-
     private void addInfo(GridPane g, int r, String l1, String v1, String l2, String v2) {
         Label lb1 = new Label(l1); 
         lb1.setStyle("-fx-font-weight: bold;");
@@ -1069,6 +994,7 @@ public class TraCuu {
         a.showAndWait();
     }
 
+    // === INNER CLASSES ===
     public static class HoaDonDisplay {
         private final SimpleStringProperty maHD, ngay, hinhThuc, sdtKH, tongTien;
         public HoaDonDisplay(String m, String n, String h, String s, String t) {

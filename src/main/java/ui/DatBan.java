@@ -2279,84 +2279,105 @@ public class DatBan implements Initializable {
  // Cần phải là public để Controller khác có thể gọi
     public void loadBookingCards() {
         vboxBookingCards.getChildren().clear();
-        
+
         LocalDate dateToLoadForGrid = datePickerThoiGianDen.getValue() != null ? datePickerThoiGianDen.getValue() : LocalDate.now();
-        
+
         try {
             // 1. Lấy TẤT CẢ đơn đang chờ (master list)
-            List<HoaDon> allPendingBookings = datBanDAO.getDsHoaDonDangCho(); 
+            List<HoaDon> allPendingBookings = datBanDAO.getDsHoaDonDangCho();
 
             // 2. Lấy giá trị filter và search từ UI
             String selectedStatus = comboFilter.getValue();
-            String searchQuery = txtSearch.getText();
+            String searchQuery = txtSearch.getText().trim().toLowerCase(); // Lấy và chuẩn hóa query
 
             // 3. ÁP DỤNG FILTER VÀ SEARCH
             List<HoaDon> filteredList = allPendingBookings.stream()
-                // === LỌC BỎ HOÁ ĐƠN TẠM BẰNG CÁCH NÀY ===
+                // Lọc bỏ Hóa đơn Tạm (Giữ nguyên)
                 .filter(hd -> hd.getTrangThai() != null && !hd.getTrangThai().getDbValue().equals(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()))
-                // =======================================
+                // Lọc theo Trạng thái (Giữ nguyên)
                 .filter(hd -> {
-                    // Lọc theo Trạng thái
                     boolean statusMatch = true;
                     if (selectedStatus != null && !selectedStatus.equals("Tất cả")) {
+                        // ... (logic lọc status giữ nguyên) ...
                         String dbStatusValue = "";
-                        
-                        if (selectedStatus.equals("Đang phục vụ")) {
-                            dbStatusValue = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
-                        } else if (selectedStatus.equals("Đã đặt")) {
-                            dbStatusValue = TrangThaiHoaDon.DAT.getDbValue();
+                        TrangThaiHoaDon selectedEnum = TrangThaiHoaDon.fromDisplayName(selectedStatus); // Chuyển đổi display name sang enum
+                        if (selectedEnum != null) {
+                            dbStatusValue = selectedEnum.getDbValue();
                         }
-                        
-                        // Thêm logic lọc nếu là "Đang phục vụ" thì bao gồm cả HoaDonTam
-                        if (selectedStatus.equals("Đang phục vụ")) {
-                            statusMatch = hd.getTrangThai() != null && 
-                                          (hd.getTrangThai().getDbValue().equals(TrangThaiHoaDon.DANG_SU_DUNG.getDbValue()) || 
-                                           hd.getTrangThai().getDbValue().equals(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()));
+
+                        // Bao gồm cả HĐ Tạm nếu filter là "Đang phục vụ"
+                        if (selectedStatus.equals(TrangThaiHoaDon.DANG_SU_DUNG.getDisplayName())) {
+                             statusMatch = hd.getTrangThai() != null &&
+                                           (hd.getTrangThai() == TrangThaiHoaDon.DANG_SU_DUNG ||
+                                            hd.getTrangThai() == TrangThaiHoaDon.HOA_DON_TAM);
+                        } else if (!dbStatusValue.isEmpty()) {
+                             statusMatch = hd.getTrangThai() != null && hd.getTrangThai().getDbValue().equals(dbStatusValue);
                         } else {
-                            statusMatch = hd.getTrangThai() != null && hd.getTrangThai().getDbValue().equals(dbStatusValue);
+                            statusMatch = false; // Không tìm thấy trạng thái hợp lệ
                         }
                     }
                     return statusMatch;
                 })
+                // --- 🔥 LỌC THEO TÌM KIẾM (SĐT, Mã HĐ, Mã Bàn) ---
                 .filter(hd -> {
-                    // Lọc theo SĐT
-                    boolean searchMatch = true;
-                    if (searchQuery != null && !searchQuery.trim().isEmpty()) {
-                        // Phải kiểm tra null cho khachHang và soDT để tránh lỗi
-                        searchMatch = hd.getKhachHang() != null && 
-                                      hd.getKhachHang().getSoDT() != null && 
-                                      hd.getKhachHang().getSoDT().contains(searchQuery.trim());
+                    if (searchQuery.isEmpty()) {
+                        return true; // Nếu ô tìm kiếm trống thì không lọc gì cả
                     }
-                    return searchMatch;
+
+                    // Kiểm tra SĐT (khách hàng có thể null)
+                    boolean sdtMatch = hd.getKhachHang() != null &&
+                                       hd.getKhachHang().getSoDT() != null &&
+                                       hd.getKhachHang().getSoDT().toLowerCase().contains(searchQuery);
+
+                    // Kiểm tra Mã HĐ
+                    boolean maHdMatch = hd.getMaHD() != null &&
+                                        hd.getMaHD().toLowerCase().contains(searchQuery);
+
+                    // Kiểm tra Mã Bàn (bàn có thể null)
+                    // Cần kiểm tra cả các bàn phụ nếu là HĐ Gốc
+                    boolean maBanMatch = false;
+                    List<HoaDon> relatedHDs = new ArrayList<>();
+                    relatedHDs.add(hd); // Add chính nó
+                    if (hd.getMaHDGoc() == null) { // Nếu là HĐ Gốc, tìm HĐ Phụ
+                        relatedHDs.addAll(datBanDAO.getHoaDonPhuByMaHDGoc(hd.getMaHD()));
+                    }
+                    // Kiểm tra mã bàn trên tất cả HĐ liên quan
+                    for (HoaDon relatedHd : relatedHDs) {
+                        if (relatedHd.getBan() != null && relatedHd.getBan().getMaBan() != null &&
+                            relatedHd.getBan().getMaBan().toLowerCase().contains(searchQuery)) {
+                            maBanMatch = true;
+                            break; // Chỉ cần tìm thấy 1 bàn khớp là đủ
+                        }
+                    }
+
+                    // Trả về true nếu khớp bất kỳ trường nào
+                    return sdtMatch || maHdMatch || maBanMatch;
                 })
-                .collect(Collectors.toList()); // Thu thập kết quả đã lọc
+                // ---------------------------------------------
+                .collect(Collectors.toList());
 
-            // 4. Tải các đơn trong ngày (CHO LOGIC SƠ ĐỒ BÀN)
-            this.dsHoaDonDatTrongNgay = datBanDAO.getDsDatBanHomNay(dateToLoadForGrid); 
-            
-            // 5. Hiển thị danh sách ĐÃ LỌC
+            // 4. Tải các đơn trong ngày (CHO LOGIC SƠ ĐỒ BÀN) - Giữ nguyên
+            this.dsHoaDonDatTrongNgay = datBanDAO.getDsDatBanHomNay(dateToLoadForGrid);
+
+            // 5. Hiển thị danh sách ĐÃ LỌC (Giữ nguyên)
             System.out.println("\n*** LOG: Tải thành công " + filteredList.size() + " đơn ĐANG CHỜ (đã lọc) ***");
-
             if (filteredList.isEmpty()) {
-                Label lbl = new Label("Không tìm thấy đơn nào khớp.");
-                lbl.setPadding(new Insets(10));
-                vboxBookingCards.getChildren().add(lbl);
+                // ... (hiển thị thông báo không tìm thấy) ...
+                 Label lbl = new Label("Không tìm thấy đơn nào khớp."); lbl.setPadding(new Insets(10)); vboxBookingCards.getChildren().add(lbl);
             } else {
-                // Chỉ hiển thị các HĐ GỐC trong danh sách filter (HĐ Phụ sẽ được hiển thị qua HĐ Gốc)
+                // Chỉ hiển thị HĐ Gốc (Giữ nguyên)
                 List<HoaDon> hdGocFilter = filteredList.stream()
                                             .filter(hd -> hd.getMaHDGoc() == null)
                                             .collect(Collectors.toList());
-                for (HoaDon hd : hdGocFilter) { // Dùng 'hdGocFilter'
+                for (HoaDon hd : hdGocFilter) {
                     VBox card = createBookingCard(hd);
-                    card.setOnMouseClicked(e -> loadHoaDonToMainInterface(hd)); 
+                    card.setOnMouseClicked(e -> loadHoaDonToMainInterface(hd));
                     vboxBookingCards.getChildren().add(card);
                 }
             }
         } catch (Exception e) {
-            System.err.println("Lỗi tải danh sách đặt bàn: " + e.getMessage());
-            Label lbl = new Label("LỖI TẢI DỮ LIỆU: " + e.getMessage());
-            lbl.setPadding(new Insets(10));
-            vboxBookingCards.getChildren().add(lbl);
+            // ... (xử lý lỗi) ...
+             System.err.println("Lỗi tải danh sách đặt bàn: " + e.getMessage()); Label lbl = new Label("LỖI TẢI DỮ LIỆU: " + e.getMessage()); lbl.setPadding(new Insets(10)); vboxBookingCards.getChildren().add(lbl);
         }
     }
 

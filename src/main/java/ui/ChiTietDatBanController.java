@@ -72,7 +72,14 @@ public class ChiTietDatBanController implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
         // Khởi tạo ComboBox (Sử dụng tên hiển thị)
-        comboTrangThai.setItems(FXCollections.observableArrayList("Đã đặt", "Đang phục vụ", "Đã thanh toán", "Đã hủy", "Hóa đơn tạm"));
+    	comboTrangThai.setItems(FXCollections.observableArrayList(
+                TrangThaiHoaDon.DAT.getDisplayName(),          // "Đã đặt"
+                TrangThaiHoaDon.DANG_SU_DUNG.getDisplayName(), // "Đang phục vụ"
+                TrangThaiHoaDon.DA_THANH_TOAN.getDisplayName(),// "Đã thanh toán"
+                TrangThaiHoaDon.DA_HUY.getDisplayName(),       // "Đã hủy"
+                TrangThaiHoaDon.HOA_DON_TAM.getDisplayName(),  // "Hóa đơn tạm"
+                TrangThaiHoaDon.CHO_XAC_NHAN.getDisplayName()  // "Chờ xác nhận" <<< THÊM MỚI
+            ));
 
         // Gán sự kiện
         btnBack.setOnAction(e -> handleClosePopup());
