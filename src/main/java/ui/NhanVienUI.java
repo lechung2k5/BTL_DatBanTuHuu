@@ -11,6 +11,7 @@ import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
@@ -21,6 +22,14 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 import java.util.regex.Pattern; // Import Pattern
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.Scene;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.input.KeyCode;
+
+
 
 public class NhanVienUI {
 
@@ -120,6 +129,63 @@ public class NhanVienUI {
         );
 
         loadNhanVienData(); // Tải dữ liệu lần đầu
+     // ✅ Thêm phím tắt CRUD
+        txtTimKiem.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+
+                // Ctrl + N → Xóa rỗng (chuẩn bị thêm)
+                newScene.getAccelerators().put(
+                    new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN),
+                    () -> btnXoaRong.fire()
+                );
+
+                // Ctrl + E → Sửa
+                newScene.getAccelerators().put(
+                    new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN),
+                    () -> btnSua.fire()
+                );
+
+                // Ctrl + S → Thêm hoặc Lưu (tùy trạng thái)
+                newScene.getAccelerators().put(
+                    new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN),
+                    () -> btnThem.fire()
+                );
+
+                // Ctrl + D → Xóa
+                newScene.getAccelerators().put(
+                    new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
+                    () -> btnXoa.fire()
+                );
+
+                // Ctrl + R → Xóa trắng form
+                newScene.getAccelerators().put(
+                    new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN),
+                    () -> btnXoaRong.fire()
+                );
+
+                // Ctrl + F → Focus ô tìm kiếm
+                newScene.getAccelerators().put(
+                    new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
+                    () -> {
+                        txtTimKiem.requestFocus();
+                        txtTimKiem.selectAll();
+                    }
+                );
+
+                // F5 → Refresh dữ liệu
+                newScene.getAccelerators().put(
+                    new KeyCodeCombination(KeyCode.F5),
+                    () -> loadNhanVienData()
+                );
+            }
+        });
+        
+        txtMaNV.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) addShortcutsDanhSachNV(newScene);
+        });
+        addShortcuts();
+
+
     }
 
     //<editor-fold desc="State Management & UI Control">
@@ -395,4 +461,73 @@ public class NhanVienUI {
         alert.showAndWait();
     }
     //</editor-fold>
+    private void addShortcutsDanhSachNV(Scene scene) {
+
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, key -> {
+
+            if (!NhanVienController.getCurrentView().equals("DanhSach")) return;
+
+            if (key.isControlDown()) {
+
+                switch (key.getCode()) {
+                    case F -> {
+                        txtTimKiem.requestFocus();
+                        txtTimKiem.selectAll();
+                    }
+                    case N -> handleXoaRong(null);
+                    case E -> handleSua(null);
+                    case D -> handleXoa(null);
+                    case S -> handleSua(null); // hoặc handleThem
+                    case R -> handleXoaRong(null);
+
+                    // ✅ Điều hướng trong bảng
+                    case RIGHT, KP_RIGHT -> tblNhanVien.getSelectionModel().selectNext();
+                    case LEFT,  KP_LEFT -> tblNhanVien.getSelectionModel().selectPrevious();
+                }
+            }
+
+            if (key.getCode() == KeyCode.F5) loadNhanVienData();
+        });
+    }
+    private boolean isActiveView() {
+        return "DanhSach".equals(NhanVienController.getCurrentView());
+    }
+
+    private void addShortcuts() {
+        txtTimKiem.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) return;
+
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN),
+                () -> { if (isActiveView()) btnXoaRong.fire(); }
+            );
+
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN),
+                () -> { if (isActiveView()) btnSua.fire(); }
+            );
+
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN),
+                () -> { if (isActiveView()) btnThem.fire(); }
+            );
+
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
+                () -> { if (isActiveView()) btnXoa.fire(); }
+            );
+
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
+                () -> {
+                    if (isActiveView()) {
+                        txtTimKiem.requestFocus();
+                        txtTimKiem.selectAll();
+                    }
+                }
+            );
+        });
+    }
+
+
 }

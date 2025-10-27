@@ -9,12 +9,17 @@ import javafx.fxml.FXML;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.HBox;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public class KhuyenMai {
 
@@ -28,18 +33,29 @@ public class KhuyenMai {
     
     @FXML private TextField txtTenKM;
     @FXML private TextField txtGiaTri;
+    @FXML private TextField txtTimKiem;
     @FXML private DatePicker datePickerStart;
     @FXML private DatePicker datePickerEnd;
     @FXML private ComboBox<String> filterComboBox;
 
-    @FXML private Button btnThem, btnSua, btnLuu;
+    @FXML private Button btnThem, btnSua, btnLuu, btnXoa, btnTimKiem;
     
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private ObservableList<Promotion> promotionList = FXCollections.observableArrayList();
-	private final UuDaiDAO uuDaiDAO = new UuDaiDAO();
+    private ObservableList<Promotion> allPromotions = FXCollections.observableArrayList();
+    private final UuDaiDAO uuDaiDAO = new UuDaiDAO();
     private Promotion selectedPromotion = null;
     private boolean isEditMode = false;
     private String currentMaKM = null;
+
+    // Định nghĩa phím tắt
+    private final KeyCombination keyCtrlN = new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN);
+    private final KeyCombination keyCtrlE = new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN);
+    private final KeyCombination keyCtrlD = new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN);
+    private final KeyCombination keyCtrlF = new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN);
+    private final KeyCombination keyCtrlS = new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN);
+    private final KeyCombination keyAltA = new KeyCodeCombination(KeyCode.A, KeyCombination.ALT_DOWN);
+    private final KeyCombination keyAltE = new KeyCodeCombination(KeyCode.E, KeyCombination.ALT_DOWN);
 
     @FXML
     public void initialize() {
@@ -49,6 +65,14 @@ public class KhuyenMai {
         setupButtonEvents();
         setupInputValidation();
         setupTableSelectionEvent();
+        
+        // Đợi scene được gán trước khi setup phím tắt
+        tblKhuyenMai.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) {
+                setupKeyboardShortcuts();
+            }
+        });
+        
         resetFormState();
     }
 
@@ -71,7 +95,6 @@ public class KhuyenMai {
                 deleteButton.getStyleClass().add("delete-button");
                 pane.setAlignment(Pos.CENTER);
                 
-                // Sử dụng getTableRow() để lấy đúng item
                 deleteButton.setOnAction(event -> {
                     Promotion promo = getTableRow().getItem();
                     if (promo != null) {
@@ -85,7 +108,6 @@ public class KhuyenMai {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : pane);
                 
-                // Vô hiệu hóa nút xóa khi đang ở chế độ thêm/sửa
                 if (deleteButton != null) {
                     deleteButton.setDisable(isEditMode);
                 }
@@ -105,6 +127,22 @@ public class KhuyenMai {
         btnThem.setOnAction(e -> themKhuyenMai());
         btnSua.setOnAction(e -> chinhSuaKhuyenMai());
         btnLuu.setOnAction(e -> luuKhuyenMai());
+        
+        if (btnXoa != null) {
+            btnXoa.setOnAction(e -> xoaKhuyenMaiDaChon());
+        }
+        
+        if (btnTimKiem != null) {
+            btnTimKiem.setOnAction(e -> timKiemKhuyenMai());
+        }
+        
+        if (txtTimKiem != null) {
+            txtTimKiem.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ENTER) {
+                    timKiemKhuyenMai();
+                }
+            });
+        }
     }
 
     private void setupInputValidation() {
@@ -125,6 +163,13 @@ public class KhuyenMai {
             if (newVal != null && !isEditMode) {
                 selectedPromotion = newVal;
                 loadPromotionToForm(newVal);
+                if (btnXoa != null) {
+                    btnXoa.setDisable(false);
+                }
+            } else {
+                if (btnXoa != null && !isEditMode) {
+                    btnXoa.setDisable(true);
+                }
             }
         });
         
@@ -135,12 +180,57 @@ public class KhuyenMai {
         });
     }
 
+    private void setupKeyboardShortcuts() {
+        tblKhuyenMai.getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+            // Ctrl + N: Thêm voucher mới
+            if (keyCtrlN.match(event)) {
+                event.consume();
+                themKhuyenMai();
+            }
+            // Ctrl + E: Sửa voucher
+            else if (keyCtrlE.match(event)) {
+                event.consume();
+                chinhSuaKhuyenMai();
+            }
+            // Ctrl + D: Xóa voucher
+            else if (keyCtrlD.match(event)) {
+                event.consume();
+                xoaKhuyenMaiDaChon();
+            }
+            // Ctrl + F: Tìm voucher
+            else if (keyCtrlF.match(event)) {
+                event.consume();
+                focusTimKiem();
+            }
+            // Ctrl + S: Lưu
+            else if (keyCtrlS.match(event)) {
+                event.consume();
+                if (isEditMode) {
+                    luuKhuyenMai();
+                }
+            }
+            // Alt + A: Hiển thị voucher đang áp dụng
+            else if (keyAltA.match(event)) {
+                event.consume();
+                filterComboBox.setValue("Đang áp dụng");
+                filterPromotions("Đang áp dụng");
+            }
+            // Alt + E: Hiển thị voucher hết hạn
+            else if (keyAltE.match(event)) {
+                event.consume();
+                filterComboBox.setValue("Đã hết hạn");
+                filterPromotions("Đã hết hạn");
+            }
+        });
+    }
+
     // ==================== XỬ LÝ DATABASE ====================
     
     private void loadDataFromDatabase() {
         try {
             List<UuDai> uuDaiList = uuDaiDAO.getAllUuDai();
             promotionList.clear();
+            allPromotions.clear();
             
             for (UuDai ud : uuDaiList) {
                 Promotion promo = new Promotion(
@@ -152,6 +242,7 @@ public class KhuyenMai {
                     String.format("%.0f%%", ud.getGiaTri())
                 );
                 promotionList.add(promo);
+                allPromotions.add(promo);
             }
             
             tblKhuyenMai.setItems(promotionList);
@@ -164,7 +255,6 @@ public class KhuyenMai {
     // ==================== XỬ LÝ CÁC NÚT ====================
     
     private void themKhuyenMai() {
-        // Kiểm tra xem có đang trong chế độ chỉnh sửa không
         if (isEditMode) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Xác nhận");
@@ -188,7 +278,7 @@ public class KhuyenMai {
         updateTableState(true);
         
         showAlert(Alert.AlertType.INFORMATION, "Thêm mới khuyến mãi", 
-                 "Mã khuyến mãi tự động: " + currentMaKM + "\nVui lòng nhập đầy đủ thông tin và nhấn Lưu.");
+                 "Mã khuyến mãi tự động: " + currentMaKM + "\nVui lòng nhập đầy đủ thông tin và nhấn Lưu (Ctrl+S).");
     }
 
     private void chinhSuaKhuyenMai() {
@@ -221,13 +311,13 @@ public class KhuyenMai {
         UuDai uuDai = new UuDai();
         uuDai.setMaUuDai(currentMaKM);
         uuDai.setTenUuDai(tenKM);
-        uuDai.setMoTa(tenKM); // Mô tả mặc định bằng tên
+        uuDai.setMoTa(tenKM);
         uuDai.setGiaTri(giaTri);
         uuDai.setNgayBatDau(ngayBatDau);
         uuDai.setNgayKetThuc(ngayKetThuc);
         
         boolean success;
-        if (selectedPromotion == null) { // Chế độ thêm mới
+        if (selectedPromotion == null) {
             success = uuDaiDAO.themUuDai(uuDai);
             if (success) {
                 showAlert(Alert.AlertType.INFORMATION, "Thêm thành công", 
@@ -236,7 +326,7 @@ public class KhuyenMai {
                 showAlert(Alert.AlertType.ERROR, "Lỗi thêm", "Không thể thêm khuyến mãi vào database.");
                 return;
             }
-        } else { // Chế độ sửa
+        } else {
             success = uuDaiDAO.capNhatUuDai(uuDai);
             if (success) {
                 showAlert(Alert.AlertType.INFORMATION, "Cập nhật thành công", 
@@ -249,6 +339,21 @@ public class KhuyenMai {
         
         loadDataFromDatabase();
         resetFormState();
+    }
+
+    private void xoaKhuyenMaiDaChon() {
+        if (isEditMode) {
+            showAlert(Alert.AlertType.WARNING, "Không thể xóa", 
+                     "Vui lòng thoát chế độ chỉnh sửa trước khi xóa.");
+            return;
+        }
+        
+        if (selectedPromotion == null) {
+            showAlert(Alert.AlertType.WARNING, "Chưa chọn", "Vui lòng chọn khuyến mãi cần xóa từ bảng.");
+            return;
+        }
+        
+        xoaKhuyenMai(selectedPromotion);
     }
 
     private void xoaKhuyenMai(Promotion promo) {
@@ -265,7 +370,6 @@ public class KhuyenMai {
                     showAlert(Alert.AlertType.INFORMATION, "Xóa thành công", 
                              "Đã xóa khuyến mãi \"" + promo.getName() + "\"");
                     
-                    // Xóa selection nếu item đang được chọn
                     if (selectedPromotion != null && 
                         selectedPromotion.getCode().equals(promo.getCode())) {
                         selectedPromotion = null;
@@ -282,6 +386,43 @@ public class KhuyenMai {
                          "\n\nKhuyến mãi có thể đang được sử dụng trong hóa đơn hoặc bị ràng buộc dữ liệu.");
                 e.printStackTrace();
             }
+        }
+    }
+
+    // ==================== XỬ LÝ TÌM KIẾM ====================
+    
+    private void focusTimKiem() {
+        if (txtTimKiem != null) {
+            txtTimKiem.requestFocus();
+            txtTimKiem.selectAll();
+        }
+    }
+
+    private void timKiemKhuyenMai() {
+        if (txtTimKiem == null) {
+            return;
+        }
+        
+        String keyword = txtTimKiem.getText().trim().toLowerCase();
+        
+        if (keyword.isEmpty()) {
+            tblKhuyenMai.setItems(allPromotions);
+            return;
+        }
+        
+        ObservableList<Promotion> searchResults = allPromotions.stream()
+            .filter(p -> 
+                p.getName().toLowerCase().contains(keyword) ||
+                p.getCode().toLowerCase().contains(keyword) ||
+                p.getStatus().toLowerCase().contains(keyword)
+            )
+            .collect(Collectors.toCollection(FXCollections::observableArrayList));
+        
+        tblKhuyenMai.setItems(searchResults);
+        
+        if (searchResults.isEmpty()) {
+            showAlert(Alert.AlertType.INFORMATION, "Tìm kiếm", 
+                     "Không tìm thấy khuyến mãi nào phù hợp với từ khóa: " + keyword);
         }
     }
 
@@ -307,6 +448,10 @@ public class KhuyenMai {
             }
             
             tblKhuyenMai.setItems(promotionList);
+        }
+        
+        if (txtTimKiem != null) {
+            txtTimKiem.clear();
         }
     }
 
@@ -356,13 +501,23 @@ public class KhuyenMai {
         btnThem.setDisable(disableThem);
         btnSua.setDisable(disableSua);
         btnLuu.setDisable(disableLuu);
+        
+        if (btnXoa != null) {
+            btnXoa.setDisable(isEditMode || selectedPromotion == null);
+        }
     }
     
     private void updateTableState(boolean disable) {
         tblKhuyenMai.setDisable(disable);
         filterComboBox.setDisable(disable);
         
-        // Refresh lại table để cập nhật trạng thái nút xóa
+        if (txtTimKiem != null) {
+            txtTimKiem.setDisable(disable);
+        }
+        if (btnTimKiem != null) {
+            btnTimKiem.setDisable(disable);
+        }
+        
         tblKhuyenMai.refresh();
     }
 

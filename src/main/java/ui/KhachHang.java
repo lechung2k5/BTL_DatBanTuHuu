@@ -11,6 +11,7 @@ import dao.HoaDonDAO; // THÊM IMPORT HoaDonDAO
 import entity.ChiTietHoaDon;
 import entity.HoaDon; // THÊM IMPORT HoaDon
 import entity.PTTThanhToan; // THÊM IMPORT PTTThanhToan
+import javafx.application.Platform;
 import javafx.beans.property.SimpleObjectProperty; // THÊM IMPORT SimpleObjectProperty
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -19,8 +20,10 @@ import javafx.collections.transformation.FilteredList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets; // THÊM IMPORT Insets
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*; // Import tất cả control
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.GridPane;
@@ -74,7 +77,58 @@ public class KhachHang {
         setupFiltersAndSearch();    // Cài đặt bộ lọc và tìm kiếm
         setupActionButtons();       // Gán sự kiện cho các nút Thêm/Sửa/Xóa
         setupSelectionListener();   // Lắng nghe sự kiện chọn dòng
-        clearForm();                // Xóa trắng form ban đầu
+        clearForm();  // Xóa trắng form ban đầu
+     // === SHORTCUT KEYS FOR CUSTOMER MANAGEMENT ===
+        Platform.runLater(() -> {
+            Scene scene = tblKhachHang.getScene();
+            if (scene == null) return;
+
+            scene.setOnKeyPressed(e -> {
+
+                // Thêm mới
+                if (e.isControlDown() && e.getCode() == KeyCode.N)
+                    btnThem.fire();
+
+                // Sửa
+                if (e.isControlDown() && e.getCode() == KeyCode.E)
+                    btnSua.fire();
+
+                // Xóa (Del hoặc Ctrl + D)
+                if (e.getCode() == KeyCode.DELETE ||
+                    (e.isControlDown() && e.getCode() == KeyCode.D))
+                    btnXoa.fire();
+
+                // Xóa trắng form
+                if (e.isControlDown() && e.getCode() == KeyCode.R)
+                    btnXoaTrang.fire();
+
+                // Lưu (nếu bạn dùng Sửa như Lưu)
+                if (e.isControlDown() && e.getCode() == KeyCode.S)
+                    btnSua.fire();
+
+                // Focus tìm kiếm
+                if (e.isControlDown() && e.getCode() == KeyCode.F) {
+                    txtSearch.requestFocus();
+                    txtSearch.selectAll();
+                }
+
+                // Enter: tìm kiếm hoặc xem lịch sử
+                if (e.getCode() == KeyCode.ENTER) {
+                    if (txtSearch.isFocused()) {
+                        btnTim.fire(); // Tìm kiếm
+                    } else if (tblKhachHang.isFocused()) {
+                        entity.KhachHang kh = tblKhachHang.getSelectionModel().getSelectedItem();
+                        if (kh != null)
+                            showInvoiceHistoryDialog(kh);
+                    }
+                }
+
+                // Làm mới dữ liệu
+                if (e.getCode() == KeyCode.F5)
+                    loadDatabaseData();
+            });
+        });
+
     }
 
     // ==================================

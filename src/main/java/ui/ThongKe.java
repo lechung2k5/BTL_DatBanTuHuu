@@ -17,6 +17,9 @@ import javafx.scene.control.TableCell;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
 
 public class ThongKe {
 
@@ -57,6 +60,74 @@ public class ThongKe {
         
         lblTangTretTotal.setText("$3,004");
         lblTang1Total.setText("$4,504");
+     // === PHÍM TẮT THAO TÁC BẢNG ===
+        tblHoaDon.sceneProperty().addListener((obsScene, oldScene, newScene) -> {
+            if (newScene == null) return;
+
+            newScene.getAccelerators().clear();
+
+            // Ctrl + K → Focus bảng Hóa đơn
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN),
+                () -> {
+                    tblHoaDon.requestFocus();
+                    tblHoaDon.getSelectionModel().selectFirst();
+                }
+            );
+
+            // Ctrl + C → Focus bảng Món bán chạy
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN),
+                () -> {
+                    tblMonBanChay.requestFocus();
+                    tblMonBanChay.getSelectionModel().selectFirst();
+                }
+            );
+
+            // Enter → Xem chi tiết hóa đơn
+            tblHoaDon.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ENTER) {
+                    var item = tblHoaDon.getSelectionModel().getSelectedItem();
+                    if (item != null) {
+                        System.out.println("📌 Chi tiết hóa đơn: " + item.getMaHD());
+                    }
+                }
+            });
+
+            // Enter → Xem thông tin món bán chạy
+            tblMonBanChay.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ENTER) {
+                    var item = tblMonBanChay.getSelectionModel().getSelectedItem();
+                    if (item != null) {
+                        System.out.println("🍽 Chi tiết món bán chạy: " + item.getTenMon());
+                    }
+                }
+            });
+
+            // Ctrl + E → Xuất Excel (tùy bảng đang focus)
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN),
+                () -> {
+                    if (tblHoaDon.isFocused()) {
+                        System.out.println("📊 Xuất Excel Hóa đơn!");
+                        // btnExportHoaDon.fire();
+                    } else if (tblMonBanChay.isFocused()) {
+                        System.out.println("📈 Xuất Excel Món bán chạy!");
+                        // btnExportMonAn.fire();
+                    }
+                }
+            );
+
+            // ESC → Bỏ focus cả 2 bảng
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.ESCAPE),
+                () -> {
+                    tblHoaDon.getSelectionModel().clearSelection();
+                    tblMonBanChay.getSelectionModel().clearSelection();
+                }
+            );
+        });
+
     }
     
     private void setupFilters() {

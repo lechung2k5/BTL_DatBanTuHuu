@@ -22,11 +22,13 @@
             <!-- Main vertical layout -->
             <VBox spacing="15.0" AnchorPane.bottomAnchor="25.0" AnchorPane.leftAnchor="30.0" AnchorPane.rightAnchor="30.0" AnchorPane.topAnchor="20.0">
                <children>
-                  <!-- Top row: Title and Filter -->
+                  <!-- Top row: Title, Search and Filter -->
                   <HBox alignment="CENTER_LEFT" spacing="20.0">
                      <children>
                         <Label styleClass="screen-title" text="Quản lý khuyến mãi" />
                         <Region HBox.hgrow="ALWAYS" />
+                        <TextField fx:id="txtTimKiem" prefWidth="200.0" promptText="Tìm kiếm voucher..." />
+                        <Button fx:id="btnTimKiem" mnemonicParsing="false" text="Tìm kiếm" />
                         <ComboBox fx:id="filterComboBox" prefWidth="250.0" promptText="Đang áp dụng..." />
                      </children>
                   </HBox>
@@ -93,6 +95,7 @@
                            <children>
                               <Button fx:id="btnThem" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Thêm" HBox.hgrow="ALWAYS" />
                               <Button fx:id="btnSua" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Sửa" HBox.hgrow="ALWAYS" />
+                              <Button fx:id="btnXoa" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Xóa" HBox.hgrow="ALWAYS" />
                               <Button fx:id="btnLuu" maxWidth="1.7976931348623157E308" mnemonicParsing="false" text="Lưu" HBox.hgrow="ALWAYS" />
                            </children>
                            <VBox.margin>

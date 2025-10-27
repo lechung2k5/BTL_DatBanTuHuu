@@ -1,6 +1,10 @@
 package ui;
 
 import dao.HoaDonDAO;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+
 import entity.ChiTietHoaDon;
 import entity.HoaDon;
 import entity.PTTThanhToan;
@@ -110,22 +114,62 @@ public class HoaDonUI {
 
         comboFilter.setOnAction(event -> filterData());
         btnSearch.setOnAction(event -> filterData());
-        txtSearch.setOnAction(event -> filterData()); // Thêm: Lọc khi nhấn Enter trên TextField
+        txtSearch.setOnAction(event -> filterData());
 
         loadAndFilterData();
-
         btnXuatExcel.setOnAction(e -> xuatExcel());
         btnInHoaDon.setOnAction(e -> inHoaDon());
-
         tableHoaDon.setItems(danhSachHoaDon);
 
-         // Listener cho việc chọn dòng trong bảng hóa đơn chính
-        tableHoaDon.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
-            if (newSelection != null) {
-                hienThiThongTinHoaDon(newSelection);
-            } else {
-                 hienThiThongTinHoaDon(null); // Xóa thông tin nếu không có dòng nào được chọn
-            }
+        // ✅ Gắn phím tắt KHI Scene đã tồn tại
+        tableHoaDon.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) return;
+
+            // 🔍 Ctrl + F → Focus ô tìm kiếm
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
+                () -> { txtSearch.requestFocus(); txtSearch.selectAll(); }
+            );
+
+            // 🔍 Enter tại Table → Xem chi tiết
+            tableHoaDon.setOnKeyPressed(e -> {
+                if (e.getCode() == KeyCode.ENTER) {
+                    HoaDon hd = tableHoaDon.getSelectionModel().getSelectedItem();
+                    if (hd != null) hienThiThongTinHoaDon(hd);
+                }
+            });
+
+            // 🔍 Ctrl + → → Chọn dòng kế
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.RIGHT, KeyCombination.CONTROL_DOWN),
+                () -> {
+                    int i = tableHoaDon.getSelectionModel().getSelectedIndex();
+                    if (i < tableHoaDon.getItems().size() - 1)
+                        tableHoaDon.getSelectionModel().select(i + 1);
+                }
+            );
+
+            // 🔍 Ctrl + ← → Chọn dòng trước
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.LEFT, KeyCombination.CONTROL_DOWN),
+                () -> {
+                    int i = tableHoaDon.getSelectionModel().getSelectedIndex();
+                    if (i > 0)
+                        tableHoaDon.getSelectionModel().select(i - 1);
+                }
+            );
+
+            // 🔍 Ctrl + P → In hóa đơn
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.P, KeyCombination.CONTROL_DOWN),
+                () -> btnInHoaDon.fire()
+            );
+
+            // 🔍 Ctrl + E → Xuất Excel
+            newScene.getAccelerators().put(
+                new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN),
+                () -> btnXuatExcel.fire()
+            );
         });
     }
 
