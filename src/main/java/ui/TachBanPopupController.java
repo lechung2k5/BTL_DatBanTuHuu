@@ -1,10 +1,7 @@
 package ui;
 
 import dao.DatBanDAO;
-import entity.Ban;
 import entity.HoaDon;
-import entity.TrangThaiBan;
-import entity.TrangThaiHoaDon;
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
@@ -16,17 +13,10 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.Alert.AlertType;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.util.Callback;
-
 import java.io.IOException;
-import java.sql.SQLException;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 

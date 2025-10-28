@@ -8,6 +8,7 @@ import entity.HoaDon;
 import entity.NhanVien; // 🔥 Import NhanVien
 import entity.TaiKhoan;
 import entity.TrangThaiBan;
+import ui.MainApp; //
 import javafx.application.Platform; // 🔥 Import Platform
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -23,19 +24,20 @@ import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.scene.control.Tooltip;
-import javafx.geometry.Point2D;
-
 import java.io.IOException;
 import java.net.URL;
 import java.sql.SQLException;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime; // 🔥 Import LocalTime
-import java.time.Duration; // <--- 🔥 ĐÃ THÊM IMPORT NÀY
+import java.time.Duration;
 import java.time.format.DateTimeFormatter;
 import java.util.List;      // 🔥 Import List
 import java.util.Map;       // 🔥 Import Map
 import java.util.stream.Collectors; // 🔥 Import Collectors
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 
 public class DashboardController {
 
@@ -52,6 +54,13 @@ public class DashboardController {
     @FXML private Label lblBanPhucVu; // <-- THÊM DÒNG NÀY
     @FXML private Label lblBanDatTruoc; // <-- THÊM DÒNG NÀY
     @FXML private Label lblTongGioLam; // <-- THÊM DÒNG NÀY
+    @FXML private Label lblTienMatDauCa;      // Label mới
+    @FXML private Label lblTienMatThuDuoc;   // Đã có
+    @FXML private Label lblTienMatDuKien;     // Label mới
+    @FXML private VBox vboxTienMatTongKet;    // Sửa fx:id VBox
+    @FXML private VBox vboxKiemKeDauCa;       // VBox chứa phần nhập liệu đầu ca
+    @FXML private Button btnXacNhanKiemKe;   // Đã có
+    @FXML private VBox rootDashboardVBox;
     private LocalDate startOfWeek;
     private Tooltip tooltip = new Tooltip();
 
@@ -59,6 +68,8 @@ public class DashboardController {
     private final CaTrucDAO caTrucDAO = new CaTrucDAO();
     private final HoaDonDAO hoaDonDAO = new HoaDonDAO(); // <-- THÊM DÒNG NÀY
     private final DatBanDAO datBanDAO = new DatBanDAO();
+    private boolean daKiemKeHoacHoatDong = false;
+    private Timeline tienMatPollingTimeline;
     // private final NhanVienDAO nhanVienDAO = new NhanVienDAO(); // Không cần thiết nếu CaTrucDAO đã lấy tên NV
 
     @FXML
@@ -67,8 +78,6 @@ public class DashboardController {
         datePicker.setValue(startOfWeek);
         updateWeeklyCalendar(); // Gọi hàm cập nhật lịch
         setupTableMap();
-  
-
         setupTooltips();
         updateKpiGioLam();
         updateSoNgayNghi();
@@ -76,8 +85,163 @@ public class DashboardController {
         updateTheBanDatTruoc();
         updateTheTongGioLam();
         updateKpiDoanhThu();
+        updateTienMatCaHienTai();
+        kiemTraVaCapNhatTrangThaiKiemKe();
+        if (rootDashboardVBox != null) {
+            rootDashboardVBox.sceneProperty().addListener((obs, oldScene, newScene) -> {
+                if (newScene == null) {
+                    stopTienMatPolling(); // Dừng khi rời khỏi màn hình Dashboard
+                } else {
+                    // Khi quay lại, kiểm tra lại trạng thái và có thể start polling nếu cần
+                    kiemTraVaCapNhatTrangThaiKiemKe();
+                }
+            });
+        } // <-- 🔥 THÊM DẤU NGOẶC NHỌN ĐÓNG NÀY VÀO 🔥
+    } //
+    /**
+     * 🔥 HÀM ĐÃ SỬA LOGIC: Xử lý trường hợp đặc biệt khi Prefs lưu 0.0
+     * nhưng chưa có hoạt động tiền mặt.
+     */
+    private void kiemTraVaCapNhatTrangThaiKiemKe() {
+        TaiKhoan currentUser = MainApp.getLoggedInUser();
+        if (currentUser == null || currentUser.getNhanVien() == null) {
+            // Ẩn cả hai VBox nếu không có user
+            if (vboxKiemKeDauCa != null) {vboxKiemKeDauCa.setVisible(false); vboxKiemKeDauCa.setManaged(false);}
+            if (vboxTienMatTongKet != null) {vboxTienMatTongKet.setVisible(false); vboxTienMatTongKet.setManaged(false);}
+            this.daKiemKeHoacHoatDong = false;
+            stopTienMatPolling();
+            return;
+        }
+
+        String maNV = currentUser.getNhanVien().getMaNV();
+        LocalDate homNay = LocalDate.now();
+        this.daKiemKeHoacHoatDong = false; // Reset cờ
+
+        // --- KIỂM TRA PREFERENCES TRƯỚC ---
+        double savedInitialCash = MainApp.getInitialCashCount(maNV);
+
+        // Biến tạm để quyết định hiển thị
+        boolean showInput = false;
+        boolean showSummary = false;
+
+        try {
+            if (savedInitialCash > 0) {
+                // TRƯỜNG HỢP 1: ĐÃ KIỂM KÊ VỚI SỐ TIỀN > 0 => Hiện tổng kết
+                System.out.println("Kiểm tra ban đầu: Đã kiểm kê hôm nay (Prefs > 0: " + savedInitialCash + ").");
+                this.daKiemKeHoacHoatDong = true;
+                showInput = false;
+                showSummary = true;
+            } else if (savedInitialCash == 0.0) {
+                // TRƯỜNG HỢP 2: PREFS LƯU 0.0 => Kiểm tra xem có hoạt động chưa
+                System.out.println("Kiểm tra ban đầu: Prefs đang lưu 0.0. Kiểm tra hoạt động...");
+                boolean daCoTienMat = hoaDonDAO.kiemTraTienMatTrongNgay(maNV, homNay);
+                if (daCoTienMat) {
+                    // 2a: Prefs=0 VÀ Đã hoạt động => Hiện tổng kết (0.0 là hợp lệ)
+                    System.out.println("    --> Đã có HĐ tiền mặt. Coi 0.0 là đúng.");
+                    this.daKiemKeHoacHoatDong = true;
+                    showInput = false;
+                    showSummary = true;
+                } else {
+                    // 2b: Prefs=0 NHƯNG CHƯA hoạt động => Lỗi lưu trữ? Hiện ô nhập
+                    System.out.println("    --> Chưa có HĐ tiền mặt. Giá trị 0.0 có thể sai. Hiện ô nhập.");
+                    this.daKiemKeHoacHoatDong = false;
+                    showInput = true;
+                    showSummary = false;
+                    // Không cần xóa Preferences, lần nhập tiếp theo sẽ ghi đè
+                }
+            } else { // savedInitialCash < 0 (là -1.0)
+                // TRƯỜNG HỢP 3: CHƯA KIỂM KÊ HÔM NAY
+                System.out.println("Kiểm tra ban đầu: Chưa kiểm kê hôm nay (Prefs: -1).");
+                this.daKiemKeHoacHoatDong = false;
+                showInput = true; // Luôn hiện ô nhập
+                showSummary = false;
+            }
+
+            // --- Cập nhật giao diện dựa trên quyết định ---
+            if (vboxKiemKeDauCa != null) {
+                vboxKiemKeDauCa.setVisible(showInput);
+                vboxKiemKeDauCa.setManaged(showInput);
+                // Reset trạng thái ô nhập nếu hiển thị lại
+                if (showInput) {
+                    if (txtSoTienKiemKe != null) txtSoTienKiemKe.setDisable(false);
+                    if (btnXacNhanKiemKe != null) btnXacNhanKiemKe.setDisable(false);
+                }
+            }
+            if (vboxTienMatTongKet != null) {
+                vboxTienMatTongKet.setVisible(showSummary);
+                vboxTienMatTongKet.setManaged(showSummary);
+            }
+
+            // Gọi cập nhật chi tiết nếu hiển thị phần tổng kết
+            if (showSummary) {
+                updateTienMatCaHienTai(); // Sẽ đọc lại giá trị từ Prefs và bắt đầu polling
+            } else {
+                stopTienMatPolling(); // Dừng polling nếu chỉ hiển thị ô nhập
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Lỗi DB khi kiểm tra tiền mặt ban đầu: " + e.getMessage());
+            // Xử lý lỗi: Ẩn cả hai
+            if (vboxKiemKeDauCa != null) {vboxKiemKeDauCa.setVisible(false); vboxKiemKeDauCa.setManaged(false);}
+            if (vboxTienMatTongKet != null) {vboxTienMatTongKet.setVisible(false); vboxTienMatTongKet.setManaged(false);}
+            this.daKiemKeHoacHoatDong = false;
+            stopTienMatPolling();
+            e.printStackTrace();
+        }
     }
     /**
+     * 🔥 HÀM MỚI: Bắt đầu Timeline để cập nhật tiền mặt thu được định kỳ.
+     */
+    private void startTienMatPolling() {
+        if (tienMatPollingTimeline == null) {
+            tienMatPollingTimeline = new Timeline(
+                // 👇 SỬ DỤNG TÊN ĐẦY ĐỦ Ở ĐÂY 👇
+                new KeyFrame(javafx.util.Duration.seconds(20.0), event -> {
+                    Platform.runLater(this::updateTienMatLabelsRealtime);
+                })
+            );
+            tienMatPollingTimeline.setCycleCount(Animation.INDEFINITE);
+        }
+        // ... (phần if kiểm tra và play() giữ nguyên) ...
+        if (this.daKiemKeHoacHoatDong && tienMatPollingTimeline.getStatus() != Animation.Status.RUNNING) {
+            System.out.println("Bắt đầu polling tiền mặt...");
+            tienMatPollingTimeline.play();
+        }
+    }
+
+    /**
+     * 🔥 HÀM MỚI: Dừng Timeline cập nhật tiền mặt.
+     */
+    private void stopTienMatPolling() {
+        if (tienMatPollingTimeline != null && tienMatPollingTimeline.getStatus() == Animation.Status.RUNNING) {
+            System.out.println("Dừng polling tiền mặt.");
+            tienMatPollingTimeline.stop();
+        }
+    }
+
+    /**
+     * 🔥 HÀM MỚI: Chỉ cập nhật các label tiền mặt (Thu được, Dự kiến) cho polling.
+     * Không ẩn/hiện VBox hay bắt đầu/dừng polling ở đây.
+     */
+    private void updateTienMatLabelsRealtime() {
+        // ... (lấy user/nv) ...
+    	TaiKhoan currentUser = MainApp.getLoggedInUser();
+        if (currentUser == null || currentUser.getNhanVien() == null) return;
+        String maNV = currentUser.getNhanVien().getMaNV();
+        double dauCa = MainApp.getInitialCashCount(maNV); // Lấy đầu ca
+        if (dauCa < 0) return; // Chưa kiểm kê, không cập nhật realtime
+
+        LocalDate homNay = LocalDate.now();
+        double tienMatThuDuoc = 0;
+        try {
+            tienMatThuDuoc = hoaDonDAO.getTongTienMatTrongNgay(maNV, homNay);
+            double tienMatDuKien = dauCa + tienMatThuDuoc; // Tính lại dự kiến
+
+            if (lblTienMatThuDuoc != null) lblTienMatThuDuoc.setText(String.format("%,.0f đ", tienMatThuDuoc));
+            if (lblTienMatDuKien != null) lblTienMatDuKien.setText(String.format("%,.0f đ", tienMatDuKien));
+        } catch (Exception e) { /* ... xử lý lỗi ... */ }
+    }
+	/**
      * 🔥 HÀM MỚI: Tính toán và cập nhật thẻ "Tổng giờ làm" trong tháng.
      * Chỉ tính giờ cho những ngày có lịch làm VÀ có hoạt động (có hóa đơn).
      */
@@ -291,56 +455,58 @@ public class DashboardController {
 	/**
      * 🔥 HÀM ĐÃ SỬA: Cập nhật lịch làm việc hàng tuần với dữ liệu từ CSDL
      */
+    /**
+     * 🔥 HÀM ĐÃ SỬA: Cập nhật lịch làm việc hàng tuần với dữ liệu từ CSDL
+     * Đã sửa lỗi biến `duration` sau khi xóa import `javafx.util.Duration`.
+     */
     private void updateWeeklyCalendar() {
         weeklyCalendarGrid.getChildren().clear();
 
-        // 🔥 Lấy thông tin người dùng đang đăng nhập
+        // Lấy thông tin người dùng đang đăng nhập
         TaiKhoan currentUser = MainApp.getLoggedInUser();
         if (currentUser == null || currentUser.getNhanVien() == null) {
-            // Xử lý trường hợp không có người dùng đăng nhập (hiển thị lịch trống hoặc thông báo)
-             Label errorLabel = new Label("Không thể tải lịch làm việc.\nVui lòng đăng nhập lại.");
-             errorLabel.setStyle("-fx-text-fill: red;");
-             weeklyCalendarGrid.add(errorLabel, 1, 1, 7, 3); // Hiển thị lỗi giữa grid
-             // Hoặc không làm gì cả để grid trống trơn
-            return; // Dừng hàm nếu không có thông tin
+            Label errorLabel = new Label("Không thể tải lịch làm việc.\nVui lòng đăng nhập lại.");
+            errorLabel.setStyle("-fx-text-fill: red;");
+            weeklyCalendarGrid.add(errorLabel, 1, 1, 7, 3);
+            return;
         }
         String loggedInMaNV = currentUser.getNhanVien().getMaNV();
 
-
-        // 🔥 ĐÃ SỬA: Gọi hàm DAO mới với mã NV của người đăng nhập
+        // Gọi hàm DAO với mã NV
         List<CaTruc> caTrucTrongTuan = caTrucDAO.layCaTrucTrongTuanCuaNV(startOfWeek, loggedInMaNV);
 
         String[] daysOfWeek = {"Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"};
         String[] rowHeaders = {"Ca làm", "Sáng", "Chiều", "Tối"};
 
-        // --- Tạo Header (Giữ nguyên) ---
+        // --- Tạo Header ---
         LocalDate currentDayHeader = startOfWeek;
         for (int i = 0; i < daysOfWeek.length; i++) {
-             Label dayLabel = new Label(daysOfWeek[i] + "\n" + currentDayHeader.format(DateTimeFormatter.ofPattern("dd/MM")));
-             dayLabel.getStyleClass().add("day-of-week-label");
-             dayLabel.setAlignment(Pos.CENTER);
-             dayLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
-             dayLabel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-             weeklyCalendarGrid.add(dayLabel, i + 1, 0);
-             currentDayHeader = currentDayHeader.plusDays(1);
-         }
-         for (int i = 0; i < rowHeaders.length; i++) {
-             Label timeLabel = new Label(rowHeaders[i]);
-             timeLabel.getStyleClass().add(i == 0 ? "time-slot-label-header" : "time-slot-label");
-             timeLabel.setAlignment(Pos.CENTER);
-             timeLabel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
-             weeklyCalendarGrid.add(timeLabel, 0, i);
-         }
+            Label dayLabel = new Label(daysOfWeek[i] + "\n" + currentDayHeader.format(DateTimeFormatter.ofPattern("dd/MM")));
+            dayLabel.getStyleClass().add("day-of-week-label");
+            dayLabel.setAlignment(Pos.CENTER);
+            dayLabel.setTextAlignment(javafx.scene.text.TextAlignment.CENTER);
+            dayLabel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            weeklyCalendarGrid.add(dayLabel, i + 1, 0);
+            currentDayHeader = currentDayHeader.plusDays(1);
+        }
+        for (int i = 0; i < rowHeaders.length; i++) {
+            Label timeLabel = new Label(rowHeaders[i]);
+            timeLabel.getStyleClass().add(i == 0 ? "time-slot-label-header" : "time-slot-label");
+            timeLabel.setAlignment(Pos.CENTER);
+            timeLabel.setMaxSize(Double.MAX_VALUE, Double.MAX_VALUE);
+            weeklyCalendarGrid.add(timeLabel, 0, i);
+        }
         // --- Kết thúc Header ---
 
-        // --- Điền dữ liệu vào các ô (Logic hiển thị giữ nguyên) ---
+        // --- Điền dữ liệu vào các ô ---
         for (int col = 0; col < daysOfWeek.length; col++) {
             LocalDate dateOfCell = startOfWeek.plusDays(col);
             for (int row = 1; row < rowHeaders.length; row++) {
                 String timeSlotOfCell = rowHeaders[row];
                 LocalTime startTimeSlot = getTimeSlotStartTime(timeSlotOfCell);
 
-                 List<CaTruc> shiftsInCell = caTrucTrongTuan.stream()
+                // Lọc ca trực cho ô hiện tại
+                List<CaTruc> shiftsInCell = caTrucTrongTuan.stream()
                         .filter(ca -> ca.getNgay().equals(dateOfCell) &&
                                       ca.getGioBatDau().equals(startTimeSlot))
                         .collect(Collectors.toList());
@@ -351,28 +517,32 @@ public class DashboardController {
                 cellContainer.setPadding(new Insets(8));
 
                 if (!shiftsInCell.isEmpty()) {
+                    // Group ca theo giờ (nếu có nhiều NV cùng 1 ca)
                     Map<String, List<CaTruc>> shiftsGroupedByTime = shiftsInCell.stream()
                             .collect(Collectors.groupingBy(ca ->
                                 ca.getGioBatDau().format(DateTimeFormatter.ofPattern("HH:mm")) + " - " +
                                 ca.getGioKetThuc().format(DateTimeFormatter.ofPattern("HH:mm"))
                             ));
 
-                    // --- 🔥 PHẦN ĐÃ SỬA ĐỂ HIỂN THỊ TỔNG GIỜ ---
+                    // Hiển thị thông tin từng group ca
                     shiftsGroupedByTime.forEach((timeString, shiftsGroup) -> {
-                        // Lấy 1 ca làm mẫu để tính giờ (vì đã group theo giờ BĐ-KT)
-                        CaTruc mauCa = shiftsGroup.get(0);
+                        CaTruc mauCa = shiftsGroup.get(0); // Lấy 1 ca làm mẫu
                         LocalTime batDau = mauCa.getGioBatDau();
                         LocalTime ketThuc = mauCa.getGioKetThuc();
 
-                        // --- Tính toán thời lượng ---
-                        Duration duration = Duration.between(batDau, ketThuc);
-                        // Xử lý ca qua đêm (ví dụ: 18:00 - 02:00)
+                        // --- Tính toán thời lượng (Sử dụng java.time.Duration) ---
+                        // Đảm bảo dùng java.time.Duration
+                        java.time.Duration thoiLuongCa = java.time.Duration.between(batDau, ketThuc); 
+                        
+                        // Xử lý ca qua đêm
                         if (ketThuc.isBefore(batDau)) {
-                            duration = duration.plusHours(24);
+                            // 🔥 SỬA LỖI: Dùng biến thoiLuongCa thay vì duration 🔥
+                            thoiLuongCa = thoiLuongCa.plusHours(24); 
                         }
 
-                        long hours = duration.toHours();
-                        long minutes = duration.toMinutes() % 60;
+                        // 🔥 SỬA LỖI: Dùng biến thoiLuongCa thay vì duration 🔥
+                        long hours = thoiLuongCa.toHours(); 
+                        long minutes = thoiLuongCa.toMinutes() % 60; 
 
                         // Tạo chuỗi hiển thị tổng giờ
                         String durationString;
@@ -383,21 +553,20 @@ public class DashboardController {
                         }
                         // --- Kết thúc tính toán ---
 
-
-                        // Tạo các Label
+                        // Tạo Labels
                         Label timeLabel = new Label(timeString);
                         timeLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px; -fx-text-fill: #1a1a1a;");
-                        
-                        Label durationLabel = new Label(durationString);
-                        durationLabel.getStyleClass().add("shift-duration-label"); // Thêm class CSS để style
 
-                        // Thêm vào VBox
-                        VBox shiftDisplayBox = new VBox(2); // Giữ nguyên spacing
-                        shiftDisplayBox.getChildren().addAll(timeLabel, durationLabel); // Thêm cả 2 label
+                        Label durationLabel = new Label(durationString);
+                        durationLabel.getStyleClass().add("shift-duration-label");
+
+                        // Thêm vào VBox con
+                        VBox shiftDisplayBox = new VBox(2);
+                        shiftDisplayBox.getChildren().addAll(timeLabel, durationLabel);
                         cellContainer.getChildren().add(shiftDisplayBox);
                     });
-                     // --- 🔥 KẾT THÚC PHẦN SỬA ---
                 }
+                // Thêm VBox (cellContainer) vào lưới lịch
                 weeklyCalendarGrid.add(cellContainer, col + 1, row);
             }
         }
@@ -462,11 +631,102 @@ public class DashboardController {
         updateWeeklyCalendar();
     }
 
-    @FXML private void handleCheckCash() {
-         showInfoAlert("Thông báo", "Chức năng kiểm kê tiền mặt đang được phát triển.");
-    }
+    /**
+     * 🔥 HÀM ĐÃ SỬA: Xử lý nút Xác nhận kiểm kê đầu ca.
+     * Thêm log chi tiết để kiểm tra việc lưu vào MainApp.
+     */
+    @FXML
+    private void handleCheckCash() {
+        String tienKiemKeStr = txtSoTienKiemKe.getText().replaceAll("[^0-9]", "");
+        double soTienDaNhap = 0;
+        try {
+             if (!tienKiemKeStr.isEmpty()){
+                 soTienDaNhap = Double.parseDouble(tienKiemKeStr);
+                 System.out.println("handleCheckCash: Đã parse số tiền nhập = " + soTienDaNhap);
+             } else { /* báo lỗi thiếu thông tin */ return; }
+        } catch (NumberFormatException e) { /* báo lỗi số không hợp lệ */ return; }
 
-    @FXML private void updateCalendarFromDatePicker() {
+        TaiKhoan currentUser = MainApp.getLoggedInUser();
+        if (currentUser == null || currentUser.getNhanVien() == null) { /* báo lỗi user */ return; }
+        String maNV = currentUser.getNhanVien().getMaNV();
+
+        System.out.println("handleCheckCash: Chuẩn bị gọi MainApp.setInitialCashCount với số tiền: " + soTienDaNhap + " cho NV: " + maNV);
+        MainApp.setInitialCashCount(soTienDaNhap, maNV); // Lưu vào Preferences
+        double kiemTraLai = MainApp.getInitialCashCount(maNV);
+        System.out.println("handleCheckCash: Đã gọi set xong. Giá trị get lại được từ MainApp là: " + kiemTraLai);
+
+        showInfoAlert("Xác nhận", "Đã ghi nhận số tiền kiểm kê đầu ca.");
+
+        // Ẩn phần nhập liệu
+        if (vboxKiemKeDauCa != null) {
+             vboxKiemKeDauCa.setVisible(false);
+             vboxKiemKeDauCa.setManaged(false);
+        }
+
+        this.daKiemKeHoacHoatDong = true; // Đánh dấu đã kiểm kê
+        updateTienMatCaHienTai(); // Gọi cập nhật và bắt đầu polling
+    }
+    /**
+     * 🔥 HÀM MỚI/SỬA: Cập nhật các Label liên quan đến tiền mặt trong ca.
+     * Được gọi sau khi xác nhận kiểm kê đầu ca.
+     */
+    /**
+     * 🔥 HÀM ĐÃ SỬA: Cập nhật các Label tiền mặt. Thêm log chi tiết.
+     */
+    private void updateTienMatCaHienTai() {
+        System.out.println("--- Bắt đầu updateTienMatCaHienTai ---");
+
+        TaiKhoan currentUser = MainApp.getLoggedInUser();
+        // ... (kiểm tra null user/nv) ...
+        if (currentUser == null || currentUser.getNhanVien() == null) { /* ẩn VBox, dừng polling, return */ return; }
+        String maNV = currentUser.getNhanVien().getMaNV();
+
+        double dauCa = MainApp.getInitialCashCount(maNV);
+        System.out.println("updateTienMatCaHienTai: Lấy dauCa từ MainApp = " + dauCa);
+
+        // Chỉ tiếp tục nếu đã kiểm kê (dauCa >= 0)
+        if (dauCa < 0) {
+             System.out.println("updateTienMatCaHienTai: dauCa < 0 (Lỗi logic?), ẩn tổng kết và dừng.");
+             if (vboxTienMatTongKet != null) { /* ẩn VBox */ }
+             stopTienMatPolling();
+             return;
+        }
+
+        // --- HIỂN THỊ VBOX TỔNG KẾT ---
+        if (vboxTienMatTongKet != null) {
+             System.out.println("updateTienMatCaHienTai: Chuẩn bị set VBox tổng kết visible.");
+             vboxTienMatTongKet.setVisible(true);
+             vboxTienMatTongKet.setManaged(true);
+             System.out.println("updateTienMatCaHienTai: Đã set VBox tổng kết visible.");
+        } else { /* báo lỗi VBox null */ return; }
+        // --- KẾT THÚC HIỂN THỊ VBOX ---
+
+        LocalDate homNay = LocalDate.now();
+        double tienMatThuDuoc = 0;
+
+        try {
+            System.out.println("updateTienMatCaHienTai: Chuẩn bị gọi hoaDonDAO.getTongTienMatTrongNgay...");
+            tienMatThuDuoc = hoaDonDAO.getTongTienMatTrongNgay(maNV, homNay);
+            System.out.println("updateTienMatCaHienTai: Tiền mặt thu được từ DAO = " + tienMatThuDuoc);
+
+            double tienMatDuKien = dauCa + tienMatThuDuoc;
+            System.out.println("updateTienMatCaHienTai: Tiền mặt dự kiến = " + tienMatDuKien);
+
+            // --- 🔥 BỎ TEXT "(Đã hoạt động)" 🔥 ---
+            String dauCaText = String.format("%,.0f đ", dauCa); // Luôn hiển thị số tiền
+
+            System.out.println("updateTienMatCaHienTai: Chuẩn bị cập nhật Labels...");
+            if (lblTienMatDauCa != null) lblTienMatDauCa.setText(dauCaText); else System.err.println("lblTienMatDauCa is null");
+            if (lblTienMatThuDuoc != null) lblTienMatThuDuoc.setText(String.format("%,.0f đ", tienMatThuDuoc)); else System.err.println("lblTienMatThuDuoc is null");
+            if (lblTienMatDuKien != null) lblTienMatDuKien.setText(String.format("%,.0f đ", tienMatDuKien)); else System.err.println("lblTienMatDuKien is null");
+            System.out.println("updateTienMatCaHienTai: Đã cập nhật Labels.");
+
+            startTienMatPolling();
+
+        } catch (Exception e) { /* ... xử lý lỗi ... */ }
+        System.out.println("--- Kết thúc updateTienMatCaHienTai ---");
+    }
+	@FXML private void updateCalendarFromDatePicker() {
         LocalDate selectedDate = datePicker.getValue();
         if (selectedDate != null) {
             startOfWeek = selectedDate.with(DayOfWeek.MONDAY);

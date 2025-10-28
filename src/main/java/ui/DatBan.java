@@ -2,7 +2,6 @@ package ui;
 
 // === IMPORTS CẦN THIẾT CHO LOGIC ĐẶT BÀN VÀ DAO ===
 import dao.DatBanDAO; 
-import ui.MainApp;
 import dao.MonAnDAO;       
 import dao.DanhMucMonDAO;  
 import entity.Ban; 
@@ -12,11 +11,10 @@ import entity.LoaiBan;
 import entity.DanhMucMon;  
 import entity.TrangThaiBan; 
 import entity.TrangThaiHoaDon;
-import entity.PTTThanhToan; // Import PTTThanhToan
+import entity.PTTThanhToan; 
 import entity.TaiKhoan;
-import dao.UuDaiDAO; // Đảm bảo đã import
-import entity.UuDai; // Đảm bảo đã import
-
+import dao.UuDaiDAO; 
+import entity.UuDai; 
 // Import JavaFX
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,44 +29,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.ResourceBundle;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.function.BiConsumer;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
-
-import javax.print.DocFlavor;
-import javax.print.DocPrintJob;
-import javax.print.PrintService;
-import javax.print.PrintServiceLookup;
-
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.awt.print.PrinterJob;
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.EncodeHintType;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.client.j2se.MatrixToImageWriter;
-import com.google.zxing.common.BitMatrix;
-import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel;
-
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
 import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
-import org.apache.pdfbox.pdmodel.font.PDType0Font;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
-import org.apache.pdfbox.printing.PDFPrintable;
-
 import javafx.application.Platform; 
 import javafx.beans.property.SimpleDoubleProperty;
 import javafx.beans.property.SimpleIntegerProperty;
@@ -81,7 +52,6 @@ import javafx.fxml.Initializable;
 import javafx.geometry.HPos;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.Scene; 
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
@@ -104,14 +74,11 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
-import javafx.beans.value.ObservableValue; 
 import javax.print.attribute.HashPrintRequestAttributeSet; 
 import javax.print.attribute.PrintRequestAttributeSet;
-import javax.print.Doc; 
-import javax.print.SimpleDoc;
+
 
 
 public class DatBan implements Initializable {
@@ -526,7 +493,6 @@ public class DatBan implements Initializable {
         } catch (Exception e) {
             System.err.println("Lỗi khi lấy tên nhân viên đăng nhập: " + e.getMessage());
         }
-        String thuNganStr = tenThuNgan;
         String khachHangStr = (hd.getKhachHang() != null && hd.getKhachHang().getSoDT() != null) ? hd.getKhachHang().getSoDT() : "N/A";
         String hinhThucTTStr = hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A";
         // ============================================================
@@ -1249,51 +1215,6 @@ public class DatBan implements Initializable {
         popupStage.show();
     }
    
-
-	/**
-     * 🔥 HÀM SỬA CUỐI CÙNG: Tạo URL Quicklink của MoMo (ĐÃ FIX LỖI BIÊN DỊCH ENCODE).
-     * Sử dụng cú pháp rút gọn cho MoMo để đảm bảo tính ổn định.
-     */
-    private String createMomoQrUrl(String maHD, double amount) {
-        // 🔥 THÔNG TIN TĨNH CỦA BẠN (CẦN ĐIỀN CHÍNH XÁC)
-        final String YOUR_MOMO_PHONE = "09xxyyyzzzz"; // <<< THAY THẾ BẰNG SĐT MOMO CỦA BẠN
-        
-        // Nội dung chuyển khoản: Tối đa khoảng 30 ký tự, không dấu.
-        String rawContent = "TT" + maHD; 
-        
-        // CÚ PHÁP MOMO THANH TOÁN (PAYMENT LINK)
-        String momoPayLink = String.format(
-            "https://payment.momo.vn/pay?phone=%s&amount=%d&note=%s",
-            YOUR_MOMO_PHONE, 
-            (int) Math.ceil(amount), 
-            rawContent // Nội dung chưa mã hóa URL
-        );
-        
-        String encodedMomoPayLink = momoPayLink;
-        String encodedUrl;
-
-        try {
-            // Mã hóa URL của link MoMo (bắt buộc phải có try-catch)
-            encodedMomoPayLink = java.net.URLEncoder.encode(momoPayLink, "UTF-8");
-        } catch (java.io.UnsupportedEncodingException e) {
-            System.err.println("Lỗi mã hóa URL MoMo: " + e.getMessage());
-        }
-        
-        // SỬ DỤNG DỊCH VỤ BÊN THỨ 3 (GoQR) ĐỂ CHUYỂN LINK NÀY THÀNH ẢNH QR CODE
-        try {
-            // Mã hóa toàn bộ chuỗi data (link MoMo đã mã hóa) trước khi gửi đến GoQR
-            encodedUrl = "https://api.qrserver.com/v1/create-qr-code/?data=" + 
-                         java.net.URLEncoder.encode(encodedMomoPayLink, "UTF-8") + 
-                         "&size=250x250";
-        } catch (java.io.UnsupportedEncodingException e) {
-            // Fallback nếu có lỗi mã hóa lần cuối
-            encodedUrl = "Lỗi mã hóa";
-        }
-        
-        return encodedUrl;
-    }
- // ui.DatBan.java
-
     /**
      * 🔥 HÀM MỚI: Tải ảnh QR Code từ một URL.
      * KHÔNG CẦN THƯ VIỆN ZXING NỮA.
@@ -1315,44 +1236,6 @@ public class DatBan implements Initializable {
             return image;
         } catch (Exception e) {
             System.err.println("Lỗi không xác định khi tải ảnh QR: " + e.getMessage());
-            return null;
-        }
-    }
-
-	/**
-     * Chuyển chuỗi dữ liệu (qrData) thành ảnh QR Code bằng thư viện ZXing.
-     *
-     * @param qrData Chuỗi dữ liệu (Ví dụ: Chuỗi EMV/NAPAS)
-     * @param size Kích thước ảnh (ví dụ: 250)
-     * @return Ảnh JavaFX Image.
-     */
-    private Image generateQrCodeImage(String qrData, int size) {
-        try {
-            Map<EncodeHintType, Object> hints = new HashMap<>();
-            hints.put(EncodeHintType.CHARACTER_SET, "UTF-8");
-            hints.put(EncodeHintType.ERROR_CORRECTION, ErrorCorrectionLevel.H); // Mức sửa lỗi cao
-
-            // 1. Mã hóa chuỗi dữ liệu thành BitMatrix
-            BitMatrix bitMatrix = new MultiFormatWriter().encode(
-                qrData,
-                BarcodeFormat.QR_CODE,
-                size,
-                size,
-                hints
-            );
-
-            // 2. Chuyển BitMatrix thành byte array (PNG format)
-            ByteArrayOutputStream os = new ByteArrayOutputStream();
-            // Dùng lớp MatrixToImageWriter của zxing-javase
-            MatrixToImageWriter.writeToStream(bitMatrix, "PNG", os);
-            
-            // 3. Tạo JavaFX Image từ byte array
-            return new Image(new ByteArrayInputStream(os.toByteArray()));
-
-        } catch (Exception e) {
-            showAlert(Alert.AlertType.ERROR, "Lỗi tạo QR", "Không thể tạo mã QR. Vui lòng kiểm tra thư viện tạo QR (ZXing) và dữ liệu QR Code.");
-            System.err.println("Lỗi tạo mã QR bằng ZXing: " + e.getMessage());
-            e.printStackTrace();
             return null;
         }
     }
@@ -1392,20 +1275,13 @@ public class DatBan implements Initializable {
         TextField txtTienTraLai = new TextField("0"); 
         
         Button btnXacNhan = new Button("Xác nhận");
-        
-        // 🔥 FIX KÍCH THƯỚC NÚT: Buộc nút chiếm tối đa chiều rộng có thể
         btnXacNhan.setMaxWidth(Double.MAX_VALUE); 
-        
-        // INLINE STYLE cho nút Xác nhận
         btnXacNhan.setStyle("-fx-background-color: #ff9900; -fx-text-fill: white; -fx-font-size: 1.2em; -fx-font-weight: bold; -fx-padding: 12px 0; -fx-background-radius: 5px; -fx-border-radius: 5px;");
         
         txtTienTraLai.setEditable(false);
         txtTienKhachDua.setAlignment(Pos.CENTER_RIGHT);
         txtTienTraLai.setAlignment(Pos.CENTER_RIGHT);
 
-
-        // 3. Logic Tính toán Tiền trả lại (Giữ nguyên)
-        
         Runnable capNhatTienThoi = () -> {
             String cleanedAmount = txtTienKhachDua.getText().replaceAll("[^0-9]", ""); 
             double tienKhachDua = 0;
@@ -1429,7 +1305,7 @@ public class DatBan implements Initializable {
             }
         };
         
-        // Xử lý nút preset (Giữ nguyên logic)
+        // Xử lý nút preset 
         for (double value : presetValues) {
             ToggleButton btn = new ToggleButton(currencyFormatter.format(value) + " VNĐ");
             btn.setUserData(value);
@@ -1446,7 +1322,7 @@ public class DatBan implements Initializable {
             flowButtonContainer.getChildren().add(btn);
         }
 
-        // Xử lý nhập tay (Giữ nguyên logic)
+        // Xử lý nhập tay 
         txtTienKhachDua.textProperty().addListener((obs, oldVal, newVal) -> {
              String filtered = newVal.replaceAll("[^0-9]", "");
              
@@ -2620,50 +2496,7 @@ public class DatBan implements Initializable {
         }
     }
 
-	// TRIỂN KHAI LOGIC TẢI THÔNG TIN LÊN FORM KHI CHỌN CARD
-    private void handleSelectBookingCard(HoaDon hd) {
-        try {
-            // 1. Tải FXML
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ChiTietDatBan_Popup.fxml"));
-            VBox root = loader.load();
-            
-            // 2. Lấy Controller
-            ChiTietDatBanController controller = loader.getController();
 
-            // 3. Tạo Stage (Cửa sổ Popup)
-            Stage popupStage = new Stage();
-            popupStage.setTitle("Chi tiết đặt bàn " + (hd.getMaHD() != null ? hd.getMaHD() : "Mới"));
-            
-            // 4. TRUYỀN DỮ LIỆU ĐẾN CONTROLLER
-            controller.setHoaDonData(hd, datBanDAO); // Truyền Hóa đơn và DAO
-            
-            // 5. Cấu hình Stage
-            Scene scene = new Scene(root);
-            
-            // 🔥 Cấu hình quan trọng: Gán Controller cha (this) vào UserData của Scene Root
-            // Dùng để các hàm trong Popup có thể gọi lại các hàm PUBLIC của DatBan.java
-            root.setUserData(this); 
-            
-            // Đường dẫn CSS (Giữ nguyên logic cũ nếu cần)
-            URL cssUrl = getClass().getResource("/css/DatBan.css");
-            if (cssUrl != null) {
-                scene.getStylesheets().add(cssUrl.toExternalForm());
-            } else {
-                 System.err.println("Không tìm thấy file css. Đảm bảo nó nằm trong src/main/resources/css/");
-            }
-            
-            popupStage.setScene(scene);
-            popupStage.show();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Lỗi UI", "Không thể tải giao diện chi tiết đặt bàn: " + e.getMessage());
-        } catch (Exception e) {
-             e.printStackTrace();
-             showAlert(Alert.AlertType.ERROR, "Lỗi Hệ thống", "Đã xảy ra lỗi không xác định khi mở Popup: " + e.getMessage());
-        }
-    }
-    
     // =========================================================
     // LOGIC TẢI MENU VÀ GỌI MÓN (ĐÃ SỬA)
     // =========================================================
@@ -2950,17 +2783,6 @@ public class DatBan implements Initializable {
         alert.showAndWait();
     }
     
-    // === THÊM MỚI ===
-    private Optional<ButtonType> showAlertConfirm(String title, String content) {
-        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(content);
-        return alert.showAndWait();
-    }
-
-    
-
  // =========================================================
     // XỬ LÝ TÌM BÀN TRỐNG THEO THỜI GIAN
     // === ĐÃ SỬA: SỬ DỤNG GIỜ TÌM KIẾM ĐỂ TÍNH MÀU SẮC (KHẮC PHỤC LỖI MẤT MÀU) ===
@@ -2972,11 +2794,6 @@ public class DatBan implements Initializable {
         LocalTime gio; // // Giờ tìm kiếm
         java.sql.Timestamp ts; //
 
-        // Lưu trạng thái xem HĐ cũ (vì clearFormDatBan sẽ xóa nó)
-        boolean dangXemHoaDonCu = (this.currentHoaDon != null); 
-        
-        // Cần lưu lại cụm HĐ cũ để hiển thị màu trở lại nếu cần
-        List<HoaDon> cumHoaDonDangXemSnapshot = new ArrayList<>(this.currentHoaDonGocVaPhu);
 
 
         try {
@@ -3060,36 +2877,7 @@ public class DatBan implements Initializable {
             loadTableGrids(); 
         }
     }
-    /**
-     * 🔥 HÀM HELPER MỚI: Tải lại sơ đồ bàn dựa trên trạng thái của cụm HĐ đang xem
-     * (Dùng khi có lỗi trong handleTimBanTrong)
-     */
-    private void loadTableGridsBaseBasedOnCurrentBooking(List<HoaDon> cumHoaDonDangXem) {
-         List<Ban> tatCaBan = datBanDAO.getAllBan(); // Lấy tất cả bàn
-         Set<String> maBanDangXemSet = cumHoaDonDangXem.stream()
-                                            .filter(hd -> hd.getBan() != null)
-                                            .map(hd -> hd.getBan().getMaBan())
-                                            .collect(Collectors.toSet());
-         HoaDon hoaDonGoc = cumHoaDonDangXem.stream().filter(hd->hd.getMaHDGoc() == null).findFirst().orElse(null);
-         TrangThaiBan trangThaiCanTo = (hoaDonGoc != null && TrangThaiHoaDon.fromDbValue(hoaDonGoc.getTrangThai().getDbValue()) == TrangThaiHoaDon.DANG_SU_DUNG)
-                                                  ? TrangThaiBan.DANG_SU_DUNG
-                                                  : TrangThaiBan.DA_DAT;
-
-         List<Ban> banHienThi = new ArrayList<>();
-         LocalTime thoiGianHienTai = LocalTime.now();
-         for (Ban ban : tatCaBan) {
-              Ban banMoi = new Ban(ban.getMaBan(), ban.getViTri(), ban.getSucChua(), ban.getLoaiBan(), ban.getTrangThai());
-              if (maBanDangXemSet.contains(ban.getMaBan())) {
-                  banMoi.setTrangThai(trangThaiCanTo); // Tô màu cho bàn đang xem
-              } else {
-                   // Với các bàn khác, lấy trạng thái theo giờ hiện tại (logic cũ của loadTableGrids)
-                   TrangThaiBan ttHienThi = getTrangThaiHienThi(banMoi, thoiGianHienTai);
-                   banMoi.setTrangThai(ttHienThi);
-              }
-              banHienThi.add(banMoi);
-         }
-         loadTableGridsBase(banHienThi); // Vẽ lại lưới
-    }
+  
     /**
      * 🔥 HÀM MỚI: Cập nhật trạng thái hiển thị của các nút chức năng
      * @param isViewingOldHoaDon true nếu đang xem HĐ cũ, false nếu đang tạo HĐ mới.
@@ -3479,7 +3267,4 @@ public class DatBan implements Initializable {
             .filter(hd -> hd.getBan() != null)
             .anyMatch(hd -> hd.getBan().getMaBan().equals(ban.getMaBan()));
     }
-
-   
-   
 }

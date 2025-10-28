@@ -5,6 +5,7 @@ import java.time.LocalDateTime; // Import LocalDateTime
 import java.time.format.DateTimeFormatter;
 import java.util.List; // Import List
 import java.util.Optional; // Import Optional
+import java.util.regex.Pattern; // === THAY ĐỔI ===: Thêm import để kiểm tra regex
 
 import dao.KhachHangDAO;
 import dao.HoaDonDAO; // THÊM IMPORT HoaDonDAO
@@ -51,7 +52,7 @@ public class KhachHang {
     @FXML private Button btnTim; // Nút tìm kiếm
 
     // === Thuộc tính khác ===
- // ✅ Đảm bảo các formatter này được khởi tạo đúng và là final
+    // ✅ Đảm bảo các formatter này được khởi tạo đúng và là final
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
     private final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
@@ -60,6 +61,10 @@ public class KhachHang {
 
     private ObservableList<entity.KhachHang> masterCustomerList; // Danh sách gốc
     private FilteredList<entity.KhachHang> filteredCustomerList; // Danh sách hiển thị sau lọc
+
+    // === THAY ĐỔI ===: Thêm các biến Regex để kiểm tra
+    private static final Pattern PHONE_REGEX = Pattern.compile("^0\\d{9}$");
+    private static final Pattern EMAIL_REGEX = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$");
 
 
     // ==================================
@@ -83,9 +88,12 @@ public class KhachHang {
 
     /** Cài đặt bộ lọc ComboBox và sự kiện nút Tìm */
     private void setupFiltersAndSearch() {
+        // === THAY ĐỔI: Đã xóa "Guest" khỏi danh sách ===
         filterComboBox.setItems(FXCollections.observableArrayList(
-            "Tất cả", "Member", "Gold", "Diamond", "Guest" // Thêm Guest nếu có
+            "Tất cả", "Member", "Gold", "Diamond"
         ));
+        // === KẾT THÚC THAY ĐỔI ===
+        
         filterComboBox.setValue("Tất cả"); // Giá trị mặc định
 
         // Lắng nghe thay đổi ComboBox và ô tìm kiếm, gọi updateFilter
@@ -226,16 +234,17 @@ public class KhachHang {
 
     /** Xử lý nút Thêm */
     private void handleThem() {
-        String hoTen = txtHoTen.getText().trim(); String sdt = txtSDT.getText().trim();
-        String diaChi = txtDiaChi.getText().trim(); String email = txtEmail.getText().trim();
+        String hoTen = txtHoTen.getText().trim();
+        String sdt = txtSDT.getText().trim();
+        String diaChi = txtDiaChi.getText().trim();
+        String email = txtEmail.getText().trim();
         LocalDate ngayDangKy = datePickerNgayDangKy.getValue();
 
-        // Kiểm tra thông tin bắt buộc
-        if (hoTen.isEmpty() || sdt.isEmpty() || ngayDangKy == null) {
-            showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập Họ tên, SĐT và Ngày đăng ký.");
-            return;
+        // === THAY ĐỔI ===: Cập nhật lời gọi hàm, truyền thêm 'diaChi'
+        if (!validateInput(hoTen, sdt, diaChi, email, ngayDangKy, null)) {
+            return; // Dừng nếu dữ liệu không hợp lệ
         }
-        // TODO: Thêm kiểm tra định dạng SĐT, Email nếu cần
+        // === KẾT THÚC THAY ĐỔI ===
 
         String newId = khachHangDAO.getNewMaKH();
         String loaiKH = "Member"; // Mặc định khi thêm mới
@@ -247,6 +256,13 @@ public class KhachHang {
             // FilteredList sẽ tự cập nhật nếu khách hàng mới khớp bộ lọc hiện tại
             tblKhachHang.getSelectionModel().select(newCustomer); // Tự động chọn khách hàng mới thêm
             showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã thêm khách hàng mới.");
+            
+            // LƯU Ý: Khách hàng mới thêm sẽ không hiển thị ngay nếu bộ lọc
+            // DAO (chỉ hiện người đã thanh toán) được áp dụng.
+            // Cần F5 (loadDatabaseData) để thấy họ (nếu họ vừa thanh toán).
+            // Tạm thời chấp nhận hành vi này, vì họ chưa có hóa đơn thanh toán
+            // nên việc không hiển thị là ĐÚNG theo logic mới.
+            
         } else {
             showAlert(Alert.AlertType.ERROR, "Lỗi CSDL", "Thêm khách hàng thất bại.");
         }
@@ -260,15 +276,17 @@ public class KhachHang {
             return;
         }
 
-        String hoTen = txtHoTen.getText().trim(); String sdt = txtSDT.getText().trim();
-        String diaChi = txtDiaChi.getText().trim(); String email = txtEmail.getText().trim();
+        String hoTen = txtHoTen.getText().trim();
+        String sdt = txtSDT.getText().trim();
+        String diaChi = txtDiaChi.getText().trim();
+        String email = txtEmail.getText().trim();
         LocalDate ngayDangKy = datePickerNgayDangKy.getValue();
 
-        if (hoTen.isEmpty() || sdt.isEmpty() || ngayDangKy == null) {
-            showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập Họ tên, SĐT và Ngày đăng ký.");
-            return;
+        // === THAY ĐỔI ===: Cập nhật lời gọi hàm, truyền thêm 'diaChi'
+        if (!validateInput(hoTen, sdt, diaChi, email, ngayDangKy, selectedCustomer)) {
+            return; // Dừng nếu dữ liệu không hợp lệ
         }
-        // TODO: Thêm kiểm tra định dạng SĐT, Email
+        // === KẾT THÚC THAY ĐỔI ===
 
         // Cập nhật đối tượng trong bộ nhớ
         selectedCustomer.setTenKH(hoTen);
@@ -323,6 +341,102 @@ public class KhachHang {
         tblKhachHang.getSelectionModel().clearSelection(); // Bỏ chọn dòng
         txtHoTen.requestFocus(); // Focus vào ô Họ tên
     }
+
+    // === THAY ĐỔI ===: Cập nhật hàm kiểm tra dữ liệu đầu vào
+    /**
+     * Kiểm tra tính hợp lệ của dữ liệu đầu vào từ form.
+     * Hiển thị cảnh báo nếu có lỗi và focus vào trường bị lỗi.
+     *
+     * @param hoTen Họ tên khách hàng
+     * @param sdt Số điện thoại
+     * @param diaChi Địa chỉ // === THAY ĐỔI ===: Thêm tham số diaChi
+     * @param email Email
+     * @param ngayDangKy Ngày đăng ký
+     * @param customerBeingEdited Khách hàng đang được sửa (null nếu là thêm mới)
+     * @return true nếu hợp lệ, false nếu có lỗi.
+     */
+    private boolean validateInput(String hoTen, String sdt, String diaChi, String email, LocalDate ngayDangKy, entity.KhachHang customerBeingEdited) {
+        // 1. Kiểm tra Họ tên (tenKH ≠ null, ≠ "")
+        if (hoTen.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Tên khách hàng không được để trống.");
+            txtHoTen.requestFocus();
+            return false;
+        }
+
+        // 2. Kiểm tra Số điện thoại (10 số, bắt đầu bằng 0)
+        if (sdt.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Số điện thoại không được để trống.");
+            txtSDT.requestFocus();
+            return false;
+        }
+        if (!PHONE_REGEX.matcher(sdt).matches()) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Số điện thoại không hợp lệ. Phải là 10 chữ số và bắt đầu bằng 0.");
+            txtSDT.requestFocus();
+            return false;
+        }
+
+        // 2.5. Kiểm tra trùng lặp Số điện thoại
+        final String currentMaKH = (customerBeingEdited != null) ? customerBeingEdited.getMaKH() : null;
+
+        boolean isDuplicate = masterCustomerList.stream()
+            .anyMatch(kh -> {
+                String existingPhone = (kh.getSoDT() != null) ? kh.getSoDT().trim() : null;
+                if (!sdt.equals(existingPhone)) {
+                    return false; 
+                }
+                if (currentMaKH == null) {
+                    return true;
+                }
+                return !kh.getMaKH().equals(currentMaKH);
+            });
+
+
+        if (isDuplicate) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Số điện thoại này đã tồn tại trong hệ thống.");
+            txtSDT.requestFocus();
+
+            if (customerBeingEdited == null) {
+                Optional<entity.KhachHang> existingCustomer = masterCustomerList.stream()
+                    .filter(kh -> sdt.equals( (kh.getSoDT() != null) ? kh.getSoDT().trim() : null ))
+                    .findFirst();
+
+                if (existingCustomer.isPresent()) {
+                    tblKhachHang.getSelectionModel().select(existingCustomer.get());
+                    tblKhachHang.scrollTo(existingCustomer.get());
+                }
+            }
+            return false;
+        }
+        
+        // === THAY ĐỔI: THÊM KIỂM TRA ĐỊA CHỈ ===
+        // 3. Kiểm tra Địa chỉ (không rỗng)
+        if (diaChi.isEmpty()) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Địa chỉ không được để trống.");
+            txtDiaChi.requestFocus();
+            return false;
+        }
+        // === KẾT THÚC THAY ĐỔI ===
+
+        // 4. Kiểm tra Email (đúng định dạng chuẩn, có ký tự "@") - (Đã đổi số thứ tự)
+        // Email là không bắt buộc (optional), nhưng nếu nhập thì phải đúng định dạng
+        if (!email.isEmpty() && !EMAIL_REGEX.matcher(email).matches()) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Email không đúng định dạng (ví dụ: example@domain.com).");
+            txtEmail.requestFocus();
+            return false;
+        }
+
+        // 5. Kiểm tra Ngày đăng ký (ngayDangKy ≠ null) - (Đã đổi số thứ tự)
+        if (ngayDangKy == null) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Vui lòng chọn ngày đăng ký.");
+            datePickerNgayDangKy.requestFocus();
+            return false;
+        }
+
+        // Nếu tất cả đều hợp lệ
+        return true;
+    }
+    // === KẾT THÚC THAY ĐỔI ===
+
 
     /** Hiển thị Dialog lịch sử hóa đơn */
    /**
@@ -509,4 +623,4 @@ public class KhachHang {
         alert.setTitle(title); alert.setHeaderText(null); alert.setContentText(content);
         alert.showAndWait();
     }
-} // End class KhachHang
+}

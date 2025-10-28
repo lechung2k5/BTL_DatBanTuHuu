@@ -330,5 +330,100 @@ public class HoaDonDAO {
         }
         return tongDoanhThu;
     }
+ // Trong HoaDonDAO.java
+
+    /**
+     * 🔥 HÀM ĐÃ SỬA: Tính tổng tiền mặt thu được dựa trên công thức tính
+     * TONGTIENTHANHTOAN của entity HoaDon (bao gồm phí, VAT như entity tính).
+     * @param maNV Mã nhân viên thu ngân.
+     * @param ngay Ngày cần tính toán.
+     * @return Tổng số tiền mặt thực tế thu được (tính theo logic entity).
+     */
+    public double getTongTienMatTrongNgay(String maNV, LocalDate ngay) {
+        double tongTienMatThucTe = 0.0;
+        // Tái tạo lại phép tính tongTienThanhToan từ HoaDon.java trong SQL:
+        // tongTienThanhToan = tongCongMonAn + phiDichVu + thueVAT - tienCoc - khuyenMai;
+        // trong đó:
+        // phiDichVu = tongCongMonAn * 0.05;
+        // thueVAT = tongCongMonAn * 0.08; (Theo HoaDon.java)
+        String sql = """
+            SELECT SUM(
+                       ISNULL(cthd_sum.TongMonAn, 0) -- tongCongMonAn
+                       + (ISNULL(cthd_sum.TongMonAn, 0) * 0.05) -- + phiDichVu
+                       + (ISNULL(cthd_sum.TongMonAn, 0) * 0.08) -- + thueVAT (Theo cách tính của HoaDon.java)
+                       - hd.tienCoc -- - tienCoc
+                       - ISNULL(ud.GiaTri / 100.0 * ISNULL(cthd_sum.TongMonAn, 0), 0) -- - khuyenMai (% trên TongMonAn)
+                   ) AS TongTienMatTinhLai
+            FROM HoaDon hd
+            LEFT JOIN (
+                -- Tính tổng tiền món cho mỗi hóa đơn
+                SELECT maHD, SUM(thanhTien) as TongMonAn
+                FROM ChiTietHoaDon
+                GROUP BY maHD
+            ) cthd_sum ON hd.maHD = cthd_sum.maHD
+            LEFT JOIN UuDai ud ON hd.maUuDai = ud.MaUuDai -- Join để lấy giá trị khuyến mãi
+            WHERE hd.maNV = ?                -- Lọc theo nhân viên
+              AND hd.trangThai = ?           -- Lọc HĐ đã thanh toán
+              AND hd.ptThanhToan = ?         -- Lọc thanh toán tiền mặt
+              AND CAST(hd.ngayLap AS DATE) = ? -- Lọc theo ngày
+        """;
+
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, maNV);
+            ps.setString(2, TrangThaiHoaDon.DA_THANH_TOAN.getDbValue());
+            ps.setString(3, PTTThanhToan.TIEN_MAT.getDbValue());
+            ps.setDate(4, Date.valueOf(ngay));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    tongTienMatThucTe = rs.getDouble(1);
+                    // Đảm bảo không âm
+                    if (tongTienMatThucTe < 0) tongTienMatThucTe = 0;
+                }
+            }
+        } catch (SQLException e) {
+             System.err.println("Lỗi khi tính tổng tiền mặt (theo entity) trong ngày của NV " + maNV + ": " + e.getMessage());
+             e.printStackTrace();
+        }
+        return tongTienMatThucTe;
+    }
+ // Trong HoaDonDAO.java
+
+    /**
+     * 🔥 HÀM MỚI: Kiểm tra xem NV có xử lý hóa đơn TIỀN MẶT nào trong ngày không.
+     * Dùng để xác định xem có cần hiển thị ô nhập kiểm kê đầu ca hay không.
+     * @param maNV Mã nhân viên.
+     * @param ngay Ngày cần kiểm tra.
+     * @return true nếu có ít nhất 1 hóa đơn tiền mặt, false nếu không.
+     * @throws SQLException Lỗi CSDL.
+     */
+    public boolean kiemTraTienMatTrongNgay(String maNV, LocalDate ngay) throws SQLException {
+        // Chỉ cần kiểm tra sự tồn tại (COUNT > 0)
+        String sql = "SELECT COUNT(*) FROM HoaDon " +
+                     "WHERE maNV = ? " +
+                     "AND trangThai = ? " + // Đã thanh toán
+                     "AND ptThanhToan = ? " + // Bằng tiền mặt
+                     "AND CAST(ngayLap AS DATE) = ?";
+
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, maNV);
+            ps.setString(2, TrangThaiHoaDon.DA_THANH_TOAN.getDbValue());
+            ps.setString(3, PTTThanhToan.TIEN_MAT.getDbValue());
+            ps.setDate(4, Date.valueOf(ngay));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                // Nếu có kết quả và COUNT(*) > 0 thì return true
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;
+                }
+            }
+        }
+        // Mặc định false nếu không tìm thấy hoặc lỗi
+        return false;
+    }
     
 }

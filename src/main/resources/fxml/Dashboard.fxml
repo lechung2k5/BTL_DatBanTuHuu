@@ -13,7 +13,7 @@
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.canvas.Canvas?>
 
-<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.DashboardController" styleClass="dashboard-container" spacing="20.0">
+<VBox fx:id="rootDashboardVBox" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ui.DashboardController" styleClass="dashboard-container" spacing="20.0">
     <padding>
         <Insets top="20.0" right="20.0" bottom="20.0" left="20.0" />
     </padding>
@@ -23,19 +23,38 @@
             <VBox spacing="10.0">
                 <children>
                     <Label text="Màn hình chính" styleClass="screen-title" />
-                    <VBox styleClass="cash-check-container" spacing="10.0">
+                    <VBox fx:id="vboxKiemKeDauCa" styleClass="cash-check-container" spacing="10.0">
                         <children>
                             <Label text="Kiểm kê tiền mặt đầu ca" styleClass="cash-check-title" />
                             <HBox spacing="10.0" alignment="CENTER_LEFT">
                                 <children>
                                     <Label text="Nhập số tiền trong két: " />
                                     <TextField fx:id="txtSoTienKiemKe" promptText="5,000,000" />
-                                    <Button text="Xác nhận" styleClass="cash-check-button" onAction="#handleCheckCash" />
+                                    <Button fx:id="btnXacNhanKiemKe" text="Xác nhận" styleClass="cash-check-button" onAction="#handleCheckCash" />
                                 </children>
                             </HBox>
                         </children>
                     </VBox>
-                </children>
+
+                    <VBox fx:id="vboxTienMatTongKet" styleClass="cash-summary-container" spacing="5.0" managed="false" visible="false"> <padding>
+                            <Insets top="15.0" />
+                        </padding>
+                        <children>
+                             <HBox alignment="CENTER_LEFT" spacing="5.0">
+                                 <Label text="Tiền mặt đầu ca:" styleClass="cash-summary-label"/>
+                                 <Label fx:id="lblTienMatDauCa" text="0 đ" styleClass="cash-summary-value-small"/>
+                             </HBox>
+                             <HBox alignment="CENTER_LEFT" spacing="5.0">
+                                 <Label text="Tiền mặt đã thu (Trong ngày):" styleClass="cash-summary-label"/>
+                                 <Label fx:id="lblTienMatThuDuoc" text="0 đ" styleClass="cash-summary-value-small"/>
+                             </HBox>
+                             <HBox alignment="CENTER_LEFT" spacing="5.0" style="-fx-border-color: #ddd transparent transparent transparent; -fx-border-width: 1 0 0 0; -fx-padding: 8 0 0 0; -fx-margin: 5 0 0 0;">
+                                 <Label text="Tiền mặt dự kiến trong két:" styleClass="cash-summary-label-bold"/>
+                                 <Label fx:id="lblTienMatDuKien" text="0 đ" styleClass="cash-summary-value-bold"/>
+                             </HBox>
+                        </children>
+                    </VBox>
+                    </children>
             </VBox>
 
             <Region HBox.hgrow="ALWAYS" />

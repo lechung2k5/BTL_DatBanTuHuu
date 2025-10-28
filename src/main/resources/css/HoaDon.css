@@ -1,3 +1,21 @@
+
+.clear-date-button {
+    -fx-background-color: transparent; /* Bỏ màu nền */
+    -fx-border-color: transparent; /* Bỏ viền */
+    -fx-padding: 5px; /* Giảm padding để nút nhỏ lại */
+    -fx-cursor: hand;
+    -fx-background-radius: 50%; /* Làm tròn nút */
+    -fx-min-width: 28px; /* Đặt kích thước cố định */
+    -fx-min-height: 28px;
+    -fx-pref-width: 28px;
+    -fx-pref-height: 28px;
+}
+.clear-date-button:hover {
+    -fx-background-color: #e0e0e0; /* Thêm hiệu ứng hover nhẹ */
+}
+.clear-date-button:pressed {
+    -fx-background-color: #d0d0d0; /* Hiệu ứng khi nhấn */
+}
 /* ==================== CHUNG ==================== */
 .root-pane { }
 .screen-title { -fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #A0522D; -fx-padding: 0; }

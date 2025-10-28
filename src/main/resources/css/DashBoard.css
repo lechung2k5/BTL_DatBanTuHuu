@@ -349,3 +349,61 @@
     -fx-text-fill: #34495e;
     -fx-alignment: center; /* Căn giữa cho đẹp */
 }
+/* === STYLE MỚI CHO PHẦN TÓM TẮT TIỀN MẶT === */
+
+/* Container chính */
+.cash-summary-container {
+    -fx-background-color: #f8f9fa; /* Nền xám nhạt giống Kiểm kê đầu ca */
+    -fx-background-radius: 10px;  /* Bo góc */
+    -fx-padding: 15px 20px;       /* Padding bên trong */
+    -fx-spacing: 8px;            /* Khoảng cách giữa các dòng */
+    -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.1), 5, 0.2, 0, 2); /* Bóng đổ nhẹ */
+    -fx-border-color: #e0e0e0;     /* Viền nhẹ (tùy chọn) */
+    -fx-border-width: 1px;
+    -fx-border-radius: 10px;
+}
+
+/* Nhãn tiêu đề (vd: "Tiền mặt đầu ca:") */
+.cash-summary-label {
+    -fx-font-size: 14px;
+    -fx-text-fill: #555555; /* Màu chữ xám đậm */
+    -fx-font-weight: 500;   /* Hơi đậm */
+    -fx-min-width: 180px;   /* Đặt chiều rộng cố định để căn chỉnh */
+    -fx-pref-width: 180px;
+}
+
+/* Nhãn tiêu đề đậm (vd: "Tiền mặt dự kiến:") */
+.cash-summary-label-bold {
+    -fx-font-size: 15px;    /* To hơn chút */
+    -fx-text-fill: #2c3e50; /* Màu chữ tiêu đề */
+    -fx-font-weight: bold;  /* Đậm */
+    -fx-min-width: 180px;   /* Đặt chiều rộng cố định */
+    -fx-pref-width: 180px;
+}
+
+/* Giá trị tiền (cỡ nhỏ) */
+.cash-summary-value-small {
+    -fx-font-size: 14px;
+    -fx-text-fill: #333333; /* Màu chữ đen nhạt */
+    -fx-font-weight: normal;
+    -fx-alignment: center-right; /* Căn phải giá trị */
+    -fx-pref-width: 150px;       /* Chiều rộng để căn phải */
+}
+
+/* Giá trị tiền (cỡ lớn, đậm - cho dòng Dự kiến) */
+.cash-summary-value-bold {
+    -fx-font-size: 16px;     /* To hơn */
+    -fx-text-fill: #e67e22;  /* Màu cam nhấn mạnh */
+    -fx-font-weight: bold;   /* Đậm */
+    -fx-alignment: center-right; /* Căn phải */
+    -fx-pref-width: 150px;        /* Chiều rộng để căn phải */
+}
+
+/* Đường kẻ ngang (Style cho HBox chứa dòng Dự kiến) */
+/* Bạn có thể thêm class="summary-divider" vào HBox đó trong FXML nếu muốn tách riêng */
+.cash-summary-container > .hbox:last-child { /* Áp dụng cho HBox cuối cùng */
+    -fx-border-color: #dddddd transparent transparent transparent; /* Viền xám nhạt phía trên */
+    -fx-border-width: 1 0 0 0;
+    -fx-padding: 10px 0 0 0; /* Padding phía trên đường kẻ */
+    -fx-margin: 8px 0 0 0;  /* Margin phía trên đường kẻ */
+}

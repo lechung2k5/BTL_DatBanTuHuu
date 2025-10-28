@@ -13,8 +13,10 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.stage.FileChooser;
@@ -74,6 +76,39 @@ public class TraCuu {
 
         setupTables();
         loadData();
+        Platform.runLater(() -> {
+            Scene scene = tblHoaDon.getScene();
+            if (scene == null) return;
+
+            scene.setOnKeyPressed(e -> {
+                if (e.isControlDown() && !e.isShiftDown() && e.getCode() == KeyCode.H) {
+                    tblHoaDon.requestFocus();
+                }
+                if (e.isControlDown() && !e.isShiftDown() && e.getCode() == KeyCode.K) {
+                    tblKhachHang.requestFocus();
+                }
+                if (e.isControlDown() && !e.isAltDown() && e.getCode() == KeyCode.F) {
+                    txtTimKiemHD.requestFocus();
+                    txtTimKiemHD.selectAll();
+                }
+                if (e.isControlDown() && e.isAltDown() && e.getCode() == KeyCode.F) {
+                    txtTimKiemKH.requestFocus();
+                    txtTimKiemKH.selectAll();
+                }
+                if (e.isControlDown() && e.isShiftDown() && e.getCode() == KeyCode.E) {
+                    if (tblHoaDon.isFocused()) handleXuatExcelHoaDon();
+                    if (tblKhachHang.isFocused()) handleXuatExcelKhachHang();
+                }
+                if (e.isControlDown() && e.getCode() == KeyCode.P && tblHoaDon.isFocused()) {
+                    HoaDonDisplay hd = tblHoaDon.getSelectionModel().getSelectedItem();
+                    if (hd != null) showFullDetailHD(hd.getMaHD());
+                }
+                if (e.getCode() == KeyCode.F5) {
+                    loadData();
+                }
+            });
+        });
+
         
         cboSapXepHD.setItems(FXCollections.observableArrayList("Theo ngày", "Theo tháng", "Theo năm"));
         cboSapXepKH.setItems(FXCollections.observableArrayList("Theo ngày", "Theo tháng", "Theo năm"));
@@ -82,6 +117,7 @@ public class TraCuu {
         txtTimKiemHD.textProperty().addListener((o, old, n) -> timHD(n));
         txtTimKiemKH.textProperty().addListener((o, old, n) -> timKH(n));
     }
+    
 
     private void setupTables() {
         // Setup bảng Hóa đơn

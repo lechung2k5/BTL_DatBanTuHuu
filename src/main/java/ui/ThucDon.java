@@ -1,6 +1,10 @@
 package ui;
 
 import dao.DanhMucMonDAO;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
+import javafx.scene.input.KeyCombination;
+
 import dao.MonAnDAO;
 import entity.MonAn; 
 
@@ -112,6 +116,83 @@ public class ThucDon {
         // ===================================
 
         // Listener khi chọn 1 hàng: Chỉ điền data
+     // ==================================================
+     // === PHÍM TẮT CRUD TRONG TRANG THỰC ĐƠN ==========
+     // ==================================================
+     txtSearch.sceneProperty().addListener((obsScene, oldScene, newScene) -> {
+         if (newScene != null) {
+
+             // Ctrl + F -> focus tìm kiếm
+             newScene.getAccelerators().put(
+                 new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
+                 () -> {
+                     txtSearch.requestFocus();
+                     txtSearch.selectAll();
+                 }
+             );
+
+             // Ctrl + N -> Thêm món
+             newScene.getAccelerators().put(
+                 new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN),
+                 () -> btnThem.fire()
+             );
+
+             // Ctrl + S -> Lưu / Sửa món
+             newScene.getAccelerators().put(
+                 new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN),
+                 () -> btnLuuForm.fire()
+             );
+
+             // Ctrl + D -> Xóa món
+             newScene.getAccelerators().put(
+                 new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
+                 () -> btnXoa.fire()
+             );
+
+             // ESC -> Xóa trắng form
+             newScene.getAccelerators().put(
+                 new KeyCodeCombination(KeyCode.ESCAPE),
+                 () -> btnXoaTrang.fire()
+             );
+
+             // Ctrl + → -> Chọn món tiếp theo
+             newScene.getAccelerators().put(
+                 new KeyCodeCombination(KeyCode.RIGHT, KeyCombination.CONTROL_DOWN),
+                 () -> {
+                     int i = tableThucDon.getSelectionModel().getSelectedIndex();
+                     if (i < tableThucDon.getItems().size() - 1) {
+                         tableThucDon.getSelectionModel().select(i + 1);
+                     }
+                 }
+             );
+
+             // Ctrl + ← -> Món phía trên
+             newScene.getAccelerators().put(
+                 new KeyCodeCombination(KeyCode.LEFT, KeyCombination.CONTROL_DOWN),
+                 () -> {
+                     int i = tableThucDon.getSelectionModel().getSelectedIndex();
+                     if (i > 0) {
+                         tableThucDon.getSelectionModel().select(i - 1);
+                     }
+                 }
+             );
+
+             // Enter trong bảng -> load dữ liệu sang form
+             tableThucDon.setOnKeyPressed(e -> {
+                 if (e.getCode() == KeyCode.ENTER) {
+                     MenuItem item = tableThucDon.getSelectionModel().getSelectedItem();
+                     if (item != null) {
+                         txtTenMon.setText(item.getName());
+                         txtDonGia.setText(String.valueOf(item.getPrice()));
+                         previewImg.setImage(item.getImage());
+                         txtDanhMuc.setText(item.getCategory());
+                         formInputArea.setVisible(true);
+                     }
+                 }
+             });
+         }
+     });
+
         tableThucDon.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
                 txtTenMon.setText(newSelection.getName());
