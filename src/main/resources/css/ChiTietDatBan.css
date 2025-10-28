@@ -58,3 +58,10 @@
     /* -fx-focus-color: #ff9100; */
     /* Add other combo-box styles if needed */
 }
+.disabled-list-cell {
+    /* Thay vì dùng biến, dùng trực tiếp mã màu HEX */
+    -fx-text-fill: #808080; /* Màu xám (Gray) - Bạn có thể thử #a9a9a9 nếu muốn xám nhạt hơn */
+    
+    /* (Optional) Thêm hiệu ứng con trỏ nếu muốn rõ hơn là không click được */
+    /* -fx-cursor: default; */ 
+}

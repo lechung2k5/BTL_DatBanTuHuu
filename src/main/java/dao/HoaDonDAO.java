@@ -257,5 +257,78 @@ public class HoaDonDAO {
         }
         return hoaDon;
     }
+// Trong HoaDonDAO.java
+    
+    /**
+     * 🔥 HÀM MỚI (Thay thế LSĐN): Kiểm tra xem một nhân viên có thực hiện
+     * thanh toán hóa đơn nào trong một ngày cụ thể hay không.
+     * @param maNV Mã nhân viên thu ngân cần kiểm tra.
+     * @param ngay Ngày cần kiểm tra (LocalDate).
+     * @return true nếu có ít nhất một hóa đơn được xử lý bởi NV đó trong ngày, false nếu không.
+     * @throws SQLException Nếu có lỗi truy vấn CSDL.
+     */
+    public boolean kiemTraHoatDongNVTrongNgay(String maNV, LocalDate ngay) throws SQLException {
+        // Kiểm tra cột maNV trong bảng HoaDon, lọc theo ngày (CAST ngày)
+        // Chỉ cần COUNT(*) > 0 là đủ
+        String sql = "SELECT COUNT(*) FROM HoaDon WHERE maNV = ? AND CAST(ngayLap AS DATE) = ?"; 
+        // Lưu ý: Có thể dùng gioRa thay cho ngayLap nếu logic của bạn phù hợp hơn
+
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+             
+            ps.setString(1, maNV);
+            ps.setDate(2, Date.valueOf(ngay)); // Chuyển LocalDate sang java.sql.Date
+            
+            try (ResultSet rs = ps.executeQuery()) {
+                // Nếu có kết quả và COUNT(*) > 0 thì tức là có hoạt động
+                if (rs.next() && rs.getInt(1) > 0) {
+                    return true;
+                }
+            }
+        } 
+        // Nếu không tìm thấy hoặc có lỗi, coi như không hoạt động
+        return false; 
+    }
+    /**
+     * 🔥 HÀM MỚI: Tính tổng doanh thu (từ ChiTietHoaDon) của các hóa đơn
+     * mà một nhân viên đã xử lý (thanh toán) trong một khoảng thời gian (tháng).
+     * @param maNV Mã nhân viên thu ngân.
+     * @param dauThang Ngày đầu tiên của tháng.
+     * @param cuoiThang Ngày cuối cùng của tháng.
+     * @return Tổng doanh thu (double).
+     */
+    public double getDoanhThuNhanVienTrongThang(String maNV, LocalDate dauThang, LocalDate cuoiThang) {
+        double tongDoanhThu = 0.0;
+        // Sum thanhTien từ CTHD, join với HoaDon để lọc theo maNV và ngày
+        // Chỉ tính những hóa đơn đã thanh toán (trangThai = 'DaThanhToan')
+        String sql = "SELECT SUM(cthd.thanhTien) " +
+                     "FROM ChiTietHoaDon cthd " +
+                     "JOIN HoaDon hd ON cthd.maHD = hd.maHD " +
+                     "WHERE hd.maNV = ? " +
+                     "AND hd.trangThai = ? " + // Chỉ tính HĐ đã thanh toán
+                     "AND hd.ngayLap BETWEEN ? AND ?"; // Lọc theo ngày lập hóa đơn
+
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+
+            ps.setString(1, maNV);
+            ps.setString(2, TrangThaiHoaDon.DA_THANH_TOAN.getDbValue()); // Lọc HĐ đã thanh toán
+            // Chuyển LocalDate sang Timestamp (hoặc Date nếu cột ngayLap là DATE)
+            // Lấy thời điểm đầu ngày và cuối ngày để bao trọn cả tháng
+            ps.setTimestamp(3, Timestamp.valueOf(dauThang.atStartOfDay()));
+            ps.setTimestamp(4, Timestamp.valueOf(cuoiThang.atTime(23, 59, 59)));
+
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    // Lấy kết quả SUM, nếu là NULL (không có HĐ nào) thì trả về 0
+                    tongDoanhThu = rs.getDouble(1);
+                }
+            }
+        } catch (SQLException e) {
+             System.err.println("Lỗi khi tính tổng doanh thu của NV " + maNV + ": " + e.getMessage());
+            e.printStackTrace();
+        }
+        return tongDoanhThu;
+    }
     
 }

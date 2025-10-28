@@ -103,16 +103,24 @@ public class DatBanDAO {
         // 2. Không tìm thấy -> Tạo khách hàng mới
         try (Connection con = ConnectDB.getConnection()) {
             String newMaKH = getNextMaKH();
-            String tenKhachMoi = (tenKH == null || tenKH.trim().isEmpty()) ? "Khách vãng lai" : tenKH.trim();
+
+            // === SỬA ĐỔI QUAN TRỌNG ===
+            // Nếu tenKH là null hoặc rỗng, gán là null. Ngược lại, lấy giá trị đã trim().
+            String tenKhachMoi = (tenKH == null || tenKH.trim().isEmpty()) ? null : tenKH.trim();
+            // === KẾT THÚC SỬA ĐỔI ===
+
             LocalDate ngayHienTai = LocalDate.now();
             String insertSql = "INSERT INTO KhachHang (maKH, tenKH, soDT, ngayDangKy, thanhVien) VALUES (?, ?, ?, ?, ?)";
 
             try (PreparedStatement psInsert = con.prepareStatement(insertSql)) {
                 psInsert.setString(1, newMaKH);
-                psInsert.setNString(2, tenKhachMoi); // Dùng setNString cho nvarchar
+
+                // Chỗ này setNString với giá trị tenKhachMoi (có thể là null hoặc tên người dùng nhập)
+                psInsert.setNString(2, tenKhachMoi); 
+
                 psInsert.setString(3, sdt);
-                psInsert.setDate(4, java.sql.Date.valueOf(ngayHienTai)); // Chuyển LocalDate sang sql.Date
-                psInsert.setNString(5, "Guest"); // Mặc định hạng thành viên
+                psInsert.setDate(4, java.sql.Date.valueOf(ngayHienTai)); 
+                psInsert.setNString(5, "Guest"); 
                 psInsert.executeUpdate();
 
                 System.out.println("LOG DAO: Đã tạo khách hàng mới: " + newMaKH + " - " + tenKhachMoi);
@@ -124,8 +132,6 @@ public class DatBanDAO {
             throw e; // Ném lại lỗi
         }
     }
-
-
      /**
       * Lưu Hóa đơn và Chi tiết Hóa đơn (Đơn đặt hàng/đến quán)
       * === ĐÃ SỬA: Thêm cột maHDGoc ===
@@ -1434,4 +1440,150 @@ public class DatBanDAO {
             throw e; // Ném lỗi để transaction rollback
         }
     }
+    /**
+     * CHỈ TÌM KIẾM khách hàng theo SĐT. Không tạo mới.
+     * @param sdt Số điện thoại cần tìm.
+     * @return Đối tượng KhachHang nếu tìm thấy, ngược lại trả về null.
+     */
+     public KhachHang timKhachHangBySDT(String sdt) {
+        String selectSql = "SELECT maKH, tenKH, soDT, email, ngayDangKy, thanhVien, diaChi FROM KhachHang WHERE soDT = ?";
+        try (Connection con = ConnectDB.getConnection();
+             PreparedStatement psSelect = con.prepareStatement(selectSql)) {
+            psSelect.setString(1, sdt);
+            try (ResultSet rs = psSelect.executeQuery()) {
+                if (rs.next()) {
+                    // Tìm thấy -> Tạo đối tượng KhachHang từ dữ liệu DB
+                    LocalDate ngayDangKyFromDB = rs.getDate("ngayDangKy") != null ? rs.getDate("ngayDangKy").toLocalDate() : null;
+                    return new KhachHang(
+                        rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"),
+                        rs.getString("email"), ngayDangKyFromDB, rs.getString("diaChi"),
+                        rs.getString("thanhVien")
+                    );
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Lỗi khi TÌM khách hàng theo SĐT: " + e.getMessage());
+            // Không ném lỗi, chỉ trả về null
+        }
+        // Không tìm thấy
+        return null;
+    }
+  // Trong DatBanDAO.java
+
+     /**
+      * 🔥 HÀM MỚI: Lấy danh sách các mã bàn (duy nhất) đang có hóa đơn
+      * ở trạng thái "Đang phục vụ".
+      * @return List chứa các mã bàn đang phục vụ.
+      */
+     public List<String> getMaBanDangPhucVu() {
+         List<String> maBanList = new ArrayList<>();
+         // Lấy DISTINCT maBan từ HoaDon có trạng thái DangSuDung và maBan không null
+         String sql = "SELECT DISTINCT maBan FROM HoaDon WHERE trangThai = ? AND maBan IS NOT NULL";
+
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql)) {
+
+             ps.setString(1, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue()); // Dùng Enum để lấy giá trị DB
+
+             try (ResultSet rs = ps.executeQuery()) {
+                 while (rs.next()) {
+                     maBanList.add(rs.getString("maBan"));
+                 }
+             }
+         } catch (SQLException e) {
+             System.err.println("Lỗi khi lấy danh sách mã bàn đang phục vụ: " + e.getMessage());
+             e.printStackTrace();
+         }
+         return maBanList;
+     }
+  // Trong DatBanDAO.java
+
+     /**
+      * 🔥 HÀM MỚI: Đếm số lượng bàn duy nhất đang có hóa đơn
+      * ở trạng thái "Đã đặt".
+      * @return Số lượng bàn đã đặt trước.
+      */
+     public int demSoBanDatTruoc() {
+         // Đếm DISTINCT maBan từ HoaDon có trạng thái Dat và maBan không null
+         String sql = "SELECT COUNT(DISTINCT maBan) FROM HoaDon WHERE trangThai = ? AND maBan IS NOT NULL";
+         int count = 0;
+
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql)) {
+
+             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue()); // Dùng Enum để lấy giá trị DB
+
+             try (ResultSet rs = ps.executeQuery()) {
+                 if (rs.next()) {
+                     count = rs.getInt(1); // Lấy kết quả COUNT
+                 }
+             }
+         } catch (SQLException e) {
+             System.err.println("Lỗi khi đếm số bàn đặt trước: " + e.getMessage());
+             e.printStackTrace();
+         }
+         return count;
+     }
+
+     /**
+      * 🔥 HÀM MỚI: Đếm tổng số bàn có trong nhà hàng.
+      * @return Tổng số bàn.
+      */
+     public int demTongSoBan() {
+         String sql = "SELECT COUNT(*) FROM Ban";
+         int count = 0;
+
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql);
+              ResultSet rs = ps.executeQuery()) {
+
+             if (rs.next()) {
+                 count = rs.getInt(1); // Lấy kết quả COUNT
+             }
+         } catch (SQLException e) {
+             System.err.println("Lỗi khi đếm tổng số bàn: " + e.getMessage());
+             e.printStackTrace();
+         }
+         // Trả về 0 nếu có lỗi hoặc không có bàn nào
+         return count;
+     }
+  // Trong DatBanDAO.java
+
+    
+
+     /**
+      * 🔥 HÀM MỚI: Lấy danh sách các Hóa đơn (chỉ thông tin cơ bản)
+      * đang ở trạng thái "Đang phục vụ" và có gán bàn.
+      * @return List các đối tượng HoaDon (chỉ chứa maHD, maBan, trangThai).
+      */
+     public List<HoaDon> getHoaDonDangPhucVu() {
+         List<HoaDon> hoaDonList = new ArrayList<>();
+         // Lấy maHD và maBan từ HoaDon có trạng thái DangSuDung và maBan không null
+         String sql = "SELECT maHD, maBan FROM HoaDon WHERE trangThai = ? AND maBan IS NOT NULL";
+
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql)) {
+
+             ps.setString(1, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
+
+             try (ResultSet rs = ps.executeQuery()) {
+                 while (rs.next()) {
+                     HoaDon hd = new HoaDon();
+                     hd.setMaHD(rs.getString("maHD"));
+                     hd.setTrangThai(TrangThaiHoaDon.DANG_SU_DUNG); // Gán trạng thái
+
+                     // Tạo đối tượng Ban tạm thời chỉ với mã bàn
+                     Ban ban = new Ban();
+                     ban.setMaBan(rs.getString("maBan"));
+                     hd.setBan(ban);
+
+                     hoaDonList.add(hd);
+                 }
+             }
+         } catch (SQLException e) {
+             System.err.println("Lỗi khi lấy danh sách hóa đơn đang phục vụ: " + e.getMessage());
+             e.printStackTrace();
+         }
+         return hoaDonList;
+     }
 }

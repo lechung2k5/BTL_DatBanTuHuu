@@ -43,7 +43,7 @@ public class DangNhap {
         TaiKhoan taiKhoan = taiKhoanDAO.kiemTraDangNhap(maNhanVien, password);
 
         if (taiKhoan != null) {
-            showInfoAlert("Đăng nhập thành công", "Xin chào " + taiKhoan.getNhanVien().getHoTen() + "!");
+           
 
             // 🔥 THÊM DÒNG NÀY: Lưu thông tin người dùng vào MainApp
             MainApp.setLoggedInUser(taiKhoan);

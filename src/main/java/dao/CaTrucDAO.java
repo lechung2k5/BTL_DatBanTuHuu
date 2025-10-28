@@ -5,6 +5,7 @@ import entity.CaTruc;
 import entity.NhanVien;
 
 import java.sql.*;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
@@ -203,4 +204,129 @@ public class CaTrucDAO {
             return false;
         }
     }
+  // Trong CaTrucDAO.java
+     
+     /**
+      * 🔥 HÀM MỚI: Lấy danh sách các ngày (duy nhất) mà một nhân viên có lịch làm việc
+      * trong một khoảng thời gian cụ thể. Dùng để tính toán ngày nghỉ.
+      * @param maNV Mã nhân viên.
+      * @param tuNgay Ngày bắt đầu khoảng thời gian.
+      * @param denNgay Ngày kết thúc khoảng thời gian.
+      * @return Danh sách các LocalDate mà nhân viên có lịch làm.
+      */
+     public List<LocalDate> getNgayCoLichLam(String maNV, LocalDate tuNgay, LocalDate denNgay) {
+         List<LocalDate> ngayLam = new ArrayList<>();
+         // Chỉ cần lấy ngày DISTINCT (duy nhất), không cần chi tiết ca
+         String sql = "SELECT DISTINCT ngay FROM CaTruc WHERE maNV = ? AND ngay BETWEEN ? AND ?"; 
+         
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql)) {
+              
+             ps.setString(1, maNV);
+             ps.setDate(2, Date.valueOf(tuNgay));   // Chuyển LocalDate sang java.sql.Date
+             ps.setDate(3, Date.valueOf(denNgay));   // Chuyển LocalDate sang java.sql.Date
+             
+             try (ResultSet rs = ps.executeQuery()) {
+                 while (rs.next()) {
+                     // Lấy ngày từ CSDL và thêm vào danh sách
+                     ngayLam.add(rs.getDate("ngay").toLocalDate()); 
+                 }
+             }
+         } catch (SQLException e) {
+             System.err.println("Lỗi khi lấy ngày có lịch làm của NV " + maNV + ": " + e.getMessage());
+             e.printStackTrace(); // In chi tiết lỗi để debug
+             // Trả về danh sách rỗng nếu có lỗi
+         }
+         return ngayLam;
+     }
+  // Trong CaTrucDAO.java
+
+     /**
+      * 🔥 HÀM MỚI: Lấy tất cả các ca trực của một nhân viên trong một khoảng thời gian (tháng).
+      * @param maNV Mã nhân viên.
+      * @param dauThang Ngày đầu tiên của tháng.
+      * @param cuoiThang Ngày cuối cùng của tháng.
+      * @return Danh sách các đối tượng CaTruc của nhân viên đó trong tháng.
+      */
+     public List<CaTruc> getCaTrucTrongThang(String maNV, LocalDate dauThang, LocalDate cuoiThang) {
+         List<CaTruc> caTrucList = new ArrayList<>();
+         // Lấy đầy đủ thông tin ca trực, join với NhanVien để có tên (nếu cần)
+         String sql = "SELECT CT.*, NV.tenNV " +
+                      "FROM CaTruc CT " +
+                      "JOIN NhanVien NV ON CT.maNV = NV.maNV " +
+                      "WHERE CT.ngay BETWEEN ? AND ? AND CT.maNV = ?"; // Lọc theo ngày VÀ mã NV
+
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql)) {
+
+             ps.setDate(1, Date.valueOf(dauThang));
+             ps.setDate(2, Date.valueOf(cuoiThang));
+             ps.setString(3, maNV);
+
+             try (ResultSet rs = ps.executeQuery()) {
+                 while (rs.next()) {
+                     NhanVien nv = new NhanVien();
+                     nv.setMaNV(rs.getString("maNV"));
+                     nv.setHoTen(rs.getString("tenNV")); // Dùng setter của UI property
+
+                     CaTruc caTruc = new CaTruc(
+                         rs.getString("maCa"),
+                         rs.getDate("ngay").toLocalDate(),
+                         rs.getTime("gioBatDau").toLocalTime(),
+                         rs.getTime("gioKetThuc").toLocalTime(),
+                         nv
+                     );
+                     caTrucList.add(caTruc);
+                 }
+             }
+         } catch (SQLException e) {
+              System.err.println("Lỗi khi lấy ca trực trong tháng của NV " + maNV + ": " + e.getMessage());
+             e.printStackTrace();
+         }
+         return caTrucList;
+     }
+  // Trong CaTrucDAO.java
+
+     /**
+      * 🔥 HÀM MỚI: Tính tổng số giờ làm THEO LỊCH của một nhân viên trong tháng.
+      * Chỉ dựa vào bảng CaTruc, không kiểm tra hoạt động.
+      * @param maNV Mã nhân viên.
+      * @param dauThang Ngày đầu tiên của tháng.
+      * @param cuoiThang Ngày cuối cùng của tháng.
+      * @return Tổng số giờ làm theo lịch (double).
+      */
+     public double getTongGioLamTheoLich(String maNV, LocalDate dauThang, LocalDate cuoiThang) {
+         long tongSoPhutTheoLich = 0;
+         // Lấy thông tin ca trực (chỉ cần giờ bắt đầu, kết thúc)
+         String sql = "SELECT gioBatDau, gioKetThuc " +
+                      "FROM CaTruc " +
+                      "WHERE ngay BETWEEN ? AND ? AND maNV = ?";
+
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql)) {
+
+             ps.setDate(1, Date.valueOf(dauThang));
+             ps.setDate(2, Date.valueOf(cuoiThang));
+             ps.setString(3, maNV);
+
+             try (ResultSet rs = ps.executeQuery()) {
+                 while (rs.next()) {
+                     LocalTime batDau = rs.getTime("gioBatDau").toLocalTime();
+                     LocalTime ketThuc = rs.getTime("gioKetThuc").toLocalTime();
+                     Duration thoiLuongCa = Duration.between(batDau, ketThuc);
+
+                     // Xử lý ca qua đêm
+                     if (ketThuc.isBefore(batDau)) {
+                         thoiLuongCa = thoiLuongCa.plusHours(24);
+                     }
+                     tongSoPhutTheoLich += thoiLuongCa.toMinutes(); // Cộng dồn số phút
+                 }
+             }
+         } catch (SQLException e) {
+              System.err.println("Lỗi khi tính tổng giờ làm theo lịch của NV " + maNV + ": " + e.getMessage());
+             e.printStackTrace();
+         }
+         // Chuyển đổi tổng số phút sang giờ (kiểu double để có thể có số lẻ)
+         return (double) tongSoPhutTheoLich / 60.0;
+     }
 }
