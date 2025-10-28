@@ -1,6 +1,9 @@
 package ui;
 
 import dao.UuDaiDAO;
+import javafx.event.EventHandler;
+import javafx.scene.Scene;
+
 import entity.UuDai;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -47,6 +50,11 @@ public class KhuyenMai {
     private Promotion selectedPromotion = null;
     private boolean isEditMode = false;
     private String currentMaKM = null;
+    private EventHandler<KeyEvent> kmShortcutHandler;
+
+    private Scene currentScene;
+
+
 
     // Định nghĩa phím tắt
     private final KeyCombination keyCtrlN = new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN);
@@ -181,48 +189,72 @@ public class KhuyenMai {
     }
 
     private void setupKeyboardShortcuts() {
-        tblKhuyenMai.getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+    	
+
+        Scene scene = tblKhuyenMai.getScene();
+        if (scene == null) return;
+
+        // Xóa handler cũ trước khi add mới
+        if (kmShortcutHandler != null) {
+            scene.removeEventFilter(KeyEvent.KEY_PRESSED, kmShortcutHandler);
+        }
+
+        kmShortcutHandler = event -> {
+
+            // Chỉ chạy shortcut khi VIEW còn đang hiển thị
+            if (!tblKhuyenMai.isVisible()) return;
+
             // Ctrl + N: Thêm voucher mới
             if (keyCtrlN.match(event)) {
-                event.consume();
                 themKhuyenMai();
+                event.consume();
             }
-            // Ctrl + E: Sửa voucher
+            // Ctrl + E: Sửa
             else if (keyCtrlE.match(event)) {
-                event.consume();
                 chinhSuaKhuyenMai();
+                event.consume();
             }
-            // Ctrl + D: Xóa voucher
+            // Ctrl + D: Xóa
             else if (keyCtrlD.match(event)) {
-                event.consume();
                 xoaKhuyenMaiDaChon();
-            }
-            // Ctrl + F: Tìm voucher
-            else if (keyCtrlF.match(event)) {
                 event.consume();
-                focusTimKiem();
             }
             // Ctrl + S: Lưu
             else if (keyCtrlS.match(event)) {
+                if (isEditMode) luuKhuyenMai();
                 event.consume();
-                if (isEditMode) {
-                    luuKhuyenMai();
-                }
             }
-            // Alt + A: Hiển thị voucher đang áp dụng
-            else if (keyAltA.match(event)) {
+            // Ctrl + F: Focus ô tìm kiếm
+            else if (keyCtrlF.match(event)) {
+                focusTimKiem();
                 event.consume();
+            }
+            // Alt + A: Đang áp dụng
+            else if (keyAltA.match(event)) {
                 filterComboBox.setValue("Đang áp dụng");
                 filterPromotions("Đang áp dụng");
-            }
-            // Alt + E: Hiển thị voucher hết hạn
-            else if (keyAltE.match(event)) {
                 event.consume();
+            }
+            // Alt + E: Đã hết hạn
+            else if (keyAltE.match(event)) {
                 filterComboBox.setValue("Đã hết hạn");
                 filterPromotions("Đã hết hạn");
+                event.consume();
             }
-        });
+        };
+
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, kmShortcutHandler);
+
+
     }
+    public void disableKeyboardShortcuts() {
+        if (kmShortcutHandler != null && tblKhuyenMai.getScene() != null) {
+            tblKhuyenMai.getScene().removeEventFilter(KeyEvent.KEY_PRESSED, kmShortcutHandler);
+            System.out.println("⛔ Shortcut Khuyến Mãi đã được GỠ!");
+        }
+    }
+
+
 
     // ==================== XỬ LÝ DATABASE ====================
     

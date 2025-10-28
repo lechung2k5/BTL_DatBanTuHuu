@@ -48,6 +48,9 @@ public class ThongKe {
     
     @FXML private Label lblTangTretTotal;
     @FXML private Label lblTang1Total;
+    // Danh sách lưu shortcut để gỡ khi rời trang
+    private final java.util.List<KeyCodeCombination> shortcuts = new java.util.ArrayList<>();
+
 
 
     @FXML
@@ -60,73 +63,22 @@ public class ThongKe {
         
         lblTangTretTotal.setText("$3,004");
         lblTang1Total.setText("$4,504");
+
      // === PHÍM TẮT THAO TÁC BẢNG ===
+     // ✅ QUẢN LÝ PHÍM TẮT CHÍNH XÁC CHO TRANG THỐNG KÊ
         tblHoaDon.sceneProperty().addListener((obsScene, oldScene, newScene) -> {
-            if (newScene == null) return;
 
-            newScene.getAccelerators().clear();
+            // 🛑 Rời trang → Gỡ shortcut cũ
+            if (oldScene != null) {
+                unregisterShortcuts(oldScene);
+            }
 
-            // Ctrl + K → Focus bảng Hóa đơn
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN),
-                () -> {
-                    tblHoaDon.requestFocus();
-                    tblHoaDon.getSelectionModel().selectFirst();
-                }
-            );
-
-            // Ctrl + C → Focus bảng Món bán chạy
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN),
-                () -> {
-                    tblMonBanChay.requestFocus();
-                    tblMonBanChay.getSelectionModel().selectFirst();
-                }
-            );
-
-            // Enter → Xem chi tiết hóa đơn
-            tblHoaDon.setOnKeyPressed(e -> {
-                if (e.getCode() == KeyCode.ENTER) {
-                    var item = tblHoaDon.getSelectionModel().getSelectedItem();
-                    if (item != null) {
-                        System.out.println("📌 Chi tiết hóa đơn: " + item.getMaHD());
-                    }
-                }
-            });
-
-            // Enter → Xem thông tin món bán chạy
-            tblMonBanChay.setOnKeyPressed(e -> {
-                if (e.getCode() == KeyCode.ENTER) {
-                    var item = tblMonBanChay.getSelectionModel().getSelectedItem();
-                    if (item != null) {
-                        System.out.println("🍽 Chi tiết món bán chạy: " + item.getTenMon());
-                    }
-                }
-            });
-
-            // Ctrl + E → Xuất Excel (tùy bảng đang focus)
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN),
-                () -> {
-                    if (tblHoaDon.isFocused()) {
-                        System.out.println("📊 Xuất Excel Hóa đơn!");
-                        // btnExportHoaDon.fire();
-                    } else if (tblMonBanChay.isFocused()) {
-                        System.out.println("📈 Xuất Excel Món bán chạy!");
-                        // btnExportMonAn.fire();
-                    }
-                }
-            );
-
-            // ESC → Bỏ focus cả 2 bảng
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.ESCAPE),
-                () -> {
-                    tblHoaDon.getSelectionModel().clearSelection();
-                    tblMonBanChay.getSelectionModel().clearSelection();
-                }
-            );
+            // ✅ Vào trang mới → Đăng ký shortcut
+            if (newScene != null) {
+                registerShortcuts(newScene);
+            }
         });
+
 
     }
     
@@ -290,4 +242,65 @@ public class ThongKe {
         public int getSoLuongBan() { return soLuongBan.get(); }
         public double getDoanhThu() { return doanhThu.get(); }
     }
+ // ✅ ĐĂNG KÝ PHÍM TẮT KHI TRANG HIỆN RA
+    private void registerShortcuts(javafx.scene.Scene scene) {
+
+        KeyCodeCombination scFocusHD = new KeyCodeCombination(KeyCode.K, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(scFocusHD, () -> {
+            tblHoaDon.requestFocus();
+            tblHoaDon.getSelectionModel().selectFirst();
+        });
+        shortcuts.add(scFocusHD);
+
+        KeyCodeCombination scFocusMon = new KeyCodeCombination(KeyCode.C, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(scFocusMon, () -> {
+            tblMonBanChay.requestFocus();
+            tblMonBanChay.getSelectionModel().selectFirst();
+        });
+        shortcuts.add(scFocusMon);
+
+        // ✅ Enter cho từng bảng
+        tblHoaDon.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                var item = tblHoaDon.getSelectionModel().getSelectedItem();
+                if (item != null)
+                    System.out.println("📌 Chi tiết hóa đơn: " + item.getMaHD());
+            }
+        });
+
+        tblMonBanChay.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER) {
+                var item = tblMonBanChay.getSelectionModel().getSelectedItem();
+                if (item != null)
+                    System.out.println("🍽 Chi tiết món bán chạy: " + item.getTenMon());
+            }
+        });
+
+        KeyCodeCombination scExport = new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN);
+        scene.getAccelerators().put(scExport, () -> {
+            if (tblHoaDon.isFocused())
+                System.out.println("📊 Xuất Excel Hóa đơn!");
+            else if (tblMonBanChay.isFocused())
+                System.out.println("📈 Xuất Excel Món bán chạy!");
+        });
+        shortcuts.add(scExport);
+
+        KeyCodeCombination scClear = new KeyCodeCombination(KeyCode.ESCAPE);
+        scene.getAccelerators().put(scClear, () -> {
+            tblHoaDon.getSelectionModel().clearSelection();
+            tblMonBanChay.getSelectionModel().clearSelection();
+        });
+        shortcuts.add(scClear);
+    }
+
+
+    // ✅ GỠ PHÍM TẮT KHI RỜI TRANG
+    private void unregisterShortcuts(javafx.scene.Scene scene) {
+        shortcuts.forEach(scene.getAccelerators()::remove);
+        shortcuts.clear();
+
+        tblHoaDon.setOnKeyPressed(null);
+        tblMonBanChay.setOnKeyPressed(null);
+    }
+
 }

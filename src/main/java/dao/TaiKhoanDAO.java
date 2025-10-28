@@ -65,6 +65,49 @@ public class TaiKhoanDAO {
         return tk; // Trả về null nếu không tìm thấy hoặc có lỗi
     }
 
+    // ===================================================================
+    // 🔥 PHƯƠNG THỨC BỊ THIẾU GÂY LỖI ĐÃ ĐƯỢC THÊM VÀO
+    // ===================================================================
+    /**
+     * Kiểm tra xem mật khẩu cũ có khớp với tên đăng nhập không.
+     * (Đây là hàm mà ManHinhChinh đang gọi khi đổi mật khẩu)
+     * @param tenDangNhap Tên đăng nhập
+     * @param matKhau Mat khẩu (chưa mã hóa)
+     * @return true nếu mật khẩu khớp, false nếu không
+     * @throws SQLException
+     */
+    public boolean kiemTraMatKhau(String tenDangNhap, String matKhau) throws SQLException {
+        
+        // CẢNH BÁO BẢO MẬT: 
+        // Logic này giả định bạn đang lưu mật khẩu dạng plaintext (văn bản thuần).
+        // Trong thực tế, bạn NÊN mã hóa (hash) mật khẩu khi lưu và kiểm tra.
+        
+        String sql = "SELECT MatKhau FROM TaiKhoan WHERE TenDangNhap = ?";
+        
+        // Thay thế 'ConnectDB.getConnection()' bằng cách bạn lấy kết nối
+        try (Connection conn = ConnectDB.getConnection(); 
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setString(1, tenDangNhap);
+            
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    String matKhauTuDB = rs.getString("MatKhau");
+                    
+                    // So sánh mật khẩu (ví dụ đơn giản)
+                    return matKhau.equals(matKhauTuDB);
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Ném lỗi hoặc trả về false tùy theo logic của bạn
+            throw new SQLException("Lỗi khi kiểm tra mật khẩu", e); 
+        }
+        
+        return false; // Trả về false nếu không tìm thấy tài khoản
+    }
+    // ===================================================================
+
 
     public TaiKhoan layTaiKhoanTheoMaNV(String maNV) {
         String sql = "SELECT tenDangNhap, matKhau, vaiTro, maNV FROM TaiKhoan WHERE maNV = ?";

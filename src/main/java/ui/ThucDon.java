@@ -15,6 +15,7 @@ import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
+import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.image.Image;
@@ -55,6 +56,9 @@ public class ThucDon {
     private DanhMucMonDAO danhMucMonDAO;
     private ObservableList<MenuItem> dsMonAnUI;
     private File selectedImageFile; 
+ // 📌 Danh sách shortcut để gỡ bỏ khi rời trang
+    private final ArrayList<KeyCodeCombination> shortcuts = new ArrayList<>();
+
 
     public void initialize() {
         monAnDAO = new MonAnDAO();
@@ -119,79 +123,20 @@ public class ThucDon {
      // ==================================================
      // === PHÍM TẮT CRUD TRONG TRANG THỰC ĐƠN ==========
      // ==================================================
-     txtSearch.sceneProperty().addListener((obsScene, oldScene, newScene) -> {
-         if (newScene != null) {
+     // ✅ QUẢN LÝ PHÍM TẮT ĐÚNG CÁCH TRONG TRANG THỰC ĐƠN
+        txtSearch.sceneProperty().addListener((obsScene, oldScene, newScene) -> {
 
-             // Ctrl + F -> focus tìm kiếm
-             newScene.getAccelerators().put(
-                 new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
-                 () -> {
-                     txtSearch.requestFocus();
-                     txtSearch.selectAll();
-                 }
-             );
+            // 🛑 Nếu rời trang → gỡ shortcut cũ
+            if (oldScene != null) {
+                unregisterShortcuts(oldScene);
+            }
 
-             // Ctrl + N -> Thêm món
-             newScene.getAccelerators().put(
-                 new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN),
-                 () -> btnThem.fire()
-             );
+            // ✅ Nếu vào trang này → đăng ký shortcut mới
+            if (newScene != null) {
+                registerShortcuts(newScene);
+            }
+        });
 
-             // Ctrl + S -> Lưu / Sửa món
-             newScene.getAccelerators().put(
-                 new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN),
-                 () -> btnLuuForm.fire()
-             );
-
-             // Ctrl + D -> Xóa món
-             newScene.getAccelerators().put(
-                 new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
-                 () -> btnXoa.fire()
-             );
-
-             // ESC -> Xóa trắng form
-             newScene.getAccelerators().put(
-                 new KeyCodeCombination(KeyCode.ESCAPE),
-                 () -> btnXoaTrang.fire()
-             );
-
-             // Ctrl + → -> Chọn món tiếp theo
-             newScene.getAccelerators().put(
-                 new KeyCodeCombination(KeyCode.RIGHT, KeyCombination.CONTROL_DOWN),
-                 () -> {
-                     int i = tableThucDon.getSelectionModel().getSelectedIndex();
-                     if (i < tableThucDon.getItems().size() - 1) {
-                         tableThucDon.getSelectionModel().select(i + 1);
-                     }
-                 }
-             );
-
-             // Ctrl + ← -> Món phía trên
-             newScene.getAccelerators().put(
-                 new KeyCodeCombination(KeyCode.LEFT, KeyCombination.CONTROL_DOWN),
-                 () -> {
-                     int i = tableThucDon.getSelectionModel().getSelectedIndex();
-                     if (i > 0) {
-                         tableThucDon.getSelectionModel().select(i - 1);
-                     }
-                 }
-             );
-
-             // Enter trong bảng -> load dữ liệu sang form
-             tableThucDon.setOnKeyPressed(e -> {
-                 if (e.getCode() == KeyCode.ENTER) {
-                     MenuItem item = tableThucDon.getSelectionModel().getSelectedItem();
-                     if (item != null) {
-                         txtTenMon.setText(item.getName());
-                         txtDonGia.setText(String.valueOf(item.getPrice()));
-                         previewImg.setImage(item.getImage());
-                         txtDanhMuc.setText(item.getCategory());
-                         formInputArea.setVisible(true);
-                     }
-                 }
-             });
-         }
-     });
 
         tableThucDon.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
             if (newSelection != null) {
@@ -529,4 +474,79 @@ public class ThucDon {
         public SimpleStringProperty categoryProperty() { return categoryName; }
         public SimpleStringProperty maDMProperty() { return maDM; }
     }
+ // ===========================
+ // ✅ QUẢN LÝ ĐĂNG KÝ SHORTCUT
+ // ===========================
+ private void registerShortcuts(Scene scene) {
+
+     // Ctrl + F -> Tìm kiếm
+     KeyCodeCombination scFind = new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN);
+     scene.getAccelerators().put(scFind, () -> {
+         txtSearch.requestFocus();
+         txtSearch.selectAll();
+     });
+     shortcuts.add(scFind);
+
+     // Ctrl + N -> Thêm món
+     KeyCodeCombination scAdd = new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN);
+     scene.getAccelerators().put(scAdd, () -> btnThem.fire());
+     shortcuts.add(scAdd);
+
+     // Ctrl + S -> Lưu
+     KeyCodeCombination scSave = new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN);
+     scene.getAccelerators().put(scSave, () -> btnLuuForm.fire());
+     shortcuts.add(scSave);
+
+     // Ctrl + D -> Xóa món
+     KeyCodeCombination scDelete = new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN);
+     scene.getAccelerators().put(scDelete, () -> btnXoa.fire());
+     shortcuts.add(scDelete);
+
+     // ESC -> Xóa form
+     KeyCodeCombination scClear = new KeyCodeCombination(KeyCode.ESCAPE);
+     scene.getAccelerators().put(scClear, () -> btnXoaTrang.fire());
+     shortcuts.add(scClear);
+
+     // Ctrl + → -> Chọn món tiếp
+     KeyCodeCombination scNext = new KeyCodeCombination(KeyCode.RIGHT, KeyCombination.CONTROL_DOWN);
+     scene.getAccelerators().put(scNext, () -> {
+         int i = tableThucDon.getSelectionModel().getSelectedIndex();
+         if (i < tableThucDon.getItems().size() - 1)
+             tableThucDon.getSelectionModel().select(i + 1);
+     });
+     shortcuts.add(scNext);
+
+     // Ctrl + ← -> Chọn món trước
+     KeyCodeCombination scPrevious = new KeyCodeCombination(KeyCode.LEFT, KeyCombination.CONTROL_DOWN);
+     scene.getAccelerators().put(scPrevious, () -> {
+         int i = tableThucDon.getSelectionModel().getSelectedIndex();
+         if (i > 0)
+             tableThucDon.getSelectionModel().select(i - 1);
+     });
+     shortcuts.add(scPrevious);
+
+     // Enter → Load dữ liệu vào form
+     tableThucDon.setOnKeyPressed(e -> {
+         if (e.getCode() == KeyCode.ENTER) {
+             MenuItem item = tableThucDon.getSelectionModel().getSelectedItem();
+             if (item != null) {
+                 txtTenMon.setText(item.getName());
+                 txtDonGia.setText(String.valueOf(item.getPrice()));
+                 previewImg.setImage(item.getImage());
+                 txtDanhMuc.setText(item.getCategory());
+                 formInputArea.setVisible(true);
+             }
+         }
+     });
+ }
+
+ // ===========================
+ // ✅ GỠ SHORTCUT KHI RỜI TRANG
+ // ===========================
+ private void unregisterShortcuts(Scene scene) {
+     shortcuts.forEach(scene.getAccelerators()::remove);
+     shortcuts.clear();
+     tableThucDon.setOnKeyPressed(null);
+ }
+
 }

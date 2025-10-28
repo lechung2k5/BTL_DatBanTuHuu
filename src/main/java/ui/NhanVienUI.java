@@ -10,6 +10,7 @@ import javafx.collections.ObservableList;
 import javafx.collections.transformation.FilteredList;
 import javafx.collections.transformation.SortedList;
 import javafx.event.ActionEvent;
+import javafx.event.EventHandler;
 import javafx.fxml.FXML;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -25,11 +26,7 @@ import java.util.regex.Pattern; // Import Pattern
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.input.KeyCombination;
-import javafx.scene.Scene;
 import javafx.scene.input.KeyEvent;
-import javafx.scene.input.KeyCode;
-
-
 
 public class NhanVienUI {
 
@@ -70,6 +67,9 @@ public class NhanVienUI {
     // Trạng thái giao diện: VIEWING (đang xem/sửa) hoặc ADDING (đang thêm mới)
     private enum EditState { VIEWING, ADDING }
     private EditState currentState = EditState.VIEWING;
+    
+    // ✅ Thêm EventHandler để quản lý phím tắt
+    private EventHandler<KeyEvent> nvShortcutHandler;
 
     @FXML
     private void initialize() {
@@ -96,7 +96,6 @@ public class NhanVienUI {
         // Dùng danh sách code cứng cho Ca làm YÊU THÍCH
         cbxCaLam.setItems(FXCollections.observableArrayList("Sáng", "Chiều", "Tối", "Nguyên ngày"));
         cbxCaLam.setPromptText("Chọn ca yêu thích...");
-
 
         // Cấu hình tìm kiếm
         FilteredList<NhanVien> filteredList = new FilteredList<>(nhanVienList, p -> true);
@@ -129,63 +128,11 @@ public class NhanVienUI {
         );
 
         loadNhanVienData(); // Tải dữ liệu lần đầu
-     // ✅ Thêm phím tắt CRUD
-        txtTimKiem.sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene != null) {
-
-                // Ctrl + N → Xóa rỗng (chuẩn bị thêm)
-                newScene.getAccelerators().put(
-                    new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN),
-                    () -> btnXoaRong.fire()
-                );
-
-                // Ctrl + E → Sửa
-                newScene.getAccelerators().put(
-                    new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN),
-                    () -> btnSua.fire()
-                );
-
-                // Ctrl + S → Thêm hoặc Lưu (tùy trạng thái)
-                newScene.getAccelerators().put(
-                    new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN),
-                    () -> btnThem.fire()
-                );
-
-                // Ctrl + D → Xóa
-                newScene.getAccelerators().put(
-                    new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
-                    () -> btnXoa.fire()
-                );
-
-                // Ctrl + R → Xóa trắng form
-                newScene.getAccelerators().put(
-                    new KeyCodeCombination(KeyCode.R, KeyCombination.CONTROL_DOWN),
-                    () -> btnXoaRong.fire()
-                );
-
-                // Ctrl + F → Focus ô tìm kiếm
-                newScene.getAccelerators().put(
-                    new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
-                    () -> {
-                        txtTimKiem.requestFocus();
-                        txtTimKiem.selectAll();
-                    }
-                );
-
-                // F5 → Refresh dữ liệu
-                newScene.getAccelerators().put(
-                    new KeyCodeCombination(KeyCode.F5),
-                    () -> loadNhanVienData()
-                );
-            }
-        });
         
-        txtMaNV.sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene != null) addShortcutsDanhSachNV(newScene);
+        // ✅ Thiết lập phím tắt khi Scene sẵn sàng
+        tblNhanVien.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene != null) setupKeyboardShortcuts();
         });
-        addShortcuts();
-
-
     }
 
     //<editor-fold desc="State Management & UI Control">
@@ -294,7 +241,7 @@ public class NhanVienUI {
             showNhanVienDetails(currentSelectedNhanVien); // Khôi phục dữ liệu gốc của dòng đang chọn
         }
     }
-    //</border-fold>
+    //</editor-fold>
 
     //<editor-fold desc="Data & Utility Methods">
     private void loadNhanVienData() {
@@ -326,7 +273,6 @@ public class NhanVienUI {
 
         updateUIState(EditState.VIEWING);
     }
-
 
     private void showNhanVienDetails(NhanVien nhanVien) {
         if (nhanVien == null) {
@@ -461,73 +407,141 @@ public class NhanVienUI {
         alert.showAndWait();
     }
     //</editor-fold>
-    private void addShortcutsDanhSachNV(Scene scene) {
+    
+    // ✅ PHƯƠNG THỨC QUẢN LÝ PHÍM TẮT
+    private void setupKeyboardShortcuts() {
+        Scene scene = tblNhanVien.getScene();
+        if (scene == null) return;
 
-        scene.addEventFilter(KeyEvent.KEY_PRESSED, key -> {
+        // ✅ Gỡ handler cũ nếu có
+        if (nvShortcutHandler != null) {
+            scene.removeEventFilter(KeyEvent.KEY_PRESSED, nvShortcutHandler);
+        }
 
-            if (!NhanVienController.getCurrentView().equals("DanhSach")) return;
-
-            if (key.isControlDown()) {
-
-                switch (key.getCode()) {
-                    case F -> {
-                        txtTimKiem.requestFocus();
-                        txtTimKiem.selectAll();
-                    }
-                    case N -> handleXoaRong(null);
-                    case E -> handleSua(null);
-                    case D -> handleXoa(null);
-                    case S -> handleSua(null); // hoặc handleThem
-                    case R -> handleXoaRong(null);
-
-                    // ✅ Điều hướng trong bảng
-                    case RIGHT, KP_RIGHT -> tblNhanVien.getSelectionModel().selectNext();
-                    case LEFT,  KP_LEFT -> tblNhanVien.getSelectionModel().selectPrevious();
-                }
+        nvShortcutHandler = event -> {
+            // ✅ KIỂM TRA NGHIÊM NGẶT: Chỉ xử lý khi TableView đang hiển thị VÀ trong Scene graph
+            if (!tblNhanVien.isVisible() || tblNhanVien.getScene() == null || tblNhanVien.getParent() == null) {
+                System.out.println("⛔ Bỏ qua phím tắt Nhân Viên - Màn hình không active");
+                return;
             }
 
-            if (key.getCode() == KeyCode.F5) loadNhanVienData();
-        });
-    }
-    private boolean isActiveView() {
-        return "DanhSach".equals(NhanVienController.getCurrentView());
-    }
+            // ✅ Kiểm tra thêm điều kiện từ NhanVienController nếu có
+            if (!isActiveView()) {
+                System.out.println("⛔ Bỏ qua phím tắt Nhân Viên - View không active");
+                return;
+            }
 
-    private void addShortcuts() {
-        txtTimKiem.sceneProperty().addListener((obs, oldScene, newScene) -> {
-            if (newScene == null) return;
+            boolean handled = false;
 
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.N, KeyCombination.CONTROL_DOWN),
-                () -> { if (isActiveView()) btnXoaRong.fire(); }
-            );
-
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.E, KeyCombination.CONTROL_DOWN),
-                () -> { if (isActiveView()) btnSua.fire(); }
-            );
-
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.S, KeyCombination.CONTROL_DOWN),
-                () -> { if (isActiveView()) btnThem.fire(); }
-            );
-
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.D, KeyCombination.CONTROL_DOWN),
-                () -> { if (isActiveView()) btnXoa.fire(); }
-            );
-
-            newScene.getAccelerators().put(
-                new KeyCodeCombination(KeyCode.F, KeyCombination.CONTROL_DOWN),
-                () -> {
-                    if (isActiveView()) {
+            if (event.isControlDown()) {
+                switch (event.getCode()) {
+                    case N: // Xóa rỗng (chuẩn bị thêm)
+                        btnXoaRong.fire();
+                        handled = true;
+                        break;
+                        
+                    case E: // Edit/Sửa
+                    case S: // Save/Sửa (trùng với Edit)
+                        if (currentState == EditState.ADDING) {
+                            btnThem.fire(); // Nếu đang thêm -> Lưu mới
+                        } else {
+                            btnSua.fire(); // Nếu đang xem -> Sửa
+                        }
+                        handled = true;
+                        break;
+                        
+                    case D: // Delete/Xóa
+                        btnXoa.fire();
+                        handled = true;
+                        break;
+                        
+                    case F: // Focus vào tìm kiếm
                         txtTimKiem.requestFocus();
                         txtTimKiem.selectAll();
-                    }
+                        handled = true;
+                        break;
+                        
+                    case R: // Reset/Xóa rỗng
+                        btnXoaRong.fire();
+                        handled = true;
+                        break;
+                        
+                    case H: // Hủy
+                        btnHuy.fire();
+                        handled = true;
+                        break;
+                        
+                    case RIGHT:
+                    case KP_RIGHT: // Điều hướng sang phải trong bảng
+                        tblNhanVien.getSelectionModel().selectNext();
+                        handled = true;
+                        break;
+                        
+                    case LEFT:
+                    case KP_LEFT: // Điều hướng sang trái trong bảng
+                        tblNhanVien.getSelectionModel().selectPrevious();
+                        handled = true;
+                        break;
                 }
-            );
+            } else if (event.getCode() == KeyCode.F5) {
+                loadNhanVienData(); // Refresh dữ liệu
+                handled = true;
+            } else if (event.getCode() == KeyCode.ESCAPE) {
+                // ESC → Hủy hoặc Xóa rỗng tùy trạng thái
+                if (currentState == EditState.ADDING) {
+                    btnHuy.fire(); // Đang thêm mới -> Hủy
+                } else {
+                    btnXoaRong.fire(); // Đang xem -> Xóa rỗng
+                }
+                handled = true;
+            }
+
+            // ✅ Consume event SAU KHI xử lý xong
+            if (handled) {
+                event.consume();
+            }
+        };
+
+        scene.addEventFilter(KeyEvent.KEY_PRESSED, nvShortcutHandler);
+        System.out.println("✅ Đã kích hoạt phím tắt Nhân Viên");
+
+        // ✅ GỠ BỎ KHI TRANG BỊ ẨN
+        tblNhanVien.visibleProperty().addListener((obs, oldVal, isNowVisible) -> {
+            if (!isNowVisible && nvShortcutHandler != null) {
+                Scene s = tblNhanVien.getScene();
+                if (s != null) {
+                    s.removeEventFilter(KeyEvent.KEY_PRESSED, nvShortcutHandler);
+                    System.out.println("⛔ Đã GỠ BỎ phím tắt Nhân Viên (visible = false)");
+                }
+            }
+        });
+
+        // ✅ GỠ BỎ KHI NODE BỊ REMOVED KHỎI SCENE
+        tblNhanVien.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null && nvShortcutHandler != null && oldScene != null) {
+                oldScene.removeEventFilter(KeyEvent.KEY_PRESSED, nvShortcutHandler);
+                System.out.println("⛔ Đã GỠ BỎ phím tắt Nhân Viên (removed from scene)");
+            }
+        });
+
+        // ✅ GỠ BỎ KHI PARENT BỊ THAY ĐỔI (Chuyển trang)
+        tblNhanVien.parentProperty().addListener((obs, oldParent, newParent) -> {
+            if (newParent == null && nvShortcutHandler != null) {
+                Scene s = tblNhanVien.getScene();
+                if (s != null) {
+                    s.removeEventFilter(KeyEvent.KEY_PRESSED, nvShortcutHandler);
+                    System.out.println("⛔ Đã GỠ BỎ phím tắt Nhân Viên (parent changed)");
+                }
+            }
         });
     }
-
-
+    
+    // ✅ Phương thức kiểm tra view có active không (giữ nguyên từ code cũ)
+    private boolean isActiveView() {
+        try {
+            return "DanhSach".equals(NhanVienController.getCurrentView());
+        } catch (Exception e) {
+            return true; // Nếu không có NhanVienController, mặc định là true
+        }
+    }
 }
