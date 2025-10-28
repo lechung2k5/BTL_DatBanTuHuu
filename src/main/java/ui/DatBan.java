@@ -290,9 +290,31 @@ public class DatBan implements Initializable {
              System.err.println("LỖI CẤU HÌNH FXML: Không thể inject txtTimMon.");
         }
 
-        txtSoDienThoai.focusedProperty().addListener((obs, oldVal, newVal) -> {
-            if (!newVal) { 
-                handleTimTenKhachHang(txtSoDienThoai.getText());
+        txtSoDienThoai.focusedProperty().addListener((obs, oldVal, isNowFocused) -> {
+            
+            // Chỉ chạy khi *mất focus* (!isNowFocused)
+            if (!isNowFocused) { 
+                String sdt = txtSoDienThoai.getText().trim();
+                if (sdt.isEmpty() || sdt.length() < 9) {
+                    return; // Không làm gì nếu SĐT không hợp lệ
+                }
+                
+                try {
+                    // 🔥 Chỉ TÌM KIẾM, không TẠO MỚI (gọi hàm mới ở Bước 1)
+                    KhachHang khachTimDuoc = datBanDAO.timKhachHangBySDT(sdt); 
+                    
+                    if (khachTimDuoc != null) {
+                        // Nếu tìm thấy, điền tên khách hàng
+                        // (Tên có thể là null nếu khách cũ không có tên)
+                        txtTenKhachHang.setText(khachTimDuoc.getTenKH()); 
+                    } else {
+                        // Nếu không tìm thấy, XÓA TRẮNG ô tên
+                        // để người dùng tự nhập tên cho KHÁCH HÀNG MỚI.
+                        txtTenKhachHang.clear();
+                    }
+                } catch (Exception e) {
+                     System.err.println("Lỗi khi tìm tên khách hàng (sự kiện focus): " + e.getMessage());
+                }
             }
         });
         
@@ -764,7 +786,7 @@ public class DatBan implements Initializable {
     }
     /**
      * 🔥 HÀM SỬA CUỐI CÙNG CHO MOMO: Mở Popup hiển thị QR Thanh toán (Sử dụng LOGO và BIN BVBank).
-     * * SẼ CẦN KẾT NỐI INTERNET ĐỂ TẢI ẢNH QR.
+     * === ĐÃ THÊM: Tên tài khoản và Số tài khoản ===
      */
     private void openMoMoQrPopup() {
         if (currentHoaDon == null || currentHoaDon.getMaHD() == null) {
@@ -791,6 +813,9 @@ public class DatBan implements Initializable {
         // 2. Thông tin Tĩnh (Cập nhật BIN BVBank)
         final String YOUR_BANK_CODE = "970454"; // 🔥 BIN BVBank ĐÃ SỬA
         final String YOUR_ACCOUNT_NUMBER = "99MM24030M69605648"; // Số tài khoản ảo MoMo/BVBank
+        // === THÊM MỚI: TÊN TÀI KHOẢN ===
+        final String YOUR_ACCOUNT_NAME = "MOMO_LECONGCHUNG"; // <<< THAY TÊN CHỦ TK CỦA BẠN VÀO ĐÂY
+
         String maHD = currentHoaDon.getMaHD();
         
         String rawContent = "TT" + maHD.toUpperCase().replace(" ", "_");
@@ -823,22 +848,28 @@ public class DatBan implements Initializable {
         qrView.setFitWidth(250);
         qrView.setFitHeight(250);
         
-        // 🔥 TẢI VÀ THAY THẾ LABEL BẰNG LOGO MOMO 🔥
+        // TẢI VÀ THAY THẾ LABEL BẰNG LOGO MOMO
         ImageView logoView = new ImageView();
         try {
-            // Giả định file ảnh logo MoMo nằm trong /images/momo_logo.png
             Image logoMomo = new Image(getClass().getResourceAsStream("/images/MoMo_Logo.png"));
             logoView.setImage(logoMomo);
             logoView.setFitHeight(40); 
             logoView.setPreserveRatio(true);
         } catch (Exception e) {
-            // Fallback nếu không tìm thấy ảnh
             System.err.println("Lỗi tải logo MoMo. Dùng Label thay thế.");
-            return; // Dừng lại ở đây hoặc hiển thị lỗi
+            return; 
         }
 
         Label lblAmount = new Label("Số tiền: " + String.format("%,.0f Đ", tongTienThanhToan));
         lblAmount.setStyle("-fx-font-size: 1.2em; -fx-font-weight: 500; -fx-text-fill: red;");
+        
+        // === THÊM MỚI: TÊN VÀ SỐ TÀI KHOẢN ===
+        Label lblAccountName = new Label("Tên tài khoản: " + YOUR_ACCOUNT_NAME);
+        lblAccountName.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        
+        Label lblAccountNumber = new Label("Số tài khoản: " + YOUR_ACCOUNT_NUMBER);
+        lblAccountNumber.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        // === KẾT THÚC THÊM MỚI ===
         
         Label lblContent = new Label("Nội dung: " + rawContent);
         lblContent.setStyle("-fx-font-size: 1.0em; -fx-font-weight: 400;");
@@ -853,56 +884,44 @@ public class DatBan implements Initializable {
         HBox buttonBox = new HBox(15, btnHuy, btnXacNhanThanhToan);
         buttonBox.setAlignment(Pos.CENTER);
 
-        // Thay lblTitle bằng logoView
-        VBox root = new VBox(20, logoView, qrView, lblAmount, lblContent, buttonBox);
+        // === SỬA LẠI LAYOUT: Thêm 2 label mới vào infoBox ===
+        VBox infoBox = new VBox(8, lblAmount, lblAccountName, lblAccountNumber, lblContent);
+        infoBox.setAlignment(Pos.CENTER);
+
+        VBox root = new VBox(15, logoView, qrView, infoBox, buttonBox); // Giảm spacing
         root.setPadding(new Insets(20));
         root.setAlignment(Pos.CENTER);
-        root.setPrefSize(400, 550);
+        root.setPrefSize(400, 600); // Tăng chiều cao
 
         Stage popupStage = new Stage();
         popupStage.setTitle("Thanh toán MoMo/VietQR");
         popupStage.setScene(new Scene(root));
         
-        // GÁN SỰ KIỆN CHO NÚT
+        // GÁN SỰ KIỆN CHO NÚT (Giữ nguyên)
         btnHuy.setOnAction(e -> popupStage.close());
 
-     // ui.DatBan.java - trong hàm openMoMoQrPopup()
-
-     // ...
         btnXacNhanThanhToan.setOnAction(e -> {
-            // 1. Chuẩn bị dữ liệu (pttt, maNV)
-            PTTThanhToan pttt = PTTThanhToan.VI_DIEN_TU; // Hoặc NGAN_HANG, MOMO
+            // (Logic xác nhận thanh toán giữ nguyên)
+            PTTThanhToan pttt = PTTThanhToan.VI_DIEN_TU; 
             String maHDCanThanhToan = currentHoaDon.getMaHD();
-            String maNV = "NV001"; // Giả định đã có logic lấy mã NV từ MainApp
-            // ... (logic lấy mã NV) ...
+            String maNV = "NV001"; 
             
             if (maHDCanThanhToan != null) {
-                // 2. GỌI DAO ĐỂ CẬP NHẬT TRẠNG THÁI HÓA ĐƠN VÀ GIẢI PHÓNG BÀN
                 if (datBanDAO.thanhToanHoaDon(maHDCanThanhToan, pttt, maNV)) { 
-                    
-                    // 🔥 BƯỚC FIX LỖI QUAN TRỌNG: TẢI LẠI ĐỐI TƯỢNG HOÁ ĐƠN TỪ CSDL
                     HoaDon hdDaThanhToan = datBanDAO.getHoaDonByMaHD(maHDCanThanhToan);
-                    
                     if (hdDaThanhToan != null) {
-                        // Gán HĐ mới nhất (với trạng thái ĐÃ THANH TOÁN) vào currentHoaDon
                         currentHoaDon = hdDaThanhToan;
-                        
                         showAlert(Alert.AlertType.INFORMATION, "Thành công", 
                                   "Hóa đơn " + maHDCanThanhToan + " đã được thanh toán bằng " + pttt.getDisplayName());
                         
-                        // 3. Cập nhật giao diện
                         loadDsBan(); 
                         disableMiddleActionButtons();
-                        disablePaymentButtons(); // 🔥 Kích hoạt nút In Hóa đơn
+                        disablePaymentButtons(); 
                         loadBookingCards(); 
-                        
-                        // Cần gọi lại handleThanhToan để cập nhật các Labels trên Receipt với Giờ Ra mới
                         handleThanhToan(); 
-
                     } else {
                          showAlert(Alert.AlertType.ERROR, "Lỗi", "Đã thanh toán, nhưng không tải lại được hóa đơn mới.");
                     }
-
                 } else {
                     showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể cập nhật trạng thái hóa đơn.");
                 }
@@ -913,11 +932,8 @@ public class DatBan implements Initializable {
             popupStage.close();
         });
   
-
         popupStage.show();
     }
- // ui.DatBan.java - Thêm vào class DatBan
-
     /**
      * 🔥 HÀM SỬA: Chỉ vô hiệu hóa các nút Phương thức Thanh toán (trên Receipt Panel).
      * Giữ nguyên các thông tin HĐ và kích hoạt nút In Hóa đơn.
@@ -1091,9 +1107,9 @@ public class DatBan implements Initializable {
         loadTableGrids();
         System.out.println("LOG UI: Đã tải lại danh sách Bàn (Cập nhật trạng thái bàn).");
     }
-	/**
-     * 🔥 HÀM SỬA CUỐI CÙNG: Mở Popup hiển thị QR Thanh toán Ngân hàng (Thêm màu cho nút Hủy/Xác nhận).
-     * * SẼ CẦN KẾT NỐI INTERNET ĐỂ TẢI ẢNH QR.
+    /**
+     * 🔥 HÀM SỬA CUỐI CÙNG: Mở Popup hiển thị QR Thanh toán Ngân hàng.
+     * === ĐÃ THÊM: Tên tài khoản và Số tài khoản ===
      */
     private void openNganHangQrPopup() {
         if (currentHoaDon == null || currentHoaDon.getMaHD() == null) {
@@ -1120,6 +1136,9 @@ public class DatBan implements Initializable {
         // 2. Thông tin tĩnh và động
         final String YOUR_BANK_CODE = "970422"; // MB Bank BIN
         final String YOUR_ACCOUNT_NUMBER = "0927432020905"; // Số tài khoản của bạn.
+        // === THÊM MỚI: TÊN TÀI KHOẢN ===
+        final String YOUR_ACCOUNT_NAME = "LÊ CÔNG CHUNG"; // <<< THAY TÊN CHỦ TK CỦA BẠN VÀO ĐÂY
+        
         String maHD = currentHoaDon.getMaHD();
         
         String rawContent = "TT" + maHD.toUpperCase().replace(" ", "_");
@@ -1158,70 +1177,65 @@ public class DatBan implements Initializable {
         Label lblAmount = new Label("Số tiền: " + String.format("%,.0f Đ", tongTienThanhToan));
         lblAmount.setStyle("-fx-font-size: 1.2em; -fx-font-weight: 500; -fx-text-fill: red;");
         
+        // === THÊM MỚI: TÊN VÀ SỐ TÀI KHOẢN ===
+        Label lblAccountName = new Label("Tên tài khoản: " + YOUR_ACCOUNT_NAME);
+        lblAccountName.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        
+        Label lblAccountNumber = new Label("Số tài khoản: " + YOUR_ACCOUNT_NUMBER);
+        lblAccountNumber.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        // === KẾT THÚC THÊM MỚI ===
+        
         Label lblContent = new Label("Nội dung: " + rawContent);
         lblContent.setStyle("-fx-font-size: 1.0em; -fx-font-weight: 400;");
 
-        // 🔥 TẠO NÚT HỦY VÀ XÁC NHẬN VÀ ÁP DỤNG MÀU SẮC
+        // TẠO NÚT HỦY VÀ XÁC NHẬN VÀ ÁP DỤNG MÀU SẮC
         Button btnHuy = new Button("Hủy");
         Button btnXacNhanThanhToan = new Button("Xác nhận đã thanh toán");
         
-        // Style cho nút Hủy (Màu xám/đỏ)
         btnHuy.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
-        btnHuy.getStyleClass().add("action-button-cancel"); 
-        
-        // Style cho nút Xác nhận (Màu xanh lá cây/cam)
         btnXacNhanThanhToan.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
-        btnXacNhanThanhToan.getStyleClass().add("confirm-button"); 
 
         HBox buttonBox = new HBox(15, btnHuy, btnXacNhanThanhToan);
         buttonBox.setAlignment(Pos.CENTER);
 
-        VBox root = new VBox(20, lblTitle, qrView, lblAmount, lblContent, buttonBox);
+        // === SỬA LẠI LAYOUT: Thêm 2 label mới vào infoBox ===
+        VBox infoBox = new VBox(8, lblAmount, lblAccountName, lblAccountNumber, lblContent);
+        infoBox.setAlignment(Pos.CENTER);
+
+        VBox root = new VBox(15, lblTitle, qrView, infoBox, buttonBox); // Giảm spacing
         root.setPadding(new Insets(20));
         root.setAlignment(Pos.CENTER);
-        root.setPrefSize(400, 550);
+        root.setPrefSize(400, 600); // Tăng chiều cao 1 chút
 
         Stage popupStage = new Stage();
         popupStage.setTitle("Thanh toán Ngân hàng");
         popupStage.setScene(new Scene(root));
         
-        // 6. GÁN SỰ KIỆN CHO NÚT
+        // 6. GÁN SỰ KIỆN CHO NÚT (Giữ nguyên)
         btnHuy.setOnAction(e -> popupStage.close());
 
         btnXacNhanThanhToan.setOnAction(e -> {
-            // 1. Chuẩn bị dữ liệu (pttt, maNV)
-            PTTThanhToan pttt = PTTThanhToan.NGAN_HANG; // Hoặc NGAN_HANG, MOMO
+            // (Logic xác nhận thanh toán giữ nguyên)
+            PTTThanhToan pttt = PTTThanhToan.NGAN_HANG; 
             String maHDCanThanhToan = currentHoaDon.getMaHD();
-            String maNV = "NV001"; // Giả định đã có logic lấy mã NV từ MainApp
-            // ... (logic lấy mã NV) ...
+            String maNV = "NV001"; 
             
             if (maHDCanThanhToan != null) {
-                // 2. GỌI DAO ĐỂ CẬP NHẬT TRẠNG THÁI HÓA ĐƠN VÀ GIẢI PHÓNG BÀN
                 if (datBanDAO.thanhToanHoaDon(maHDCanThanhToan, pttt, maNV)) { 
-                    
-                    // 🔥 BƯỚC FIX LỖI QUAN TRỌNG: TẢI LẠI ĐỐI TƯỢNG HOÁ ĐƠN TỪ CSDL
                     HoaDon hdDaThanhToan = datBanDAO.getHoaDonByMaHD(maHDCanThanhToan);
-                    
                     if (hdDaThanhToan != null) {
-                        // Gán HĐ mới nhất (với trạng thái ĐÃ THANH TOÁN) vào currentHoaDon
                         currentHoaDon = hdDaThanhToan;
-                        
                         showAlert(Alert.AlertType.INFORMATION, "Thành công", 
                                   "Hóa đơn " + maHDCanThanhToan + " đã được thanh toán bằng " + pttt.getDisplayName());
                         
-                        // 3. Cập nhật giao diện
                         loadDsBan(); 
                         disableMiddleActionButtons();
-                        disablePaymentButtons(); // 🔥 Kích hoạt nút In Hóa đơn
+                        disablePaymentButtons(); 
                         loadBookingCards(); 
-                        
-                        // Cần gọi lại handleThanhToan để cập nhật các Labels trên Receipt với Giờ Ra mới
                         handleThanhToan(); 
-
                     } else {
                          showAlert(Alert.AlertType.ERROR, "Lỗi", "Đã thanh toán, nhưng không tải lại được hóa đơn mới.");
                     }
-
                 } else {
                     showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể cập nhật trạng thái hóa đơn.");
                 }
@@ -1234,12 +1248,6 @@ public class DatBan implements Initializable {
 
         popupStage.show();
     }
- // ui.DatBan.java
-
- // ui.DatBan.java
-
- // ui.DatBan.java
-
    
 
 	/**
@@ -2279,84 +2287,105 @@ public class DatBan implements Initializable {
  // Cần phải là public để Controller khác có thể gọi
     public void loadBookingCards() {
         vboxBookingCards.getChildren().clear();
-        
+
         LocalDate dateToLoadForGrid = datePickerThoiGianDen.getValue() != null ? datePickerThoiGianDen.getValue() : LocalDate.now();
-        
+
         try {
             // 1. Lấy TẤT CẢ đơn đang chờ (master list)
-            List<HoaDon> allPendingBookings = datBanDAO.getDsHoaDonDangCho(); 
+            List<HoaDon> allPendingBookings = datBanDAO.getDsHoaDonDangCho();
 
             // 2. Lấy giá trị filter và search từ UI
             String selectedStatus = comboFilter.getValue();
-            String searchQuery = txtSearch.getText();
+            String searchQuery = txtSearch.getText().trim().toLowerCase(); // Lấy và chuẩn hóa query
 
             // 3. ÁP DỤNG FILTER VÀ SEARCH
             List<HoaDon> filteredList = allPendingBookings.stream()
-                // === LỌC BỎ HOÁ ĐƠN TẠM BẰNG CÁCH NÀY ===
+                // Lọc bỏ Hóa đơn Tạm (Giữ nguyên)
                 .filter(hd -> hd.getTrangThai() != null && !hd.getTrangThai().getDbValue().equals(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()))
-                // =======================================
+                // Lọc theo Trạng thái (Giữ nguyên)
                 .filter(hd -> {
-                    // Lọc theo Trạng thái
                     boolean statusMatch = true;
                     if (selectedStatus != null && !selectedStatus.equals("Tất cả")) {
+                        // ... (logic lọc status giữ nguyên) ...
                         String dbStatusValue = "";
-                        
-                        if (selectedStatus.equals("Đang phục vụ")) {
-                            dbStatusValue = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
-                        } else if (selectedStatus.equals("Đã đặt")) {
-                            dbStatusValue = TrangThaiHoaDon.DAT.getDbValue();
+                        TrangThaiHoaDon selectedEnum = TrangThaiHoaDon.fromDisplayName(selectedStatus); // Chuyển đổi display name sang enum
+                        if (selectedEnum != null) {
+                            dbStatusValue = selectedEnum.getDbValue();
                         }
-                        
-                        // Thêm logic lọc nếu là "Đang phục vụ" thì bao gồm cả HoaDonTam
-                        if (selectedStatus.equals("Đang phục vụ")) {
-                            statusMatch = hd.getTrangThai() != null && 
-                                          (hd.getTrangThai().getDbValue().equals(TrangThaiHoaDon.DANG_SU_DUNG.getDbValue()) || 
-                                           hd.getTrangThai().getDbValue().equals(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()));
+
+                        // Bao gồm cả HĐ Tạm nếu filter là "Đang phục vụ"
+                        if (selectedStatus.equals(TrangThaiHoaDon.DANG_SU_DUNG.getDisplayName())) {
+                             statusMatch = hd.getTrangThai() != null &&
+                                           (hd.getTrangThai() == TrangThaiHoaDon.DANG_SU_DUNG ||
+                                            hd.getTrangThai() == TrangThaiHoaDon.HOA_DON_TAM);
+                        } else if (!dbStatusValue.isEmpty()) {
+                             statusMatch = hd.getTrangThai() != null && hd.getTrangThai().getDbValue().equals(dbStatusValue);
                         } else {
-                            statusMatch = hd.getTrangThai() != null && hd.getTrangThai().getDbValue().equals(dbStatusValue);
+                            statusMatch = false; // Không tìm thấy trạng thái hợp lệ
                         }
                     }
                     return statusMatch;
                 })
+                // --- 🔥 LỌC THEO TÌM KIẾM (SĐT, Mã HĐ, Mã Bàn) ---
                 .filter(hd -> {
-                    // Lọc theo SĐT
-                    boolean searchMatch = true;
-                    if (searchQuery != null && !searchQuery.trim().isEmpty()) {
-                        // Phải kiểm tra null cho khachHang và soDT để tránh lỗi
-                        searchMatch = hd.getKhachHang() != null && 
-                                      hd.getKhachHang().getSoDT() != null && 
-                                      hd.getKhachHang().getSoDT().contains(searchQuery.trim());
+                    if (searchQuery.isEmpty()) {
+                        return true; // Nếu ô tìm kiếm trống thì không lọc gì cả
                     }
-                    return searchMatch;
+
+                    // Kiểm tra SĐT (khách hàng có thể null)
+                    boolean sdtMatch = hd.getKhachHang() != null &&
+                                       hd.getKhachHang().getSoDT() != null &&
+                                       hd.getKhachHang().getSoDT().toLowerCase().contains(searchQuery);
+
+                    // Kiểm tra Mã HĐ
+                    boolean maHdMatch = hd.getMaHD() != null &&
+                                        hd.getMaHD().toLowerCase().contains(searchQuery);
+
+                    // Kiểm tra Mã Bàn (bàn có thể null)
+                    // Cần kiểm tra cả các bàn phụ nếu là HĐ Gốc
+                    boolean maBanMatch = false;
+                    List<HoaDon> relatedHDs = new ArrayList<>();
+                    relatedHDs.add(hd); // Add chính nó
+                    if (hd.getMaHDGoc() == null) { // Nếu là HĐ Gốc, tìm HĐ Phụ
+                        relatedHDs.addAll(datBanDAO.getHoaDonPhuByMaHDGoc(hd.getMaHD()));
+                    }
+                    // Kiểm tra mã bàn trên tất cả HĐ liên quan
+                    for (HoaDon relatedHd : relatedHDs) {
+                        if (relatedHd.getBan() != null && relatedHd.getBan().getMaBan() != null &&
+                            relatedHd.getBan().getMaBan().toLowerCase().contains(searchQuery)) {
+                            maBanMatch = true;
+                            break; // Chỉ cần tìm thấy 1 bàn khớp là đủ
+                        }
+                    }
+
+                    // Trả về true nếu khớp bất kỳ trường nào
+                    return sdtMatch || maHdMatch || maBanMatch;
                 })
-                .collect(Collectors.toList()); // Thu thập kết quả đã lọc
+                // ---------------------------------------------
+                .collect(Collectors.toList());
 
-            // 4. Tải các đơn trong ngày (CHO LOGIC SƠ ĐỒ BÀN)
-            this.dsHoaDonDatTrongNgay = datBanDAO.getDsDatBanHomNay(dateToLoadForGrid); 
-            
-            // 5. Hiển thị danh sách ĐÃ LỌC
+            // 4. Tải các đơn trong ngày (CHO LOGIC SƠ ĐỒ BÀN) - Giữ nguyên
+            this.dsHoaDonDatTrongNgay = datBanDAO.getDsDatBanHomNay(dateToLoadForGrid);
+
+            // 5. Hiển thị danh sách ĐÃ LỌC (Giữ nguyên)
             System.out.println("\n*** LOG: Tải thành công " + filteredList.size() + " đơn ĐANG CHỜ (đã lọc) ***");
-
             if (filteredList.isEmpty()) {
-                Label lbl = new Label("Không tìm thấy đơn nào khớp.");
-                lbl.setPadding(new Insets(10));
-                vboxBookingCards.getChildren().add(lbl);
+                // ... (hiển thị thông báo không tìm thấy) ...
+                 Label lbl = new Label("Không tìm thấy đơn nào khớp."); lbl.setPadding(new Insets(10)); vboxBookingCards.getChildren().add(lbl);
             } else {
-                // Chỉ hiển thị các HĐ GỐC trong danh sách filter (HĐ Phụ sẽ được hiển thị qua HĐ Gốc)
+                // Chỉ hiển thị HĐ Gốc (Giữ nguyên)
                 List<HoaDon> hdGocFilter = filteredList.stream()
                                             .filter(hd -> hd.getMaHDGoc() == null)
                                             .collect(Collectors.toList());
-                for (HoaDon hd : hdGocFilter) { // Dùng 'hdGocFilter'
+                for (HoaDon hd : hdGocFilter) {
                     VBox card = createBookingCard(hd);
-                    card.setOnMouseClicked(e -> loadHoaDonToMainInterface(hd)); 
+                    card.setOnMouseClicked(e -> loadHoaDonToMainInterface(hd));
                     vboxBookingCards.getChildren().add(card);
                 }
             }
         } catch (Exception e) {
-            System.err.println("Lỗi tải danh sách đặt bàn: " + e.getMessage());
-            Label lbl = new Label("LỖI TẢI DỮ LIỆU: " + e.getMessage());
-            lbl.setPadding(new Insets(10));
-            vboxBookingCards.getChildren().add(lbl);
+            // ... (xử lý lỗi) ...
+             System.err.println("Lỗi tải danh sách đặt bàn: " + e.getMessage()); Label lbl = new Label("LỖI TẢI DỮ LIỆU: " + e.getMessage()); lbl.setPadding(new Insets(10)); vboxBookingCards.getChildren().add(lbl);
         }
     }
 
@@ -2930,24 +2959,7 @@ public class DatBan implements Initializable {
         return alert.showAndWait();
     }
 
-    private void handleTimTenKhachHang(String sdt) {
-        if (sdt.trim().isEmpty() || sdt.trim().length() < 9) { 
-            return;
-        }
-
-        try {
-            KhachHang khachTimDuoc = datBanDAO.timHoacTaoKhachHang(sdt, ""); 
-            
-            if (khachTimDuoc != null && khachTimDuoc.getMaKH() != null && khachTimDuoc.getTenKH() != null && !khachTimDuoc.getTenKH().equals("Khách vãng lai")) { 
-                 txtTenKhachHang.setText(khachTimDuoc.getTenKH());
-            } else if (khachTimDuoc != null && khachTimDuoc.getTenKH().equals("Khách vãng lai")) {
-                 txtTenKhachHang.clear();
-            }
-
-        } catch (Exception e) {
-            System.err.println("Lỗi khi tìm tên khách hàng qua SĐT: " + e.getMessage());
-        }
-    }
+    
 
  // =========================================================
     // XỬ LÝ TÌM BÀN TRỐNG THEO THỜI GIAN

@@ -27,50 +27,50 @@
                         <children>
                             <Label text="Kiểm kê tiền mặt đầu ca" styleClass="cash-check-title" />
                             <HBox spacing="10.0" alignment="CENTER_LEFT">
-							<children>
-							    <Label text="Nhập số tiền trong két: " />
-							    <TextField fx:id="txtSoTienKiemKe" promptText="5,000,000" />
-							    <Button text="Xác nhận" styleClass="cash-check-button" onAction="#handleCheckCash" />
-							</children>
+                                <children>
+                                    <Label text="Nhập số tiền trong két: " />
+                                    <TextField fx:id="txtSoTienKiemKe" promptText="5,000,000" />
+                                    <Button text="Xác nhận" styleClass="cash-check-button" onAction="#handleCheckCash" />
+                                </children>
                             </HBox>
                         </children>
                     </VBox>
                 </children>
             </VBox>
-            
+
             <Region HBox.hgrow="ALWAYS" />
-            
+
             <HBox spacing="15.0" alignment="TOP_RIGHT">
                 <children>
                     <VBox styleClass="stats-card-dayoff">
                         <children>
                             <Label text="Số ngày nghỉ" styleClass="stats-label" />
-                            <Label text="1/5 ngày" styleClass="stats-value" />
+                            <Label fx:id="lblSoNgayNghi" text="0/5 ngày" styleClass="stats-value" />
                         </children>
                     </VBox>
                     <VBox styleClass="stats-card-serving">
                         <children>
                             <Label text="Bàn đang phục vụ" styleClass="stats-label" />
-                            <Label text="5 bàn" styleClass="stats-value" />
+                            <Label fx:id="lblBanPhucVu" text="0 bàn" styleClass="stats-value" />
                         </children>
                     </VBox>
-                    <VBox styleClass="stats-card-reserved">
+					<VBox styleClass="stats-card-reserved">
                         <children>
                             <Label text="Bàn đặt trước" styleClass="stats-label" />
-                            <Label text="10/25 bàn" styleClass="stats-value" />
+                            <Label fx:id="lblBanDatTruoc" text="0/0 bàn" styleClass="stats-value" />
                         </children>
                     </VBox>
                     <VBox styleClass="stats-card-hours">
                         <children>
                             <Label text="Tổng giờ làm" styleClass="stats-label" />
-                            <Label text="160 giờ" styleClass="stats-value" />
+                            <Label fx:id="lblTongGioLam" text="0 giờ" styleClass="stats-value" />
                         </children>
                     </VBox>
                 </children>
             </HBox>
         </children>
     </HBox>
-    
+
     <HBox spacing="20.0" VBox.vgrow="ALWAYS">
         <children>
             <VBox styleClass="calendar-container" HBox.hgrow="ALWAYS" spacing="15.0">
@@ -85,7 +85,7 @@
                             <Button text="Sau" onAction="#handleNextWeek" styleClass="calendar-nav-button" />
                         </children>
                     </HBox>
-                    
+
                     <ScrollPane fitToWidth="true" VBox.vgrow="ALWAYS" styleClass="calendar-scroll-pane">
                         <content>
                             <GridPane fx:id="weeklyCalendarGrid" styleClass="weekly-calendar-grid" hgap="10.0" vgap="10.0" />
@@ -93,16 +93,14 @@
                     </ScrollPane>
                 </children>
             </VBox>
-            
+
             <VBox styleClass="new-features-container" HBox.hgrow="ALWAYS" spacing="15.0">
                 <children>
-                    <!-- Bản đồ bàn ăn -->
                     <VBox styleClass="table-map-container" spacing="10.0">
-                        <Label text="Bàn ăn đang phục vụ" styleClass="section-title" />
+                        <Label text="Bàn ăn đang phục vụ" styleClass="section-title-small" />
                         <GridPane fx:id="tableMapGrid" styleClass="table-map-grid" hgap="10.0" vgap="10.0" />
                     </VBox>
-                    
-                    <!-- KPI cá nhân -->
+
                     <VBox styleClass="kpi-container" spacing="10.0">
                         <Label text="KPI cá nhân" styleClass="section-title" />
                         <HBox spacing="20.0" alignment="CENTER">

@@ -976,17 +976,17 @@ public class ThanhToanPreviewController {
 
     /**
      * Mở Popup hiển thị QR Thanh toán Ngân hàng.
+     * === ĐÃ THÊM: Tên tài khoản và Số tài khoản ===
      */
     private void openNganHangQrPopup() {
-        if (hoaDonToPay == null || hoaDonToPay.getMaHD() == null) { // Sử dụng hoaDonToPay
+        if (hoaDonToPay == null || hoaDonToPay.getMaHD() == null) { 
             showAlert(AlertType.WARNING, "Lỗi", "Không có mã hóa đơn hợp lệ để tạo QR.");
             return;
         }
 
-        calculateAndDisplayTotals(); // Gọi hàm tính tổng của Controller này
+        calculateAndDisplayTotals(); 
         double tongTienThanhToan = 0;
         try {
-            // Lấy tổng tiền từ Label của Controller này
             String amountStr = lblTongThanhToan.getText().replaceAll("[^0-9]", "");
             tongTienThanhToan = Double.parseDouble(amountStr.isEmpty() ? "0" : amountStr);
         } catch (NumberFormatException e) {
@@ -999,65 +999,98 @@ public class ThanhToanPreviewController {
             return;
         }
 
-        // ... (Code chuẩn bị thông tin BANK_CODE, ACCOUNT_NUMBER, qrUrl giữ nguyên) ...
+        // --- Thông tin tài khoản ---
         final String YOUR_BANK_CODE = "970422"; // MB Bank BIN
         final String YOUR_ACCOUNT_NUMBER = "0927432020905"; // Số tài khoản của bạn.
-        String maHD = hoaDonToPay.getMaHD(); // Sử dụng hoaDonToPay
+        // === THÊM MỚI: TÊN TÀI KHOẢN ===
+        final String YOUR_ACCOUNT_NAME = "LÊ CÔNG CHUNG"; // <<< THAY TÊN CHỦ TK CỦA BẠN VÀO ĐÂY
+        
+        String maHD = hoaDonToPay.getMaHD(); 
         String rawContent = "TT" + maHD.toUpperCase().replace(" ", "_");
-        String encodedContent; try { encodedContent = java.net.URLEncoder.encode(rawContent, "UTF-8"); } catch (java.io.UnsupportedEncodingException e) { encodedContent = rawContent; }
-        String qrUrl = String.format( "https://img.vietqr.io/image/%s-%s-compact.png?amount=%d&addInfo=%s", YOUR_BANK_CODE, YOUR_ACCOUNT_NUMBER, (int) Math.ceil(tongTienThanhToan), encodedContent );
+        String encodedContent; 
+        try { 
+            encodedContent = java.net.URLEncoder.encode(rawContent, "UTF-8"); 
+        } catch (java.io.UnsupportedEncodingException e) { 
+            encodedContent = rawContent; 
+        }
+        
+        String qrUrl = String.format( "https://img.vietqr.io/image/%s-%s-compact.png?amount=%d&addInfo=%s", 
+            YOUR_BANK_CODE, YOUR_ACCOUNT_NUMBER, (int) Math.ceil(tongTienThanhToan), encodedContent );
 
-        // ... (Code tải ảnh QR giữ nguyên, gọi generateQrCodeImageFromUrl) ...
         Image qrImage = generateQrCodeImageFromUrl(qrUrl, 250);
-        if (qrImage == null || qrImage.isError()) { showAlert(AlertType.ERROR, "Lỗi kết nối", "..."); return; }
+        if (qrImage == null || qrImage.isError()) { 
+            showAlert(AlertType.ERROR, "Lỗi kết nối", "Không thể tải mã QR VietQR."); 
+            return; 
+        }
 
+        // --- Tạo giao diện ---
+        ImageView qrView = new ImageView(qrImage); 
+        qrView.setFitWidth(250); qrView.setFitHeight(250);
+        
+        Label lblTitle = new Label("Quét Mã Thanh Toán VietQR"); 
+        lblTitle.setStyle("-fx-font-size: 1.5em; -fx-font-weight: bold;");
+        
+        Label lblAmount = new Label("Số tiền: " + String.format("%,.0f Đ", tongTienThanhToan)); 
+        lblAmount.setStyle("-fx-font-size: 1.2em; -fx-font-weight: 500; -fx-text-fill: red;");
 
-        // ... (Code tạo giao diện ImageView, Labels, Buttons btnHuy, btnXacNhanThanhToan giữ nguyên) ...
-        ImageView qrView = new ImageView(qrImage); qrView.setFitWidth(250); qrView.setFitHeight(250);
-        Label lblTitle = new Label("Quét Mã Thanh Toán VietQR"); lblTitle.setStyle("-fx-font-size: 1.5em; -fx-font-weight: bold;");
-        Label lblAmount = new Label("Số tiền: " + String.format("%,.0f Đ", tongTienThanhToan)); lblAmount.setStyle("-fx-font-size: 1.2em; -fx-font-weight: 500; -fx-text-fill: red;");
-        Label lblContent = new Label("Nội dung: " + rawContent); lblContent.setStyle("-fx-font-size: 1.0em; -fx-font-weight: 400;");
-        Button btnHuy = new Button("Hủy"); Button btnXacNhanThanhToan = new Button("Xác nhận đã thanh toán");
-        btnHuy.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;"); btnHuy.getStyleClass().add("action-button-cancel");
-        btnXacNhanThanhToan.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;"); btnXacNhanThanhToan.getStyleClass().add("confirm-button");
-        HBox buttonBox = new HBox(15, btnHuy, btnXacNhanThanhToan); buttonBox.setAlignment(Pos.CENTER);
-        VBox root = new VBox(20, lblTitle, qrView, lblAmount, lblContent, buttonBox); root.setPadding(new Insets(20)); root.setAlignment(Pos.CENTER); root.setPrefSize(400, 550);
+        // === THÊM MỚI: TÊN VÀ SỐ TÀI KHOẢN ===
+        Label lblAccountName = new Label("Tên tài khoản: " + YOUR_ACCOUNT_NAME);
+        lblAccountName.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        
+        Label lblAccountNumber = new Label("Số tài khoản: " + YOUR_ACCOUNT_NUMBER);
+        lblAccountNumber.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        // === KẾT THÚC THÊM MỚI ===
+        
+        Label lblContent = new Label("Nội dung: " + rawContent); 
+        lblContent.setStyle("-fx-font-size: 1.0em; -fx-font-weight: 400;");
+        
+        Button btnHuy = new Button("Hủy"); 
+        Button btnXacNhanThanhToan = new Button("Xác nhận đã thanh toán");
+        btnHuy.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;"); 
+        btnXacNhanThanhToan.setStyle("-fx-background-color: #28a745; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;"); 
+        
+        HBox buttonBox = new HBox(15, btnHuy, btnXacNhanThanhToan); 
+        buttonBox.setAlignment(Pos.CENTER);
 
+        // === SỬA LAYOUT: Thêm 2 label mới vào infoBox ===
+        VBox infoBox = new VBox(8, lblAmount, lblAccountName, lblAccountNumber, lblContent);
+        infoBox.setAlignment(Pos.CENTER);
 
-        // Thiết lập Stage
+        VBox root = new VBox(15, lblTitle, qrView, infoBox, buttonBox); // Giảm spacing
+        root.setPadding(new Insets(20)); 
+        root.setAlignment(Pos.CENTER); 
+        root.setPrefSize(400, 600); // Tăng chiều cao
+
+        // --- Thiết lập Stage ---
         Stage popupStage = new Stage();
         popupStage.setTitle("Thanh toán Ngân hàng");
         popupStage.setScene(new Scene(root));
 
-        // GÁN SỰ KIỆN CHO NÚT
+        // --- Gán sự kiện (Đã sửa) ---
         btnHuy.setOnAction(e -> popupStage.close());
-
-        // 🔥 SỬA LẠI XỬ LÝ NÚT XÁC NHẬN
+        
         btnXacNhanThanhToan.setOnAction(e -> {
-            // 1. Set PTTT tương ứng
             this.selectedPTTT = PTTThanhToan.NGAN_HANG;
-            // 2. Đóng popup này TRƯỚC khi gọi hàm lưu
             popupStage.close();
-            // 3. Gọi hàm lưu/thanh toán chính của ThanhToanPreviewController
             handleFinalThanhToan();
         });
 
         popupStage.show();
     }
 
-     /**
+    /**
      * Mở Popup hiển thị QR Thanh toán MoMo.
+     * === ĐÃ THÊM: Tên tài khoản và Số tài khoản ===
      */
     private void openMoMoQrPopup() {
-        if (hoaDonToPay == null || hoaDonToPay.getMaHD() == null) { // Sử dụng hoaDonToPay
+        if (hoaDonToPay == null || hoaDonToPay.getMaHD() == null) { 
             showAlert(AlertType.WARNING, "Lỗi", "Không có mã hóa đơn hợp lệ để tạo QR.");
             return;
         }
 
-        calculateAndDisplayTotals(); // Gọi hàm tính tổng của Controller này
+        calculateAndDisplayTotals(); 
         double tongTienThanhToan = 0;
         try {
-            // Lấy tổng tiền từ Label của Controller này
             String amountStr = lblTongThanhToan.getText().replaceAll("[^0-9]", "");
             tongTienThanhToan = Double.parseDouble(amountStr.isEmpty() ? "0" : amountStr);
         } catch (NumberFormatException e) {
@@ -1069,44 +1102,87 @@ public class ThanhToanPreviewController {
             return;
         }
 
-        // ... (Code chuẩn bị thông tin BANK_CODE BVBank, ACCOUNT_NUMBER, qrUrl giữ nguyên) ...
-         final String YOUR_BANK_CODE = "970454"; final String YOUR_ACCOUNT_NUMBER = "99MM24030M69605648"; String maHD = hoaDonToPay.getMaHD(); // Sử dụng hoaDonToPay
-         String rawContent = "TT" + maHD.toUpperCase().replace(" ", "_"); String encodedContent; try { encodedContent = java.net.URLEncoder.encode(rawContent, "UTF-8"); } catch (java.io.UnsupportedEncodingException e) { encodedContent = rawContent; }
-         String qrUrl = String.format( "https://img.vietqr.io/image/%s-%s-compact.png?amount=%d&addInfo=%s", YOUR_BANK_CODE, YOUR_ACCOUNT_NUMBER, (int) Math.ceil(tongTienThanhToan), encodedContent );
+        // --- Thông tin tài khoản ---
+         final String YOUR_BANK_CODE = "970454"; // BIN BVBank
+         final String YOUR_ACCOUNT_NUMBER = "99MM24030M69605648"; // STK MoMo/BVBank
+        // === THÊM MỚI: TÊN TÀI KHOẢN ===
+        final String YOUR_ACCOUNT_NAME = "MOMO_LECONGCHUNG"; // <<< THAY TÊN CHỦ TK CỦA BẠN VÀO ĐÂY
+         
+         String maHD = hoaDonToPay.getMaHD(); 
+         String rawContent = "TT" + maHD.toUpperCase().replace(" ", "_"); 
+         String encodedContent; 
+         try { 
+            encodedContent = java.net.URLEncoder.encode(rawContent, "UTF-8"); 
+         } catch (java.io.UnsupportedEncodingException e) { 
+            encodedContent = rawContent; 
+         }
+         
+         String qrUrl = String.format( "https://img.vietqr.io/image/%s-%s-compact.png?amount=%d&addInfo=%s", 
+            YOUR_BANK_CODE, YOUR_ACCOUNT_NUMBER, (int) Math.ceil(tongTienThanhToan), encodedContent );
 
-
-        // ... (Code tải ảnh QR giữ nguyên) ...
         Image qrImage = generateQrCodeImageFromUrl(qrUrl, 250);
-         if (qrImage == null || qrImage.isError()) { showAlert(AlertType.ERROR, "Lỗi kết nối", "..."); return; }
+         if (qrImage == null || qrImage.isError()) { 
+            showAlert(AlertType.ERROR, "Lỗi kết nối", "Không thể tải mã QR VietQR."); 
+            return; 
+         }
 
+        // --- Tạo giao diện ---
+         ImageView qrView = new ImageView(qrImage); 
+         qrView.setFitWidth(250); qrView.setFitHeight(250);
+         
+         ImageView logoView = new ImageView(); 
+         try { 
+            Image logoMomo = new Image(getClass().getResourceAsStream("/images/MoMo_Logo.png")); 
+            logoView.setImage(logoMomo); 
+            logoView.setFitHeight(40); 
+            logoView.setPreserveRatio(true); 
+         } catch (Exception e) { 
+            System.err.println("Lỗi tải logo MoMo."); 
+            return; 
+         }
+         
+         Label lblAmount = new Label("Số tiền: " + String.format("%,.0f Đ", tongTienThanhToan)); 
+         lblAmount.setStyle("-fx-font-size: 1.2em; -fx-font-weight: 500; -fx-text-fill: red;");
+         
+        // === THÊM MỚI: TÊN VÀ SỐ TÀI KHOẢN ===
+        Label lblAccountName = new Label("Tên tài khoản: " + YOUR_ACCOUNT_NAME);
+        lblAccountName.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        
+        Label lblAccountNumber = new Label("Số tài khoản: " + YOUR_ACCOUNT_NUMBER);
+        lblAccountNumber.setStyle("-fx-font-size: 1.1em; -fx-font-weight: 500; -fx-text-fill: #333;");
+        // === KẾT THÚC THÊM MỚI ===
+         
+         Label lblContent = new Label("Nội dung: " + rawContent); 
+         lblContent.setStyle("-fx-font-size: 1.0em; -fx-font-weight: 400;");
+         
+         Button btnHuy = new Button("Hủy"); 
+         Button btnXacNhanThanhToan = new Button("Xác nhận đã thanh toán");
+         btnHuy.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
+         btnXacNhanThanhToan.setStyle("-fx-background-color: #b0006d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
+         
+         HBox buttonBox = new HBox(15, btnHuy, btnXacNhanThanhToan); 
+         buttonBox.setAlignment(Pos.CENTER);
 
-        // ... (Code tạo giao diện ImageView logoView, qrView, Labels, Buttons btnHuy, btnXacNhanThanhToan giữ nguyên) ...
-         ImageView qrView = new ImageView(qrImage); qrView.setFitWidth(250); qrView.setFitHeight(250);
-        ImageView logoView = new ImageView(); try { Image logoMomo = new Image(getClass().getResourceAsStream("/images/MoMo_Logo.png")); logoView.setImage(logoMomo); logoView.setFitHeight(40); logoView.setPreserveRatio(true); } catch (Exception e) { System.err.println("Lỗi tải logo MoMo."); return; }
-        Label lblAmount = new Label("Số tiền: " + String.format("%,.0f Đ", tongTienThanhToan)); lblAmount.setStyle("-fx-font-size: 1.2em; -fx-font-weight: 500; -fx-text-fill: red;");
-        Label lblContent = new Label("Nội dung: " + rawContent); lblContent.setStyle("-fx-font-size: 1.0em; -fx-font-weight: 400;");
-        Button btnHuy = new Button("Hủy"); Button btnXacNhanThanhToan = new Button("Xác nhận đã thanh toán");
-        btnHuy.setStyle("-fx-background-color: #6c757d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
-        btnXacNhanThanhToan.setStyle("-fx-background-color: #b0006d; -fx-text-fill: white; -fx-padding: 10px 20px; -fx-font-weight: bold;");
-        HBox buttonBox = new HBox(15, btnHuy, btnXacNhanThanhToan); buttonBox.setAlignment(Pos.CENTER);
-        VBox root = new VBox(20, logoView, qrView, lblAmount, lblContent, buttonBox); root.setPadding(new Insets(20)); root.setAlignment(Pos.CENTER); root.setPrefSize(400, 550);
+        // === SỬA LAYOUT: Thêm 2 label mới vào infoBox ===
+        VBox infoBox = new VBox(8, lblAmount, lblAccountName, lblAccountNumber, lblContent);
+        infoBox.setAlignment(Pos.CENTER);
 
+        VBox root = new VBox(15, logoView, qrView, infoBox, buttonBox); // Giảm spacing
+         root.setPadding(new Insets(20)); 
+         root.setAlignment(Pos.CENTER); 
+         root.setPrefSize(400, 600); // Tăng chiều cao
 
-        // Thiết lập Stage
+        // --- Thiết lập Stage ---
         Stage popupStage = new Stage();
         popupStage.setTitle("Thanh toán MoMo/VietQR");
         popupStage.setScene(new Scene(root));
 
-        // GÁN SỰ KIỆN CHO NÚT
+        // --- Gán sự kiện (Đã sửa) ---
         btnHuy.setOnAction(e -> popupStage.close());
 
-        // 🔥 SỬA LẠI XỬ LÝ NÚT XÁC NHẬN
         btnXacNhanThanhToan.setOnAction(e -> {
-            // 1. Set PTTT tương ứng
             this.selectedPTTT = PTTThanhToan.VI_DIEN_TU; // MoMo
-            // 2. Đóng popup này TRƯỚC khi gọi hàm lưu
             popupStage.close();
-            // 3. Gọi hàm lưu/thanh toán chính của ThanhToanPreviewController
             handleFinalThanhToan();
         });
 

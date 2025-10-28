@@ -1,6 +1,9 @@
 package ui;
 
 import dao.DatBanDAO;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.ListView;
+import javafx.util.Callback;
 import entity.HoaDon;
 import entity.PTTThanhToan;
 import entity.TrangThaiBan;
@@ -71,10 +74,52 @@ public class ChiTietDatBanController implements Initializable {
 
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
-        // Khởi tạo ComboBox (Sử dụng tên hiển thị)
-        comboTrangThai.setItems(FXCollections.observableArrayList("Đã đặt", "Đang phục vụ", "Đã thanh toán", "Đã hủy", "Hóa đơn tạm"));
+        // === BƯỚC 1: TRẢ LẠI DANH SÁCH ĐẦY ĐỦ ===
+    	comboTrangThai.setItems(FXCollections.observableArrayList(
+                TrangThaiHoaDon.DAT.getDisplayName(),          // "Đã đặt"
+                TrangThaiHoaDon.DANG_SU_DUNG.getDisplayName(), // "Đang phục vụ"
+                TrangThaiHoaDon.DA_THANH_TOAN.getDisplayName(),// "Đã thanh toán" (Giữ lại)
+                TrangThaiHoaDon.DA_HUY.getDisplayName(),       // "Đã hủy"
+                TrangThaiHoaDon.HOA_DON_TAM.getDisplayName(),  // "Hóa đơn tạm"
+                TrangThaiHoaDon.CHO_XAC_NHAN.getDisplayName()  // "Chờ xác nhận"
+            ));
 
-        // Gán sự kiện
+        // === BƯỚC 2: THÊM CELL FACTORY ĐỂ VÔ HIỆU HÓA LỰA CHỌN ===
+        final String disabledItem = TrangThaiHoaDon.DA_THANH_TOAN.getDisplayName();
+
+        comboTrangThai.setCellFactory(new Callback<ListView<String>, ListCell<String>>() {
+            @Override
+            public ListCell<String> call(ListView<String> param) {
+                return new ListCell<String>() {
+                    @Override
+                    protected void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+                        
+                        if (empty || item == null) {
+                            setText(null);
+                            setDisable(false);
+                            setStyle(null);
+                        } else {
+                            setText(item);
+                            // Vô hiệu hóa cell nếu item là "Đã thanh toán"
+                            boolean isDisabled = item.equals(disabledItem);
+                            setDisable(isDisabled);
+                            
+                            // Thêm style để làm nó mờ đi (giống như bị vô hiệu hóa)
+                            getStyleClass().remove("disabled-list-cell"); // Xóa class cũ (nếu có)
+                            if (isDisabled) {
+                                getStyleClass().add("disabled-list-cell"); // Thêm class mới
+                            } else {
+                                setStyle(null); // Reset style cho các cell khác
+                            }
+                        }
+                    }
+                };
+            }
+        });
+        // === KẾT THÚC THÊM MỚI ===
+
+        // Gán sự kiện (giữ nguyên)
         btnBack.setOnAction(e -> handleClosePopup());
         if (btnCapNhat != null) {
             btnCapNhat.setOnAction(e -> handleCapNhatDatBan());
