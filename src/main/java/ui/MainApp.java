@@ -26,11 +26,6 @@ public class MainApp extends Application {
     private Image appIcon;
     private static TaiKhoan loggedInUser = null;
 
-    // --- 🔥 XÓA CÁC BIẾN STATIC CŨ ---
-    // private static double initialCashCount = -1.0;
-    // private static LocalDate initialCashCountDate = null;
-    // private static String initialCashCountUser = null;
-    // --- KẾT THÚC XÓA ---
 
     public static void setLoggedInUser(TaiKhoan user) {
         loggedInUser = user;

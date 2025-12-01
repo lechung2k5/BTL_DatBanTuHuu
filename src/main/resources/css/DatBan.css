@@ -32,10 +32,56 @@
 /* ==================== CỘT TRÁI: DANH SÁCH ĐẶT BÀN ==================== */
 .booking-card { -fx-background-color: white; -fx-background-radius: 8px; -fx-padding: 12px; }
 .booking-card-id { -fx-font-weight: bold; -fx-font-size: 13px; }
+/* Trạng thái Chờ xác nhận (Đã có, giữ nguyên hoặc chỉnh lại cho đồng bộ) */
 .booking-status-choxacnhan {
     -fx-font-weight: bold;
-    -fx-text-fill: #e8590c; /* Màu cam đậm */
-    -fx-background-color: #fff3bf; /* Nền vàng nhạt */
+    -fx-text-fill: #e8590c; /* Cam đậm */
+    -fx-background-color: #fff3bf; /* Vàng nhạt */
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 5px;
+}
+
+/* Trạng thái Đã đặt (Màu Tím hoặc Đỏ để gây chú ý) */
+.booking-status-dat {
+    -fx-font-weight: bold;
+    -fx-text-fill: #5f3dc4; /* Tím đậm */
+    -fx-background-color: #e5dbff; /* Tím nhạt */
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 5px;
+}
+
+/* Trạng thái Đã nhận bàn / Đang phục vụ (Màu Xanh lá hoặc Xanh dương để thể hiện đang hoạt động) */
+.booking-status-dangsudung {
+    -fx-font-weight: bold;
+    -fx-text-fill: #2b8a3e; /* Xanh lá đậm */
+    -fx-background-color: #d3f9d8; /* Xanh lá nhạt */
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 5px;
+}
+
+/* Trạng thái Hóa đơn tạm (Màu Xám hoặc Xanh nhạt) */
+.booking-status-hoadontam {
+    -fx-font-weight: bold;
+    -fx-text-fill: #495057; /* Xám đậm */
+    -fx-background-color: #f8f9fa; /* Xám nhạt */
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 5px;
+}
+
+/* Trạng thái Đã thanh toán (Màu Xanh dương) - Nếu có hiển thị */
+.booking-status-dathanhtoan {
+    -fx-font-weight: bold;
+    -fx-text-fill: #1864ab; /* Xanh dương đậm */
+    -fx-background-color: #d0ebff; /* Xanh dương nhạt */
+    -fx-background-radius: 4px;
+    -fx-padding: 2px 5px;
+}
+
+/* Trạng thái Đã hủy (Màu Đỏ) - Nếu có hiển thị */
+.booking-status-dahuy {
+    -fx-font-weight: bold;
+    -fx-text-fill: #c92a2a; /* Đỏ đậm */
+    -fx-background-color: #ffe3e3; /* Đỏ nhạt */
     -fx-background-radius: 4px;
     -fx-padding: 2px 5px;
 }

@@ -137,6 +137,8 @@ public class DatBan implements Initializable {
     @FXML private Label lblBanDangChon;
     @FXML private Button btnTimKhach;
     @FXML private Button btnXacNhanBan;
+    @FXML private ComboBox<String> comboTrangThaiHienTai; // 🔥 MỚI
+    @FXML private Button btnCapNhatTrangThai; // 🔥 MỚI
 
     
     // === CỘT 3 (Right Panel) - GỌI MÓN & HÓA ĐƠN ===
@@ -194,7 +196,21 @@ public class DatBan implements Initializable {
         // ----------------------------------------------------
         // BƯỚC 1: TẢI DỮ LIỆU VÀ KHỞI TẠO CẤU TRÚC (DAO calls)
         // ----------------------------------------------------
-        
+    	// --- 1. KHỞI TẠO COMBOBOX TRẠNG THÁI ---
+    	// --- 1. KHỞI TẠO COMBOBOX TRẠNG THÁI (ĐÃ SỬA THEO YÊU CẦU GIẢNG VIÊN) ---
+        if (comboTrangThaiHienTai != null) {
+            comboTrangThaiHienTai.setItems(FXCollections.observableArrayList(
+                "Chờ xác nhận",  // CHO_XAC_NHAN
+                "Đã đặt",        // DAT
+                "Đã nhận bàn"    // DANG_SU_DUNG (Tên mới thay cho "Đang phục vụ")
+                // 🔥 ĐÃ ẨN: "Hóa đơn tạm", "Đã thanh toán", "Đã hủy"
+            ));
+        }
+
+        // --- 2. GÁN SỰ KIỆN CẬP NHẬT ---
+        if (btnCapNhatTrangThai != null) {
+            btnCapNhatTrangThai.setOnAction(e -> handleCapNhatTrangThaiNhanh());
+        }
         dsDanhMuc = danhMucMonDAO.getAllDanhMuc();
         
         menuGroup = new ToggleGroup();
@@ -351,6 +367,69 @@ public class DatBan implements Initializable {
  // ui.DatBan.java
 
     /**
+     * 🔥 HÀM MỚI: Cập nhật trạng thái từ ComboBox (Có Validate Logic)
+     */
+    private void handleCapNhatTrangThaiNhanh() {
+        if (currentHoaDon == null || currentHoaDon.getMaHD() == null) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi", "Vui lòng chọn một hóa đơn để cập nhật.");
+            return;
+        }
+
+        String trangThaiMoiDisplay = comboTrangThaiHienTai.getValue();
+        if (trangThaiMoiDisplay == null) return;
+
+        // 1. Map từ tên hiển thị Tiếng Việt về DB Value
+        String trangThaiMoiDb = "";
+        if (trangThaiMoiDisplay.equals("Đã nhận bàn")) trangThaiMoiDb = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
+        else if (trangThaiMoiDisplay.equals("Đã đặt")) trangThaiMoiDb = TrangThaiHoaDon.DAT.getDbValue();
+        else if (trangThaiMoiDisplay.equals("Chờ xác nhận")) trangThaiMoiDb = TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue();
+        else {
+             showAlert(Alert.AlertType.ERROR, "Lỗi", "Trạng thái không hợp lệ.");
+             return;
+        }
+
+        // 2. 🔥 LOGIC CHẶN LÙI TRẠNG THÁI (Quan trọng)
+        String trangThaiHienTaiDb = currentHoaDon.getTrangThai().getDbValue();
+        
+        // Nếu đang là ĐÃ ĐẶT hoặc ĐÃ NHẬN BÀN -> Không được về CHỜ XÁC NHẬN
+        if ((trangThaiHienTaiDb.equals(TrangThaiHoaDon.DAT.getDbValue()) || 
+             trangThaiHienTaiDb.equals(TrangThaiHoaDon.DANG_SU_DUNG.getDbValue())) 
+             && trangThaiMoiDb.equals(TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue())) {
+            
+            showAlert(Alert.AlertType.WARNING, "Sai quy trình", 
+                      "Hóa đơn đã được xác nhận hoặc đang phục vụ.\nKhông thể quay lại trạng thái 'Chờ xác nhận'.");
+            // Reset lại combobox về cũ
+            loadHoaDonToMainInterface(currentHoaDon); 
+            return;
+        }
+
+        try {
+            // 3. Cập nhật Hóa đơn
+            datBanDAO.capNhatTrangThaiHoaDon(currentHoaDon.getMaHD(), trangThaiMoiDb, false);
+
+            // 4. Cập nhật Bàn (Gốc và Phụ)
+            String banStatusUpdate = getTrangThaiBanFromHoaDon(trangThaiMoiDb);
+            for (HoaDon hd : currentHoaDonGocVaPhu) {
+                if (hd.getBan() != null) {
+                    datBanDAO.capNhatTrangThaiBan(hd.getBan().getMaBan(), banStatusUpdate);
+                }
+            }
+            
+            // Cập nhật lại đối tượng hiện tại để đồng bộ
+            currentHoaDon.setTrangThai(trangThaiMoiDb);
+
+            showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã cập nhật trạng thái thành: " + trangThaiMoiDisplay);
+            
+            // 5. Refresh giao diện
+            loadBookingCards();
+            loadHoaDonToMainInterface(currentHoaDon); // Load lại để tô màu bàn
+
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể cập nhật trạng thái: " + e.getMessage());
+        }
+    }
+
+	/**
      * 🔥 HÀM SỬA CUỐI CÙNG: Xử lý nút In Hóa đơn (In Hóa đơn TẠM TÍNH).
      * Cho phép in nếu HĐ đang ở trạng thái ĐANG SỬ DỤNG hoặc ĐÃ ĐẶT (Chưa thanh toán).
      */
@@ -870,7 +949,23 @@ public class DatBan implements Initializable {
             // (Logic xác nhận thanh toán giữ nguyên)
             PTTThanhToan pttt = PTTThanhToan.VI_DIEN_TU; 
             String maHDCanThanhToan = currentHoaDon.getMaHD();
-            String maNV = "NV001"; 
+            String maNV = "NV_LOI"; // Mã mặc định nếu lỗi
+            try {
+                // Lấy tài khoản đang đăng nhập từ MainApp
+                TaiKhoan tk = MainApp.getLoggedInUser();
+                
+                // Kiểm tra và lấy maNV (Giả định NhanVien entity có getMaNV())
+                if (tk != null && tk.getNhanVien() != null && tk.getNhanVien().getMaNV() != null) { 
+                    maNV = tk.getNhanVien().getMaNV(); 
+                } else {
+                     System.err.println("Lỗi thanh toán: Không tìm thấy maNV từ MainApp.getLoggedInUser()");
+                     // Gán một mã NV mặc định hoặc báo lỗi tùy nghiệp vụ
+                     maNV = "NV_DEFAULT"; 
+                }
+            } catch (Exception ex) {
+                System.err.println("Lỗi nghiêm trọng khi lấy maNV đăng nhập: " + ex.getMessage());
+                ex.printStackTrace();
+            } 
             
             if (maHDCanThanhToan != null) {
                 if (datBanDAO.thanhToanHoaDon(maHDCanThanhToan, pttt, maNV)) { 
@@ -1184,7 +1279,23 @@ public class DatBan implements Initializable {
             // (Logic xác nhận thanh toán giữ nguyên)
             PTTThanhToan pttt = PTTThanhToan.NGAN_HANG; 
             String maHDCanThanhToan = currentHoaDon.getMaHD();
-            String maNV = "NV001"; 
+            String maNV = "NV_LOI"; // Mã mặc định nếu lỗi
+            try {
+                // Lấy tài khoản đang đăng nhập từ MainApp
+                TaiKhoan tk = MainApp.getLoggedInUser();
+                
+                // Kiểm tra và lấy maNV (Giả định NhanVien entity có getMaNV())
+                if (tk != null && tk.getNhanVien() != null && tk.getNhanVien().getMaNV() != null) { 
+                    maNV = tk.getNhanVien().getMaNV(); 
+                } else {
+                     System.err.println("Lỗi thanh toán: Không tìm thấy maNV từ MainApp.getLoggedInUser()");
+                     // Gán một mã NV mặc định hoặc báo lỗi tùy nghiệp vụ
+                     maNV = "NV_DEFAULT"; 
+                }
+            } catch (Exception ex) {
+                System.err.println("Lỗi nghiêm trọng khi lấy maNV đăng nhập: " + ex.getMessage());
+                ex.printStackTrace();
+            } 
             
             if (maHDCanThanhToan != null) {
                 if (datBanDAO.thanhToanHoaDon(maHDCanThanhToan, pttt, maNV)) { 
@@ -1388,8 +1499,24 @@ public class DatBan implements Initializable {
             // 1. Chuẩn bị dữ liệu (pttt, maNV)
             PTTThanhToan pttt = PTTThanhToan.TIEN_MAT; // Hoặc NGAN_HANG, MOMO
             String maHDCanThanhToan = currentHoaDon.getMaHD();
-            String maNV = "NV001"; // Giả định đã có logic lấy mã NV từ MainApp
-            // ... (logic lấy mã NV) ...
+            String maNV = "NV_LOI"; // Mã mặc định nếu lỗi
+            try {
+                // Lấy tài khoản đang đăng nhập từ MainApp
+                TaiKhoan tk = MainApp.getLoggedInUser();
+                
+                // Kiểm tra và lấy maNV (Giả định NhanVien entity có getMaNV())
+                if (tk != null && tk.getNhanVien() != null && tk.getNhanVien().getMaNV() != null) { 
+                    maNV = tk.getNhanVien().getMaNV(); 
+                } else {
+                     System.err.println("Lỗi thanh toán: Không tìm thấy maNV từ MainApp.getLoggedInUser()");
+                     // Gán một mã NV mặc định hoặc báo lỗi tùy nghiệp vụ
+                     maNV = "NV_DEFAULT"; 
+                }
+            } catch (Exception ex) {
+                System.err.println("Lỗi nghiêm trọng khi lấy maNV đăng nhập: " + ex.getMessage());
+                ex.printStackTrace();
+            }
+            
             
             if (maHDCanThanhToan != null) {
                 // 2. GỌI DAO ĐỂ CẬP NHẬT TRẠNG THÁI HÓA ĐƠN VÀ GIẢI PHÓNG BÀN
@@ -2364,7 +2491,23 @@ public class DatBan implements Initializable {
         }
 
         txtYeuCau.clear(); //
-
+        if (comboTrangThaiHienTai != null) {
+        	if (comboTrangThaiHienTai != null) {
+                String dbVal = currentHoaDon.getTrangThai().getDbValue();
+                String displayStatus;
+                
+                if (dbVal.equals(TrangThaiHoaDon.DANG_SU_DUNG.getDbValue())) {
+                    displayStatus = "Đã nhận bàn";
+                } else if (dbVal.equals(TrangThaiHoaDon.DAT.getDbValue())) {
+                    displayStatus = "Đã đặt";
+                } else if (dbVal.equals(TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue())) {
+                    displayStatus = "Chờ xác nhận";
+                } else {
+                    displayStatus = ""; // Các trạng thái khác (Hủy, TT) không hiển thị trong combo
+                }
+                
+                comboTrangThaiHienTai.setValue(displayStatus);
+            }
         // 7. TÔ MÀU CÁC NÚT BÀN TRÊN SƠ ĐỒ
         TrangThaiHoaDon trangThaiHdGoc = TrangThaiHoaDon.fromDbValue(currentHoaDon.getTrangThai().getDbValue());
         TrangThaiBan trangThaiCanTo = trangThaiHdGoc == TrangThaiHoaDon.DANG_SU_DUNG
@@ -2395,105 +2538,189 @@ public class DatBan implements Initializable {
             vboxReceipt.setVisible(false);
         }
     }
+    }
     /**
-     * Tạo một VBox card hiển thị thông tin tóm tắt của Hóa đơn.
-     * 🔥 ĐÃ SỬA: Thêm hiển thị cho trạng thái CHO_XAC_NHAN.
+     * Tạo thẻ booking hiển thị bên trái với nút chức năng thông minh.
      */
     private VBox createBookingCard(HoaDon hd) {
+        // 1. Khởi tạo Card
         VBox card = new VBox(8);
         card.getStyleClass().add("booking-card");
         card.setPadding(new Insets(15));
 
+        // 2. Lấy dữ liệu từ Hóa đơn
         String maGiaoDich = hd.getMaHD();
+        
+        // Xử lý trạng thái hiển thị tiếng Việt
         String trangThaiDb = hd.getTrangThai() != null ? hd.getTrangThai().getDbValue() : "Unknown";
         String trangThaiViet = switch (trangThaiDb) {
             case "Dat" -> "Đã đặt";
-            case "DangSuDung" -> "Đang phục vụ";
-            case "HoaDonTam" -> "Hóa đơn tạm";
-            case "ChoXacNhan" -> "Chờ xác nhận"; // <<< THÊM MỚI
-            default -> trangThaiDb; // Giữ nguyên dbValue nếu không khớp
+            case "DangSuDung" -> "Đã nhận bàn"; // Tên mới theo yêu cầu
+            case "HoaDonTam" -> "Đang tạo...";
+            case "ChoXacNhan" -> "Chờ xác nhận";
+            default -> trangThaiDb;
         };
+        
         String gioVao = (hd.getGioVao() != null) ? hd.getGioVao().toLocalTime().format(timeFormatter) : "N/A";
         String sdtKhach = (hd.getKhachHang() != null && hd.getKhachHang().getSoDT() != null) ? hd.getKhachHang().getSoDT() : "N/A";
 
-        // === Logic lấy danh sách bàn duy nhất (Giữ nguyên) ===
+        // 3. Logic tìm tên bàn (Bao gồm cả bàn của HĐ Phụ)
         String danhSachBanDayDu = "N/A";
         try {
-            // ... (Code lấy danh sách bàn giữ nguyên) ...
-             List<HoaDon> allRelatedHDs = new ArrayList<>(); String maHDGocDeTim;
-            if (hd.getMaHDGoc() == null) { maHDGocDeTim = hd.getMaHD(); allRelatedHDs.add(hd); } else { maHDGocDeTim = hd.getMaHDGoc(); HoaDon hdGocTimDuoc = datBanDAO.getHoaDonByMaHD(maHDGocDeTim); if (hdGocTimDuoc != null) { allRelatedHDs.add(hdGocTimDuoc); } }
-             List<HoaDon> hdPhuList = datBanDAO.getHoaDonPhuByMaHDGoc(maHDGocDeTim); for(HoaDon hp : hdPhuList){ if(!allRelatedHDs.stream().anyMatch(h -> h.getMaHD().equals(hp.getMaHD()))){ allRelatedHDs.add(hp); } }
-             Set<String> uniqueBanSet = allRelatedHDs.stream().filter(h -> h.getBan() != null).map(h -> h.getBan().getMaBan()).collect(Collectors.toSet());
+             List<HoaDon> allRelatedHDs = new ArrayList<>(); 
+             String maHDGocDeTim;
+             
+             // Xác định HĐ Gốc
+             if (hd.getMaHDGoc() == null) { 
+                 maHDGocDeTim = hd.getMaHD(); 
+                 allRelatedHDs.add(hd); 
+             } else { 
+                 maHDGocDeTim = hd.getMaHDGoc(); 
+                 HoaDon hdGocTimDuoc = datBanDAO.getHoaDonByMaHD(maHDGocDeTim); 
+                 if (hdGocTimDuoc != null) { allRelatedHDs.add(hdGocTimDuoc); } 
+             }
+             
+             // Tìm các HĐ Phụ
+             List<HoaDon> hdPhuList = datBanDAO.getHoaDonPhuByMaHDGoc(maHDGocDeTim); 
+             for(HoaDon hp : hdPhuList){ 
+                 if(!allRelatedHDs.stream().anyMatch(h -> h.getMaHD().equals(hp.getMaHD()))){ 
+                     allRelatedHDs.add(hp); 
+                 } 
+             }
+             
+             // Gom danh sách mã bàn
+             Set<String> uniqueBanSet = allRelatedHDs.stream()
+                 .filter(h -> h.getBan() != null)
+                 .map(h -> h.getBan().getMaBan())
+                 .collect(Collectors.toSet());
+                 
              danhSachBanDayDu = uniqueBanSet.isEmpty() ? "N/A" : String.join(", ", new TreeSet<>(uniqueBanSet));
-        } catch (Exception e) { System.err.println("Lỗi lấy danh sách bàn cho card HD " + hd.getMaHD() + ": " + e.getMessage()); e.printStackTrace(); Ban banHienTai = hd.getBan(); danhSachBanDayDu = (banHienTai != null ? banHienTai.getMaBan() : "Lỗi"); }
-        // ===========================================
+             
+        } catch (Exception e) { 
+            Ban banHienTai = hd.getBan(); 
+            danhSachBanDayDu = (banHienTai != null ? banHienTai.getMaBan() : "Lỗi"); 
+        }
 
+        // 4. Tạo các Label hiển thị
         Label lblMaHD = new Label(maGiaoDich != null ? maGiaoDich : "Mã: N/A");
         lblMaHD.getStyleClass().add("booking-card-id");
+        
         Label lblSDT = new Label("SĐT: " + sdtKhach);
+        
         Label lblTrangThai = new Label("Trạng thái: " + trangThaiViet);
-        // Sử dụng dbValue để đặt class CSS (ví dụ: booking-status-choxacnhan)
-        lblTrangThai.getStyleClass().add("booking-status-" + trangThaiDb.toLowerCase());
-        Label lblThoiGian = new Label("Thời gian đặt: " + gioVao);
+        lblTrangThai.getStyleClass().add("booking-status-" + trangThaiDb.toLowerCase()); // CSS class theo trạng thái
+        
+        Label lblThoiGian = new Label("Giờ: " + gioVao);
         Label lblBan = new Label("Bàn: " + danhSachBanDayDu);
 
-        Button btnXemChiTiet = new Button("Xem chi tiết");
-        // ... (style và sự kiện của btnXemChiTiet giữ nguyên) ...
-         btnXemChiTiet.setMaxWidth(Double.MAX_VALUE); btnXemChiTiet.getStyleClass().add("view-details-button"); btnXemChiTiet.setPrefHeight(45);
-         btnXemChiTiet.setOnAction(e -> { System.out.println("LOG CLICK: Button Xem Chi Tiết clicked for HD: " + hd.getMaHD()); openChiTietDatBanPopup(hd); e.consume(); });
+        // 5. 🔥 TẠO NÚT "SMART ACTION" 🔥
+        Button btnSmartAction = new Button();
+        btnSmartAction.setMaxWidth(Double.MAX_VALUE);
+        btnSmartAction.setPrefHeight(40);
+        btnSmartAction.setStyle("-fx-font-weight: bold; -fx-cursor: hand;");
 
+        // --- CẤU HÌNH NÚT THEO TRẠNG THÁI ---
+        TrangThaiHoaDon ttEnum = hd.getTrangThai();
+        
+        if (ttEnum == TrangThaiHoaDon.DAT) {
+            // Trường hợp 1: ĐÃ ĐẶT -> Hành động: NHẬN BÀN
+            btnSmartAction.setText("▶ Nhận bàn ngay");
+            btnSmartAction.setStyle("-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;");
+            btnSmartAction.setOnAction(e -> {
+                e.consume(); 
+                handleNhanBanNhanh(hd); // Gọi hàm nhận bàn
+            });
+            
+        } else if (ttEnum == TrangThaiHoaDon.CHO_XAC_NHAN) {
+            // Trường hợp 2: CHỜ CỌC -> Hành động: XÁC NHẬN CỌC
+            btnSmartAction.setText("💰 Xác nhận cọc");
+            btnSmartAction.setStyle("-fx-background-color: #f39c12; -fx-text-fill: white; -fx-font-weight: bold;");
+            btnSmartAction.setOnAction(e -> {
+                e.consume();
+                loadHoaDonToMainInterface(hd); 
+                openThanhToanCocPopup();       
+            });
+            
+        } else if (ttEnum == TrangThaiHoaDon.DANG_SU_DUNG || ttEnum == TrangThaiHoaDon.HOA_DON_TAM) {
+            // Trường hợp 3: ĐANG PHỤC VỤ / ĐÃ NHẬN BÀN -> Hành động: THANH TOÁN
+            btnSmartAction.setText("💲 Thanh toán");
+            btnSmartAction.setStyle("-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold;");
+            btnSmartAction.setOnAction(e -> {
+                e.consume();
+                loadHoaDonToMainInterface(hd); 
+                handleThanhToan();             
+            });
+            
+        } else {
+            // Trường hợp khác: Chỉ xem
+            btnSmartAction.setText("Xem chi tiết");
+            btnSmartAction.setOnAction(e -> {
+                e.consume();
+                loadHoaDonToMainInterface(hd);
+            });
+        }
 
-        card.getChildren().addAll(lblMaHD, lblSDT, lblTrangThai, lblThoiGian, lblBan, btnXemChiTiet);
-
+        // 6. Thêm tất cả vào Card
+        card.getChildren().addAll(lblMaHD, lblSDT, lblTrangThai, lblThoiGian, lblBan, btnSmartAction);
+        
         return card;
     }
  // ui.DatBan.java
 
     /**
+     * 🔥 HÀM THÔNG MINH: Chuyển nhanh từ "Đã đặt" sang "Đang phục vụ" (Check-in).
+     * Cập nhật cả HĐ Gốc và các HĐ Phụ, cập nhật màu bàn.
+     */
+    private void handleNhanBanNhanh(HoaDon hd) {
+        // 1. Xác định HĐ Gốc
+        String maHDGoc = (hd.getMaHDGoc() != null) ? hd.getMaHDGoc() : hd.getMaHD();
+        
+        try {
+            // 2. Tìm tất cả HĐ liên quan (Gốc + Phụ)
+            List<HoaDon> allRelated = new ArrayList<>();
+            HoaDon hdGocObj = datBanDAO.getHoaDonByMaHD(maHDGoc);
+            if (hdGocObj != null) allRelated.add(hdGocObj);
+            allRelated.addAll(datBanDAO.getHoaDonPhuByMaHDGoc(maHDGoc));
+
+            // 3. Cập nhật DB: Chuyển tất cả sang DANG_SU_DUNG
+            String newStatusDb = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
+            String newBanStatus = TrangThaiBan.DANG_SU_DUNG.getDbValue();
+
+            for (HoaDon item : allRelated) {
+                // Update Hóa đơn
+                datBanDAO.capNhatTrangThaiHoaDon(item.getMaHD(), newStatusDb, false);
+                
+                // Update Bàn
+                if (item.getBan() != null) {
+                    datBanDAO.capNhatTrangThaiBan(item.getBan().getMaBan(), newBanStatus);
+                }
+            }
+
+            // 4. Thông báo và Refresh
+            showAlert(Alert.AlertType.INFORMATION, "Nhận bàn thành công", 
+                      "Đã nhận bàn cho HĐ " + maHDGoc + ". Khách bắt đầu sử dụng.");
+            
+         // 5. 🔥 TỰ ĐỘNG LOAD VÀ CẬP NHẬT COMBOBOX
+            loadBookingCards();
+            loadTableGrids();
+            
+            // Tìm lại HĐ mới nhất từ DB để có trạng thái đúng
+            HoaDon hdMoi = datBanDAO.getHoaDonByMaHD(maHDGoc);
+            if (hdMoi != null) {
+                loadHoaDonToMainInterface(hdMoi); // Hàm này sẽ tự set ComboBox thành "Đã nhận bàn"
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể nhận bàn: " + e.getMessage());
+        }
+    }
+
+	/**
      * 🔥 HÀM MỚI: Mở Popup Chi Tiết Đặt Bàn.
      */
     private void openChiTietDatBanPopup(HoaDon hd) {
-        System.out.println("\nLOG OPEN POPUP: Attempting to open ChiTietDatBan Popup for HD: " + hd.getMaHD());
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/fxml/ChiTietDatBan_Popup.fxml"));
-            VBox root = loader.load();
-            
-            System.out.println("LOG OPEN POPUP: FXML loaded successfully.");
-            
-            ChiTietDatBanController controller = loader.getController();
-
-            // Tạo Stage (Cửa sổ Popup)
-            Stage popupStage = new Stage();
-            popupStage.setTitle("Chi tiết đặt bàn " + (hd.getMaHD() != null ? hd.getMaHD() : "Mới"));
-            
-            // 🔥 TRUYỀN DỮ LIỆU ĐẾN CONTROLLER (Kích hoạt load data)
-            controller.setHoaDonData(hd, datBanDAO); 
-            
-            System.out.println("LOG OPEN POPUP: Data transmitted to Controller.");
-
-            // Cấu hình Stage
-            Scene scene = new Scene(root);
-            
-            // Gán Controller cha (this) vào UserData để các nút trong Popup có thể gọi lại DatBan.java
-            root.setUserData(this); 
-            
-            // Cấu hình CSS (giữ nguyên)
-            // ... (Logic CSS) ...
-            
-            popupStage.setScene(scene);
-            popupStage.show();
-
-            System.out.println("LOG OPEN POPUP: Popup displayed successfully. Waiting for interaction...");
-
-        } catch (IOException e) {
-            System.err.println("❌ ERROR POPUP: IO/FXML Loading Failed. Check file path / ChiTietDatBan_Popup.fxml.");
-            e.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Lỗi UI", "Không thể tải giao diện chi tiết đặt bàn: " + e.getMessage());
-        } catch (Exception e) {
-             System.err.println("❌ ERROR POPUP: Unspecified error occurred during popup opening.");
-             e.printStackTrace();
-             showAlert(Alert.AlertType.ERROR, "Lỗi Hệ thống", "Đã xảy ra lỗi không xác định khi mở Popup: " + e.getMessage());
-        }
+    	loadHoaDonToMainInterface(hd);
     }
 
 

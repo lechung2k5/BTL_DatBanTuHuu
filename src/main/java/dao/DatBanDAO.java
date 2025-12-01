@@ -1586,4 +1586,48 @@ public class DatBanDAO {
          }
          return hoaDonList;
      }
+     public List<Ban> getListBan() {
+         return getAllBan();
+     }
+     /**
+      * 🔥 HÀM ĐÃ SỬA LỖI SQL: Lấy danh sách hóa đơn đang ở trạng thái "Đặt trước" (Dat).
+      */
+     public List<HoaDon> getHoaDonDaDat() {
+         List<HoaDon> list = new ArrayList<>();
+         // SỬA: Đã đổi 'tenNV' thành 'maNV' để tránh lỗi Invalid column name
+         String sql = "SELECT maHD, maBan, gioVao, maNV, maKH FROM HoaDon WHERE trangThai = ? AND maBan IS NOT NULL ORDER BY gioVao";
+
+         try (Connection con = ConnectDB.getConnection();
+              PreparedStatement ps = con.prepareStatement(sql)) {
+
+             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
+
+             try (ResultSet rs = ps.executeQuery()) {
+                 while (rs.next()) {
+                     HoaDon hd = new HoaDon();
+                     hd.setMaHD(rs.getString("maHD"));
+                     hd.setTrangThai(TrangThaiHoaDon.DAT);
+                     
+                     // Lấy giờ đặt
+                     Timestamp ts = rs.getTimestamp("gioVao");
+                     if (ts != null) hd.setGioVao(ts.toLocalDateTime());
+
+                     // Tạo đối tượng Ban tạm
+                     Ban ban = new Ban();
+                     ban.setMaBan(rs.getString("maBan"));
+                     hd.setBan(ban);
+                     
+                     // (Tùy chọn) Lấy mã NV nếu cần
+                     if (rs.getString("maNV") != null) {
+                         hd.setTenNhanVien(rs.getString("maNV")); // Tạm gán mã vào tên, hoặc bỏ qua
+                     }
+
+                     list.add(hd);
+                 }
+             }
+         } catch (SQLException e) {
+             e.printStackTrace();
+         }
+         return list;
+     }
 }

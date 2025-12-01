@@ -12,7 +12,7 @@ public enum TrangThaiHoaDon {
     DAT("Dat", "Đã đặt"),
     DA_THANH_TOAN("DaThanhToan", "Đã thanh toán"),
     DA_HUY("DaHuy", "Đã hủy"),
-    DANG_SU_DUNG("DangSuDung", "Đang phục vụ"),
+    DANG_SU_DUNG("DangSuDung", "Đã nhận bàn"),
     HOA_DON_TAM("HoaDonTam", "Hóa đơn tạm"),
     CHO_XAC_NHAN("ChoXacNhan", "Chờ xác nhận"); // <<< THÊM MỚI
 
