@@ -1,13 +1,11 @@
 package ui;
 
 // ========================================================================
-// IMPORTS TỪ TẤT CẢ CÁC FILE
+// IMPORTS
 // ========================================================================
-
-// Imports từ ManHinhChinh.java (Gốc)
 import entity.TaiKhoan;
 import entity.VaiTro;
-import entity.HoaDon; // 🔥 THÊM: Import Hóa đơn
+import entity.HoaDon;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -23,11 +21,18 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 
 import java.io.IOException;
+import java.io.InputStream; // Thêm để đọc file từ resource
+import java.nio.file.Files; // Thêm để copy file ra temp
+import java.nio.file.StandardCopyOption; // Option copy
 import java.util.HashMap;
 import java.util.Map;
 import java.net.URL;
 
-// Imports từ 1.java (File 1)
+// Imports cho chức năng mở file PDF
+import java.awt.Desktop; 
+import java.io.File; 
+
+// Imports từ các chức năng khác (Email, DAO...)
 import dao.KhachHangDAO;
 import entity.KhachHang;
 import javafx.application.Platform;
@@ -41,7 +46,6 @@ import javafx.scene.control.*;
 import javafx.scene.control.ButtonBar.ButtonData;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javax.mail.*;
 import javax.mail.internet.*;
 import java.util.List;
@@ -49,20 +53,16 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-// Imports từ 2.java (File 2)
 import dao.TaiKhoanDAO;
 import javafx.scene.Node;
 import javafx.util.Pair;
 import java.sql.SQLException;
-import java.util.ArrayList;
 
 public class ManHinhChinh {
     
     // ========================================================================
-    // FXML FIELDS TỪ TẤT CẢ CÁC FILE
+    // FXML FIELDS
     // ========================================================================
-
-    // --- Từ ManHinhChinh.java (Gốc) ---
     @FXML private BorderPane contentArea;
     @FXML private VBox menuItems; 
     @FXML private Label userNameLabel;
@@ -93,27 +93,25 @@ public class ManHinhChinh {
     @FXML private ImageView quanLyTraCuuIcon;
     @FXML private ImageView dangXuatIcon;
 
-    // --- Từ 2.java (Cho Dark Mode) ---
+    // TopBar & Theme
     @FXML private HBox topBar; 
     @FXML private VBox sidebar; 
     @FXML private ImageView logoImageView; 
 
-    // --- Từ 1.java & 2.java (MenuBar Items) ---
+    // Menu Items
     @FXML private MenuItem doiMatKhauMenuItem;
     @FXML private MenuItem caiDatMenuItem;
     @FXML private MenuItem toggleThemeMenuItem; 
     @FXML private MenuItem dangXuatMenuItem; 
     @FXML private MenuItem thoatMenuItem;
-    @FXML private MenuItem quanLyBanMenuItem;
     @FXML private MenuItem guiChuongTrinhTVMenuItem;
     @FXML private MenuItem xemLogKiemKeTienMatMenuItem;
     @FXML private MenuItem huongDanMenuItem;
     @FXML private MenuItem gioiThieuMenuItem;
 
     // ========================================================================
-    // BIẾN INSTANCE TỪ TẤT CẢ CÁC FILE
+    // BIẾN INSTANCE
     // ========================================================================
-
     private MainApp mainApp;
     private Button activeButton;
     private final Map<Button, String> defaultIcons = new HashMap<>();
@@ -121,16 +119,17 @@ public class ManHinhChinh {
     private final Map<Button, ImageView> buttonIconMap = new HashMap<>();
     private Object currentController; 
     private TaiKhoan currentUser; 
-
-    // 🔥 THÊM: Biến lưu controller Đặt Bàn
     private DatBan datBanController; 
 
-    // Từ 1.java & 2.java
     private final KhachHangDAO khachHangDAO = new KhachHangDAO();
     private final TaiKhoanDAO taiKhoanDAO = new TaiKhoanDAO();
     private boolean isDarkMode = false;
     private final String darkStyleClass = "dark-mode";
     
+    // --- CẤU HÌNH ĐƯỜNG DẪN PDF (Tương đối từ thư mục resources) ---
+    // Đảm bảo bạn đã copy file vào src/main/resources/pdf/
+    private static final String GIOI_THIEU_PDF_PATH = "/pdf/gioithieu.pdf";
+    private static final String HUONG_DAN_PDF_PATH = "/pdf/huongdan.pdf"; 
 
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
@@ -138,7 +137,7 @@ public class ManHinhChinh {
 
     @FXML
     public void initialize() {
-        // Map Buttons với Icons (Từ Gốc)
+        // Map Buttons
         buttonIconMap.put(manHinhChinhButton, manHinhChinhIcon);
         buttonIconMap.put(quanLyDatBanButton, quanLyDatBanIcon);
         buttonIconMap.put(quanLyThongKeButton, quanLyThongKeIcon);
@@ -150,7 +149,7 @@ public class ManHinhChinh {
         buttonIconMap.put(quanLyTraCuuButton, quanLyTraCuuIcon);
         buttonIconMap.put(dangXuatButton, dangXuatIcon);
 
-        // Map đường dẫn Icons (Từ Gốc)
+        // Map Icons - Hãy đảm bảo tên file trong src/main/resources/icons khớp với tên ở đây
         addIconMapping(manHinhChinhButton, "/icons/iconHome.png", "/icons/iconHome_White.png");
         addIconMapping(quanLyDatBanButton, "/icons/iconDatBan.png", "/icons/iconDatBan_White.png");
         addIconMapping(quanLyThongKeButton, "/icons/iconThongKe.png", "/icons/iconThongKe_White.png");
@@ -162,16 +161,16 @@ public class ManHinhChinh {
         addIconMapping(quanLyTraCuuButton, "/icons/iconTraCuu.png", "/icons/iconTraCuu_White.png");
         addIconMapping(dangXuatButton, "/icons/iconDangXuat.png", "/icons/iconDangXuat_White.png");
 
-        // Set logo mặc định (Từ 2.java)
+        // Load Logo - Đã sửa thành logo.png cho chuẩn
         try {
             if (logoImageView != null) {
-                logoImageView.setImage(new Image(getClass().getResourceAsStream("/images/LOGO TU HUU.png")));
+                // Kiểm tra tên file logo của bạn trong src/main/resources/images
+                logoImageView.setImage(new Image(getClass().getResourceAsStream("/images/logo.png")));
             }
         } catch (Exception e) {
-            System.err.println("Lỗi tải logo mặc định: /images/LOGO TU HUU.png");
+            System.err.println("Lỗi tải logo: " + e.getMessage());
         }
         
-        // Khởi động (Từ Gốc)
         setActiveButton(manHinhChinhButton);
         try {
             loadScreen("/fxml/Dashboard.fxml", "/css/Dashboard.css");
@@ -179,7 +178,6 @@ public class ManHinhChinh {
             e.printStackTrace();
         }
         
-        // Setup phím tắt (Từ Gốc)
         contentArea.sceneProperty().addListener((obs, oldScene, newScene) -> {
             if (newScene != null) {
                 setupKeyboardShortcuts();
@@ -187,7 +185,6 @@ public class ManHinhChinh {
         });
     }
 
-    // 🔥 HÀM MỚI: CHUYỂN TAB SANG ĐẶT BÀN & TRUYỀN DATA
     public void chuyenSangTabDatBan(HoaDon hd) {
         try {
             setActiveButton(quanLyDatBanButton);
@@ -206,10 +203,6 @@ public class ManHinhChinh {
         }
     }
     
-    // ========================================================================
-    // CÁC HÀM XỬ LÝ PHÍM TẮT (TỪ GỐC - GIỮ NGUYÊN)
-    // ========================================================================
-
     private void setupKeyboardShortcuts() {
         contentArea.getScene().addEventFilter(KeyEvent.KEY_PRESSED, event -> {
             if (event.isControlDown()) {
@@ -226,26 +219,9 @@ public class ManHinhChinh {
                     case Q: handleDangXuat(); event.consume(); break;
                 }
             }
-            else if (event.getCode() == KeyCode.F1) { showKeyboardShortcutsHelp(); event.consume(); }
+            else if (event.getCode() == KeyCode.F1) { handleHuongDan(); event.consume(); } 
             else if (event.getCode() == KeyCode.F5) { refreshCurrentScreen(); event.consume(); }
         });
-    }
-    
-    private void showKeyboardShortcutsHelp() {
-        StringBuilder helpText = new StringBuilder();
-        helpText.append("⌨️ PHÍM TẮT CÓ SẴN:\n\n📍 ĐIỀU HƯỚNG:\n");
-        if (manHinhChinhButton.isVisible()) helpText.append("Ctrl + 1  →  Dashboard\n");
-        if (quanLyDatBanButton.isVisible()) helpText.append("Ctrl + 2  →  Quản lý Đặt bàn\n");
-        // ...
-        helpText.append("\n📋 CHỨC NĂNG:\nF1 →  Trợ giúp\nF5 →  Làm mới\nCtrl + Q  →  Đăng xuất\n");
-        
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Hướng dẫn phím tắt");
-        alert.setHeaderText("📖 Danh sách phím tắt");
-        alert.setContentText(helpText.toString());
-        alert.getDialogPane().setMinWidth(500);
-        alert.getDialogPane().setMinHeight(400);
-        alert.showAndWait();
     }
     
     private void refreshCurrentScreen() {
@@ -259,32 +235,20 @@ public class ManHinhChinh {
             else if (activeButton == quanLyNhanVienButton) loadScreen("/fxml/QuanLyNhanVien.fxml", "/css/NhanVien.css");
             else if (activeButton == quanLyThongKeButton) loadScreen("/fxml/QuanLyThongKe.fxml", "/css/ThongKe.css");
             else if (activeButton == quanLyTraCuuButton) loadScreen("/fxml/QuanLyTraCuu.fxml", "/css/TraCuu.css");
-            System.out.println("🔄 Đã làm mới trang hiện tại");
         } catch (IOException e) {
             showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể làm mới trang: " + e.getMessage());
-            e.printStackTrace();
         }
     }
     
-    // ========================================================================
-    // CÁC HÀM XỬ LÝ PHÂN QUYỀN (TỪ GỐC - GIỮ NGUYÊN)
-    // ========================================================================
-
     public void setUserInfo(TaiKhoan user) {
         this.currentUser = user;
         if (user != null && user.getNhanVien() != null) {
             userNameLabel.setText(user.getNhanVien().getHoTen());
             userRoleLabel.setText(user.getVaiTro() != null ? user.getVaiTro().getTenVaiTro() : "Không xác định");
-            try {
-                profileImage.setImage(new Image(getClass().getResourceAsStream("/icons/iconUserPlaceholder.png")));
-            } catch (Exception e) {}
             apDungPhanQuyen();
         } else {
             userNameLabel.setText("Khách");
             userRoleLabel.setText("Chưa đăng nhập");
-            try {
-                profileImage.setImage(new Image(getClass().getResourceAsStream("/icons/iconUserPlaceholder.png")));
-            } catch (Exception e) {}
             apDungPhanQuyen();
         }
     }
@@ -294,7 +258,6 @@ public class ManHinhChinh {
             hienThiMenu(manHinhChinhButton, true); 
             hienThiMenu(quanLyDatBanButton, false);
             hienThiMenu(dangXuatButton, false); 
-            if(doiMatKhauMenuItem != null) doiMatKhauMenuItem.setDisable(true);
             return;
         }
         
@@ -310,10 +273,8 @@ public class ManHinhChinh {
         hienThiMenu(quanLyTraCuuButton, vaiTro.coQuyenTraCuu());
         hienThiMenu(dangXuatButton, true); 
         
-        if(doiMatKhauMenuItem != null) doiMatKhauMenuItem.setDisable(false); 
-        if(guiChuongTrinhTVMenuItem != null) guiChuongTrinhTVMenuItem.setDisable(!vaiTro.coQuyenQuanLyKhachHang()); 
-        if(quanLyBanMenuItem != null) quanLyBanMenuItem.setDisable(!vaiTro.coQuyenQuanLyDatBan()); 
-        if(xemLogKiemKeTienMatMenuItem != null) xemLogKiemKeTienMatMenuItem.setDisable(!vaiTro.coQuyenThongKe()); 
+        if (guiChuongTrinhTVMenuItem != null) guiChuongTrinhTVMenuItem.setDisable(!vaiTro.coQuyenQuanLyKhachHang());
+        if (xemLogKiemKeTienMatMenuItem != null) xemLogKiemKeTienMatMenuItem.setDisable(!vaiTro.coQuyenThongKe());
     }
     
     private void hienThiMenu(Button button, boolean coQuyen) {
@@ -331,10 +292,6 @@ public class ManHinhChinh {
         return true;
     }
     
-    // ========================================================================
-    // CÁC HÀM UI HELPER (TỪ GỐC)
-    // ========================================================================
-
     private void addIconMapping(Button button, String defaultIcon, String activeIcon) {
         defaultIcons.put(button, defaultIcon);
         activeIcons.put(button, activeIcon);
@@ -362,16 +319,11 @@ public class ManHinhChinh {
     }
 
     private void loadScreen(String fxmlPath, String cssPath) throws IOException {
-        if (currentController != null) {
-            try { currentController.getClass().getMethod("disableKeyboardShortcuts").invoke(currentController); } catch (Exception ignored) {}
-        }
-
         FXMLLoader loader = new FXMLLoader(getClass().getResource(fxmlPath));
         Parent root = loader.load();
 
         currentController = loader.getController();
 
-        // 🔥 THÊM: GẮN KẾT VỚI CÁC CONTROLLER CON
         if (currentController instanceof DashboardController) {
             ((DashboardController) currentController).setMainController(this);
         }
@@ -399,14 +351,6 @@ public class ManHinhChinh {
         alert.showAndWait();
     }
     
-    private void showAlert(String title, String content) {
-        showAlert(Alert.AlertType.INFORMATION, title, content);
-    }
-
-    // ========================================================================
-    // CÁC HÀM HANDLE SIDEBAR (TỪ GỐC)
-    // ========================================================================
-    
     @FXML private void handleManHinhChinh() throws IOException { setActiveButton(manHinhChinhButton); loadScreen("/fxml/Dashboard.fxml", "/css/Dashboard.css"); }
     @FXML private void handleQuanLyDatBan() throws IOException { if (currentUser == null || !kiemTraQuyen("Quản lý Đặt bàn", currentUser.getVaiTro().coQuyenQuanLyDatBan())) return; setActiveButton(quanLyDatBanButton); loadScreen("/fxml/QuanLyDatBan.fxml", "/css/DatBan.css"); }
     @FXML private void handleQuanLyThongKe() throws IOException { if (currentUser == null || !kiemTraQuyen("Thống kê & Báo cáo", currentUser.getVaiTro().coQuyenThongKe())) return; setActiveButton(quanLyThongKeButton); loadScreen("/fxml/QuanLyThongKe.fxml", "/css/ThongKe.css"); }
@@ -426,34 +370,22 @@ public class ManHinhChinh {
             Platform.runLater(() -> { try { mainApp.start(new Stage()); } catch (Exception e) {} });
         }
     }
-    
-    // ========================================================================
-    // CÁC HÀM HANDLE MENUBAR (TỪ FILE 1 & 2 - GIỮ NGUYÊN)
-    // ========================================================================
 
     @FXML
     private void handleDoiMatKhau() {
-        System.out.println("Chức năng Đổi mật khẩu được chọn.");
         Optional<Pair<String, String>> result = showChangePasswordDialog();
         result.ifPresent(passwords -> {
             String oldPassword = passwords.getKey(); 
             String newPassword = passwords.getValue();
-            if (currentUser == null || currentUser.getTenDangNhap() == null) { 
-                showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể xác định người dùng hiện tại."); 
-                return; 
-            }
             try {
                 if (taiKhoanDAO.kiemTraMatKhau(currentUser.getTenDangNhap(), oldPassword)) {
                     if (taiKhoanDAO.doiMatKhau(currentUser.getTenDangNhap(), newPassword)) { 
                         showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đổi mật khẩu thành công!"); 
-                    } else { 
-                        showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể cập nhật mật khẩu mới."); 
                     }
                 } else { 
                     showAlert(Alert.AlertType.WARNING, "Sai mật khẩu", "Mật khẩu cũ không chính xác."); 
                 }
             } catch (SQLException e) { 
-                showAlert(Alert.AlertType.ERROR, "Lỗi CSDL", "Lỗi khi kiểm tra/đổi mật khẩu: " + e.getMessage()); 
                 e.printStackTrace(); 
             }
         });
@@ -462,29 +394,16 @@ public class ManHinhChinh {
     private Optional<Pair<String, String>> showChangePasswordDialog() {
         Dialog<Pair<String, String>> dialog = new Dialog<>(); 
         dialog.setTitle("Đổi mật khẩu"); 
-        dialog.setHeaderText("Nhập thông tin mật khẩu");
         ButtonType changeButtonType = new ButtonType("Xác nhận", ButtonData.OK_DONE); 
         dialog.getDialogPane().getButtonTypes().addAll(changeButtonType, ButtonType.CANCEL);
-        GridPane grid = new GridPane(); 
-        grid.setHgap(10); grid.setVgap(10); grid.setPadding(new Insets(20, 150, 10, 10));
-        PasswordField oldPassword = new PasswordField(); oldPassword.setPromptText("Nhập mật khẩu cũ");
-        PasswordField newPassword = new PasswordField(); newPassword.setPromptText("Nhập mật khẩu mới");
-        PasswordField confirmPassword = new PasswordField(); confirmPassword.setPromptText("Xác nhận mật khẩu mới");
+        GridPane grid = new GridPane(); grid.setHgap(10); grid.setVgap(10);
+        PasswordField oldPassword = new PasswordField();
+        PasswordField newPassword = new PasswordField();
+        PasswordField confirmPassword = new PasswordField();
         grid.add(new Label("Mật khẩu cũ:"), 0, 0); grid.add(oldPassword, 1, 0);
         grid.add(new Label("Mật khẩu mới:"), 0, 1); grid.add(newPassword, 1, 1);
         grid.add(new Label("Xác nhận MK mới:"), 0, 2); grid.add(confirmPassword, 1, 2);
-        Node changeButton = dialog.getDialogPane().lookupButton(changeButtonType); 
-        changeButton.setDisable(true);
-        Runnable validation = () -> { 
-            boolean isEmpty = oldPassword.getText().trim().isEmpty() || newPassword.getText().trim().isEmpty() || confirmPassword.getText().trim().isEmpty(); 
-            boolean passwordsMatch = newPassword.getText().equals(confirmPassword.getText()); 
-            changeButton.setDisable(isEmpty || !passwordsMatch); 
-        };
-        oldPassword.textProperty().addListener((observable, oldValue, newValue) -> validation.run()); 
-        newPassword.textProperty().addListener((observable, oldValue, newValue) -> validation.run()); 
-        confirmPassword.textProperty().addListener((observable, oldValue, newValue) -> validation.run());
-        dialog.getDialogPane().setContent(grid); 
-        Platform.runLater(oldPassword::requestFocus);
+        dialog.getDialogPane().setContent(grid);
         dialog.setResultConverter(dialogButton -> { 
             if (dialogButton == changeButtonType) return new Pair<>(oldPassword.getText(), newPassword.getText()); 
             return null; 
@@ -492,33 +411,28 @@ public class ManHinhChinh {
         return dialog.showAndWait();
     }
 
-    @FXML private void handleCaiDat() { showAlert("Thông báo", "Chức năng đang phát triển."); }
-    
     @FXML
     private void handleToggleTheme() {
         isDarkMode = !isDarkMode;
         if (topBar == null || sidebar == null) return;
-        var topBarStyles = topBar.getStyleClass();
-        var sidebarStyles = sidebar.getStyleClass();
         try {
             if (isDarkMode) {
-                if (!topBarStyles.contains(darkStyleClass)) topBarStyles.add(darkStyleClass);
-                if (!sidebarStyles.contains(darkStyleClass)) sidebarStyles.add(darkStyleClass);
+                topBar.getStyleClass().add(darkStyleClass);
+                sidebar.getStyleClass().add(darkStyleClass);
                 toggleThemeMenuItem.setText("Chuyển chế độ Sáng");
                 if (logoImageView != null) logoImageView.setImage(new Image(getClass().getResourceAsStream("/images/DarkmodeLOGO.jpg")));
             } else {
-                topBarStyles.remove(darkStyleClass);
-                sidebarStyles.remove(darkStyleClass);
+                topBar.getStyleClass().remove(darkStyleClass);
+                sidebar.getStyleClass().remove(darkStyleClass);
                 toggleThemeMenuItem.setText("Chuyển chế độ Tối");
-                if (logoImageView != null) logoImageView.setImage(new Image(getClass().getResourceAsStream("/images/LOGO TU HUU.png")));
+                if (logoImageView != null) logoImageView.setImage(new Image(getClass().getResourceAsStream("/images/logo.png")));
             }
         } catch (Exception e) {}
     }
     
-    @FXML private void handleDangXuatMenu() { handleDangXuat(); }
     @FXML private void handleThoat() { Platform.exit(); }
-    @FXML private void handleQuanLyBan() throws IOException { if (currentUser == null || !kiemTraQuyen("Quản lý Bàn", currentUser.getVaiTro().coQuyenQuanLyDatBan())) return; showAlert("Thông báo", "Chức năng Quản lý Bàn đang được phát triển."); }
 
+    // === CHỨC NĂNG GỬI EMAIL (ĐÃ KHÔI PHỤC) ===
     @FXML
     private void handleGuiChuongTrinhTV() {
         ObservableList<KhachHang> dsKhachHangCoEmail;
@@ -528,19 +442,20 @@ public class ManHinhChinh {
             dsKhachHangCoEmail = FXCollections.observableArrayList(filteredList); 
         } catch (Exception e) { return; }
 
-        if (dsKhachHangCoEmail.isEmpty()) { showAlert("Thông báo", "Không tìm thấy khách hàng nào có địa chỉ email."); return; }
+        if (dsKhachHangCoEmail.isEmpty()) { showAlert(Alert.AlertType.INFORMATION, "Thông báo", "Không tìm thấy khách hàng nào có địa chỉ email."); return; }
 
         Dialog<Map<String, Object>> dialog = new Dialog<>();
         dialog.setTitle("Gửi Email Chương trình Thành viên");
-        dialog.setHeaderText("Soạn và gửi email đến khách hàng");
         ButtonType sendButtonType = new ButtonType("Gửi đi", ButtonData.OK_DONE);
         dialog.getDialogPane().getButtonTypes().addAll(sendButtonType, ButtonType.CANCEL);
+        
         GridPane grid = new GridPane();
         grid.setHgap(10); grid.setVgap(10); grid.setPadding(new Insets(20, 20, 10, 10));
         ListView<KhachHang> recipientListView = new ListView<>(dsKhachHangCoEmail);
         recipientListView.setPrefHeight(150);
         Map<KhachHang, BooleanProperty> selectionMap = new HashMap<>();
         dsKhachHangCoEmail.forEach(kh -> selectionMap.put(kh, new SimpleBooleanProperty(false)));
+        
         recipientListView.setCellFactory(lv -> new ListCell<KhachHang>() {
             private final CheckBox checkBox = new CheckBox();
             private final Label label = new Label();
@@ -548,16 +463,28 @@ public class ManHinhChinh {
             { hbox.setAlignment(Pos.CENTER_LEFT); checkBox.setOnAction(event -> { if (getItem() != null) selectionMap.get(getItem()).set(checkBox.isSelected()); }); }
             @Override protected void updateItem(KhachHang kh, boolean empty) { super.updateItem(kh, empty); if (empty || kh == null) { setText(null); setGraphic(null); } else { checkBox.setSelected(selectionMap.get(kh).get()); label.setText(kh.getTenKH() + " (" + kh.getEmail() + ")"); setGraphic(hbox); } }
         });
+        
         CheckBox selectAllCheckBox = new CheckBox("Chọn tất cả");
         selectAllCheckBox.setOnAction(e -> { selectionMap.values().forEach(prop -> prop.set(selectAllCheckBox.isSelected())); recipientListView.refresh(); });
         TextField subjectField = new TextField("Thông báo Chương trình Thành viên Mới!");
         TextArea contentArea = new TextArea();
         contentArea.setPromptText("Ví dụ: Giảm giá 20%...");
+        
         grid.add(new Label("Người nhận:"), 0, 0); grid.add(recipientListView, 1, 0); grid.add(selectAllCheckBox, 1, 1);
         grid.add(new Label("Tiêu đề:"), 0, 2); grid.add(subjectField, 1, 2);
         grid.add(new Label("Nội dung:"), 0, 3); grid.add(contentArea, 1, 3);
         dialog.getDialogPane().setContent(grid);
-        dialog.setResultConverter(dialogButton -> { if (dialogButton == sendButtonType) { Map<String, Object> res = new HashMap<>(); res.put("recipients", selectionMap.entrySet().stream().filter(en -> en.getValue().get()).map(en -> en.getKey().getEmail()).collect(Collectors.toList())); res.put("subject", subjectField.getText()); res.put("body", contentArea.getText()); return res; } return null; });
+        
+        dialog.setResultConverter(dialogButton -> { 
+            if (dialogButton == sendButtonType) { 
+                Map<String, Object> res = new HashMap<>(); 
+                res.put("recipients", selectionMap.entrySet().stream().filter(en -> en.getValue().get()).map(en -> en.getKey().getEmail()).collect(Collectors.toList())); 
+                res.put("subject", subjectField.getText()); 
+                res.put("body", contentArea.getText()); 
+                return res; 
+            } 
+            return null; 
+        });
         
         Optional<Map<String, Object>> result = dialog.showAndWait();
         if (result.isPresent()) {
@@ -566,10 +493,10 @@ public class ManHinhChinh {
             String subject = (String) emailData.get("subject");
             String bodyContent = (String) emailData.get("body");
 
-            if (recipients.isEmpty()) { showAlert("Thông báo", "Bạn chưa chọn khách hàng nào để gửi email."); return; }
-            if (subject.trim().isEmpty() || bodyContent.trim().isEmpty()) { showAlert("Thiếu thông tin", "Vui lòng nhập Tiêu đề và Nội dung email."); return; }
+            if (recipients.isEmpty()) { showAlert(Alert.AlertType.WARNING, "Thông báo", "Bạn chưa chọn khách hàng nào để gửi email."); return; }
+            if (subject.trim().isEmpty() || bodyContent.trim().isEmpty()) { showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập Tiêu đề và Nội dung email."); return; }
 
-            // --- Phần gửi email bằng JavaMail ---
+            // Cấu hình Email (Thay đổi thông tin thật của bạn)
             final String username = "nhahangtuhuu@gmail.com"; 
             final String password = "rnwm bkli pycf bjcv";    
 
@@ -583,35 +510,74 @@ public class ManHinhChinh {
                 }
             });
 
-            try {
-                Message message = new MimeMessage(session);
-                message.setFrom(new InternetAddress(username));
-                Address[] bccAddresses = new Address[recipients.size()];
-                for (int i = 0; i < recipients.size(); i++) bccAddresses[i] = new InternetAddress(recipients.get(i));
-                message.setRecipients(Message.RecipientType.BCC, bccAddresses);
-                message.setSubject(subject);
-                String finalEmailContent = "Kính gửi quý khách hàng,\n\n" + bodyContent +
-                                           "\n\nTrân trọng,\nNhà hàng Tứ Hữu";
-                message.setText(finalEmailContent);
-
-                new Thread(() -> {
-                    try {
-                        Transport.send(message);
-                        Platform.runLater(() -> showAlert("Thành công", "Đã gửi email đến " + recipients.size() + " khách hàng."));
-                    } catch (MessagingException e) {
-                         Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Lỗi Gửi Email", "Không thể gửi email: " + e.getMessage()));
-                        e.printStackTrace();
-                    }
-                }).start();
-
-            } catch (MessagingException e) {
-                showAlert(Alert.AlertType.ERROR, "Lỗi Tạo Email", "Không thể tạo email: " + e.getMessage());
-                e.printStackTrace();
-            }
+            new Thread(() -> {
+                try {
+                    Message message = new MimeMessage(session);
+                    message.setFrom(new InternetAddress(username));
+                    Address[] bccAddresses = new Address[recipients.size()];
+                    for (int i = 0; i < recipients.size(); i++) bccAddresses[i] = new InternetAddress(recipients.get(i));
+                    message.setRecipients(Message.RecipientType.BCC, bccAddresses);
+                    message.setSubject(subject);
+                    message.setText("Kính gửi quý khách hàng,\n\n" + bodyContent + "\n\nTrân trọng,\nNhà hàng Tứ Hữu");
+                    Transport.send(message);
+                    Platform.runLater(() -> showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã gửi email đến " + recipients.size() + " khách hàng."));
+                } catch (MessagingException e) {
+                     Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Lỗi Gửi Email", "Không thể gửi email: " + e.getMessage()));
+                    e.printStackTrace();
+                }
+            }).start();
         }
     }
     
-    @FXML private void handleXemLogKiemKeTienMat() { showAlert("Thông báo", "Chức năng đang phát triển."); }
-    @FXML private void handleHuongDan() { showKeyboardShortcutsHelp(); }
-    @FXML private void handleGioiThieu() { showAlert("Giới thiệu", "Phần mềm Quản lý Nhà hàng Tứ Hữu\nPhiên bản 1.0"); }
+    @FXML private void handleXemLogKiemKeTienMat() { showAlert(Alert.AlertType.INFORMATION, "Thông báo", "Chức năng đang phát triển."); }
+
+    // === CHỨC NĂNG MỞ PDF (ĐÃ NÂNG CẤP - CHẠY ĐƯỢC TRÊN MỌI MÁY) ===
+    
+    @FXML 
+    private void handleHuongDan() { 
+        moFilePDF(HUONG_DAN_PDF_PATH);
+    }
+
+    @FXML 
+    private void handleGioiThieu() { 
+        moFilePDF(GIOI_THIEU_PDF_PATH);
+    }
+    
+    private void moFilePDF(String resourcePath) {
+        if (!Desktop.isDesktopSupported()) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Hệ thống không hỗ trợ mở file PDF.");
+            return;
+        }
+
+        try {
+            // 1. Kiểm tra resource
+            if (!resourcePath.startsWith("/")) {
+                resourcePath = "/" + resourcePath;
+            }
+            
+            InputStream inputStream = getClass().getResourceAsStream(resourcePath);
+
+            if (inputStream == null) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi", "Không tìm thấy file trong resources: " + resourcePath + 
+                          "\n\nHãy thử Clean & Rebuild Project.");
+                return;
+            }
+
+            // 2. Tạo file tạm thời để mở
+            String fileName = resourcePath.substring(resourcePath.lastIndexOf("/") + 1);
+            // Thêm timestamp để tránh trùng tên nếu mở nhiều lần
+            File tempFile = File.createTempFile("NhaHangTuHuu_" + System.currentTimeMillis() + "_", fileName);
+            tempFile.deleteOnExit(); // Tự xóa khi tắt chương trình
+
+            // 3. Copy dữ liệu ra file tạm
+            Files.copy(inputStream, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+            // 4. Mở file
+            Desktop.getDesktop().open(tempFile);
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Lỗi mở file", "Chi tiết lỗi: " + e.getMessage());
+        }
+    }
 }

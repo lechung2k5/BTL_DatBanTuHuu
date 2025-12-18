@@ -121,8 +121,9 @@ public class DatBan implements Initializable {
     @FXML private ScrollPane vboxReceipt;
     
     // === CỘT 2 (Middle Panel) ===
-    @FXML private TextField txtThoiGian;
+    @FXML private ComboBox<String> comboThoiGian;
     @FXML private DatePicker datePickerThoiGianDen;
+    @FXML private ComboBox<String> comboKhuVuc;
     @FXML private Button btnTim;
     @FXML private GridPane gridTangTret;
     @FXML private GridPane gridTang1;
@@ -249,7 +250,7 @@ public class DatBan implements Initializable {
         promoComboBox.getSelectionModel().selectFirst();
 
         datePickerThoiGianDen.setValue(LocalDate.now());
-        txtThoiGian.setText(LocalTime.now().format(timeFormatter));
+    
 
         btnXacNhanBan.setOnAction(e -> handleXacNhanBan()); 
         if (btnThanhToanCoc != null) {
@@ -358,6 +359,37 @@ public class DatBan implements Initializable {
         }
         // === THÊM MỚI: ĐẶT TRẠNG THÁI NÚT BAN ĐẦU ===
         updateButtonVisibility(false); // Ban đầu là trạng thái TẠO MỚI
+     // --- KHỞI TẠO COMBOBOX GIỜ (Cách nhau 30 phút) ---
+        ObservableList<String> timeSlots = FXCollections.observableArrayList();
+        LocalTime startTime = LocalTime.of(8, 0); // Mở cửa lúc 8h sáng
+        LocalTime endTime = LocalTime.of(22, 0);  // Đóng cửa lúc 10h tối
+
+        while (!startTime.isAfter(endTime)) {
+            timeSlots.add(startTime.format(timeFormatter));
+            startTime = startTime.plusMinutes(30);
+        }
+
+        if (comboThoiGian != null) {
+            comboThoiGian.setItems(timeSlots);
+            // Set giờ hiện tại (làm tròn lên 30p tiếp theo)
+            LocalTime now = LocalTime.now();
+            if (now.getMinute() > 30) {
+                comboThoiGian.setValue(now.plusHours(1).withMinute(0).format(timeFormatter));
+            } else {
+                comboThoiGian.setValue(now.withMinute(30).format(timeFormatter));
+            }
+        }
+     // --- 🔥 THÊM MỚI: Khởi tạo ComboBox Khu Vực ---
+        if (comboKhuVuc != null) {
+            comboKhuVuc.setItems(FXCollections.observableArrayList(
+                "Tự động",    // Máy tự tính theo số người
+                "Tầng trệt", 
+                "Tầng 1", 
+                "Phòng riêng",
+                "Tất cả"      // Hiện hết không lọc
+            ));
+            comboKhuVuc.setValue("Tự động"); // Mặc định để máy tính
+        }
     }
     
     // =========================================================
@@ -504,14 +536,12 @@ public class DatBan implements Initializable {
     }
 
     /**
-     * 🔥 HÀM CUỐI CÙNG: Tạo đối tượng PDDocument theo MẪU ẢNH HÓA ĐƠN.
-     * ĐÃ FIX: Điều chỉnh căn chỉnh cột Tên món (làm hẹp) và các cột giá trị (thêm padding) để tối ưu khoảng cách.
-     * @param hd Hóa đơn đã thanh toán.
-     * @return PDDocument chứa nội dung hóa đơn.
+     * 🔥 HÀM TẠO PDF HÓA ĐƠN (FULL)
+     * ĐÃ CẬP NHẬT: VAT = 8% * Tổng Tiền Món Ăn
      */
     private PDDocument createReceiptPdf(HoaDon hd) throws IOException {
         PDDocument document = new PDDocument();
-        // SỬ DỤNG A4
+        // SỬ DỤNG KHỔ GIẤY A4
         PDPage page = new PDPage(org.apache.pdfbox.pdmodel.common.PDRectangle.A4);
         document.addPage(page);
 
@@ -523,7 +553,7 @@ public class DatBan implements Initializable {
         
         final YPosition pos = new YPosition(Y_START); 
 
-        // ====== 🔹 LOAD FONT HỖ TRỢ TIẾNG VIỆT (Giữ nguyên logic) ======
+        // ====== 🔹 LOAD FONT HỖ TRỢ TIẾNG VIỆT ======
         org.apache.pdfbox.pdmodel.font.PDFont font = null;
         org.apache.pdfbox.pdmodel.font.PDFont fontBold = null; 
         
@@ -541,24 +571,43 @@ public class DatBan implements Initializable {
             System.err.println("⚠️ Lỗi load font: " + e.getMessage());
         }
 
+        // Fallback font nếu không load được font tiếng Việt
         if (font == null) font = org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA;
         if (fontBold == null) fontBold = org.apache.pdfbox.pdmodel.font.PDType1Font.HELVETICA_BOLD;
         // ============================================================
 
-        // ====== DỮ LIỆU CHUẨN BỊ VÀ TÍNH TOÁN LẠI TỔNG TIỀN ======
+        // ====== TÍNH TOÁN LẠI SỐ LIỆU (ĐỒNG BỘ VỚI UI) ======
         ObservableList<MonOrder> monAnList = datBanDAO.getChiTietHoaDon(hd.getMaHD());
         
+        // 1. Tổng tiền món
         double tongTienMonAn = monAnList.stream()
                 .mapToDouble(order -> order.getDonGia() * order.getSoLuong())
                 .sum();
         
-        hd.setTongCongMonAn(tongTienMonAn); // Kích hoạt calculateTotals()
+        // 2. Phí dịch vụ (5% trên tổng món)
+        double phiDichVu = tongTienMonAn * 0.05; 
+        
+        // 3. 🔥 Thuế VAT (8% TRÊN TỔNG MÓN ĂN - THEO YÊU CẦU)
+        double thueVAT = tongTienMonAn * 0.08; 
+        
+        double tienKhuyenMai = hd.getKhuyenMai(); // Lấy từ Model (đã được tính ở UI)
+        double tienCoc = hd.getTienCoc();
+        
+        // 4. Tổng thanh toán
+        double tongThanhToan = tongTienMonAn + phiDichVu + thueVAT - tienCoc - tienKhuyenMai;
+        if (tongThanhToan < 0) tongThanhToan = 0;
+
+        // Cập nhật ngược lại vào object HD để đồng bộ dữ liệu nếu cần dùng sau này
+        hd.setTongCongMonAn(tongTienMonAn);
+        hd.setPhiDichVu(phiDichVu);
+        hd.setThueVAT(thueVAT);
+        // (KhuyenMai và TienCoc đã có sẵn)
 
         final java.text.DecimalFormat currencyFormatter = new java.text.DecimalFormat("###,###");
         final java.time.format.DateTimeFormatter dateFormatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy");
         final java.time.format.DateTimeFormatter timeFormatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
 
-        // --- Chuẩn bị dữ liệu hiển thị (Giữ nguyên) ---
+        // --- Chuẩn bị dữ liệu hiển thị ---
         String banStr = hd.getBan() != null ? hd.getBan().getMaBan() : "N/A";
         String ngayStr = hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(dateFormatter) : "N/A";
         String gioVaoStr = hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFormatter) : "N/A";
@@ -569,17 +618,14 @@ public class DatBan implements Initializable {
             if (tk != null && tk.getNhanVien() != null) {
                 tenThuNgan = tk.getNhanVien().getHoTen(); 
             }
-        } catch (Exception e) {
-            System.err.println("Lỗi khi lấy tên nhân viên đăng nhập: " + e.getMessage());
-        }
+        } catch (Exception e) {}
         String khachHangStr = (hd.getKhachHang() != null && hd.getKhachHang().getSoDT() != null) ? hd.getKhachHang().getSoDT() : "N/A";
         String hinhThucTTStr = hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A";
         // ============================================================
 
         try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
         
-            // === 1, 2, 3: HEADER, TIÊU ĐỀ, THÔNG TIN CHUNG (Giữ nguyên) ===
-            // 1.1 Tên Quán
+            // === 1. HEADER & THÔNG TIN QUÁN ===
             contentStream.beginText();
             contentStream.setFont(fontBold, 14); 
             float titleWidth = fontBold.getStringWidth("NHÀ HÀNG TỨ HỮU") / 1000 * 14;
@@ -588,7 +634,6 @@ public class DatBan implements Initializable {
             contentStream.endText();
             pos.y -= LINE_HEIGHT * 1.5;
             
-            // 1.2 Địa chỉ
             contentStream.beginText();
             contentStream.setFont(font, 10);
             String address = "Địa chỉ: 77 Hồ Tùng Mậu, Phường Châu Đốc, An Giang";
@@ -598,7 +643,6 @@ public class DatBan implements Initializable {
             contentStream.endText();
             pos.y -= LINE_HEIGHT;
 
-            // 1.3 SĐT
             contentStream.beginText();
             contentStream.setFont(font, 10);
             String sdt = "SĐT: 0909 123 456";
@@ -608,7 +652,7 @@ public class DatBan implements Initializable {
             contentStream.endText();
             pos.y -= LINE_HEIGHT * 1.5;
 
-            // 2. TIÊU ĐỀ HÓA ĐƠN
+            // === 2. TIÊU ĐỀ HÓA ĐƠN ===
             contentStream.beginText();
             contentStream.setFont(fontBold, 16);
             titleWidth = fontBold.getStringWidth("HÓA ĐƠN THANH TOÁN") / 1000 * 16;
@@ -626,13 +670,14 @@ public class DatBan implements Initializable {
             contentStream.endText();
             pos.y -= LINE_HEIGHT * 1.8;
 
-            // 3. THÔNG TIN CHUNG
+            // === 3. THÔNG TIN CHUNG (2 CỘT) ===
             final float COL_SEP = (PAGE_WIDTH - 2 * MARGIN) / 2;
             final float FONT_SIZE_INFO = 10;
             final float COL_1_START = MARGIN;
             final float COL_2_START = MARGIN + COL_SEP;
 
             contentStream.setFont(font, FONT_SIZE_INFO);
+            
             // Dòng 1
             contentStream.beginText();
             contentStream.newLineAtOffset(COL_1_START, pos.y);
@@ -660,15 +705,15 @@ public class DatBan implements Initializable {
             contentStream.endText();
             pos.y -= LINE_HEIGHT * 1.5;
 
-            // === 4. BẢNG MÓN ĂN (Giữ nguyên) ===
+            // === 4. BẢNG MÓN ĂN ===
             final float FONT_SIZE_TABLE = 9; 
-            float colSTT = MARGIN;                    // 72
-            float colTenMon = MARGIN + 30;           // 102
-            float colSL = PAGE_WIDTH - MARGIN - 180;  // 414
-            float colDonGia = PAGE_WIDTH - MARGIN - 110; // 484
-            float colThanhTien = PAGE_WIDTH - MARGIN - 30; // 564
+            float colSTT = MARGIN;                    
+            float colTenMon = MARGIN + 30;           
+            float colSL = PAGE_WIDTH - MARGIN - 180;  
+            float colDonGia = PAGE_WIDTH - MARGIN - 110; 
+            float colThanhTien = PAGE_WIDTH - MARGIN - 30; 
 
-            // Tiêu đề cột
+            // Tiêu đề bảng
             contentStream.beginText();
             contentStream.setFont(fontBold, FONT_SIZE_TABLE);
             contentStream.newLineAtOffset(colSTT, pos.y);
@@ -683,76 +728,63 @@ public class DatBan implements Initializable {
             contentStream.showText("Thành tiền");
             contentStream.endText();
             
-            // Dữ liệu món ăn
+            // Nội dung bảng
             contentStream.setFont(font, FONT_SIZE_TABLE);
-            
             float currentY = pos.y - LINE_HEIGHT * 1.2f; 
             
             for (int i = 0; i < monAnList.size(); i++) {
                 MonOrder mon = monAnList.get(i);
-                
                 contentStream.beginText();
                 
-                // Cột STT
                 contentStream.newLineAtOffset(colSTT, currentY);
                 contentStream.showText(String.valueOf(i + 1));
                 
-                // Cột Tên món
                 contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colTenMon, currentY));
                 contentStream.showText(mon.getTenMon());
                 
-                // Cột SL (Căn phải)
                 String slStr = String.valueOf(mon.getSoLuong());
                 float slWidth = font.getStringWidth(slStr) / 1000 * FONT_SIZE_TABLE;
                 contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colSL - slWidth + 15, currentY)); 
                 contentStream.showText(slStr);
 
-                // Cột Đơn giá (Căn phải)
                 String dgStr = currencyFormatter.format(mon.getDonGia());
                 float dgWidth = font.getStringWidth(dgStr) / 1000 * FONT_SIZE_TABLE;
                 contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colDonGia - dgWidth + 15, currentY)); 
                 contentStream.showText(dgStr);
                 
-                // Cột Thành tiền (Căn phải)
                 String ttStr = currencyFormatter.format(mon.getDonGia() * mon.getSoLuong());
                 float ttWidth = fontBold.getStringWidth(ttStr) / 1000 * FONT_SIZE_TABLE;
                 contentStream.setTextMatrix(org.apache.pdfbox.util.Matrix.getTranslateInstance(colThanhTien - ttWidth + 15, currentY)); 
                 contentStream.showText(ttStr);
                 
                 contentStream.endText();
-                
                 currentY -= LINE_HEIGHT * 1.6f; 
             }
-            
             pos.y = currentY + LINE_HEIGHT * 1.6f; 
             pos.y -= LINE_HEIGHT * 1.0;
 
-            // === 5. TỔNG KẾT CHI TIẾT ===
+            // === 5. TỔNG KẾT CHI TIẾT (Footer Logic) ===
             final float FONT_SIZE_SUMMARY = 10;
             final float SUMMARY_INDENT = MARGIN;
             final float SUMMARY_VALUE_COL = PAGE_WIDTH - MARGIN;
             
+            // Helper class để vẽ dòng tổng kết
             class SummaryDrawer {
                 private final PDFont regularFont;
                 private final PDFont boldFont;
-                
                 SummaryDrawer(final PDFont regularFont, final PDFont boldFont) {
                     this.regularFont = regularFont;
                     this.boldFont = boldFont;
                 }
-                
                 void draw(String label, String value, boolean isBold, boolean isTotal) throws IOException {
                     float currentFontSize = isTotal ? 12 : FONT_SIZE_SUMMARY; 
                     PDFont currentFont = isBold ? boldFont : regularFont;
-                    
-                    // 1. Vẽ Label
                     contentStream.beginText();
                     contentStream.setFont(currentFont, currentFontSize);
                     contentStream.newLineAtOffset(SUMMARY_INDENT, pos.y);
                     contentStream.showText(label);
                     contentStream.endText();
                     
-                    // 2. Vẽ Value (Căn phải)
                     float valueWidth = currentFont.getStringWidth(value) / 1000 * currentFontSize;
                     contentStream.beginText();
                     contentStream.setFont(currentFont, currentFontSize);
@@ -766,44 +798,46 @@ public class DatBan implements Initializable {
 
             SummaryDrawer drawer = new SummaryDrawer(font, fontBold);
             
-            // 5.1. Các dòng tính toán
-            drawer.draw("Tổng cộng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", true, false); 
-            drawer.draw("Phí dịch vụ (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", false, false);
-            drawer.draw("Thuế VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", false, false);
-            drawer.draw("Tiền đặt cọc bàn:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", false, false);
+            // 5.1. Vẽ các dòng chi tiết
+            drawer.draw("Tổng cộng món ăn:", currencyFormatter.format(tongTienMonAn) + " VNĐ", true, false); 
+            drawer.draw("Phí dịch vụ (5%):", currencyFormatter.format(phiDichVu) + " VNĐ", false, false);
+            drawer.draw("Thuế VAT (8%):", currencyFormatter.format(thueVAT) + " VNĐ", false, false);
+            drawer.draw("Tiền đặt cọc bàn:", "-" + currencyFormatter.format(tienCoc) + " VNĐ", false, false);
             
+            // 🔥 In dòng khuyến mãi nếu có
+            if (tienKhuyenMai > 0) {
+                drawer.draw("Khuyến mãi/Ưu đãi:", "-" + currencyFormatter.format(tienKhuyenMai) + " VNĐ", false, false);
+            }
+
             // 5.2. Đường kẻ phân chia
             pos.y += LINE_HEIGHT * 0.5f;
             contentStream.setLineWidth(0.5f);
             contentStream.moveTo(SUMMARY_INDENT, pos.y);
             contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
             contentStream.stroke();
-            pos.y -= LINE_HEIGHT * 1.2f; // Tăng khoảng cách xuống thêm (từ 0.8f lên 1.2f)
+            pos.y -= LINE_HEIGHT * 1.2f;
 
-            // 5.3. Vẽ "Tổng thanh toán" ngay dưới đường kẻ
-            drawer.draw("Tổng thanh toán:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", true, true);
-
-            pos.y -= LINE_HEIGHT * 0.5f;
+            // 5.3. Tổng thanh toán (Dùng biến đã tính chính xác)
+            drawer.draw("Tổng thanh toán:", currencyFormatter.format(tongThanhToan) + " VNĐ", true, true);
 
             // Đường kẻ dưới tổng thanh toán
+            pos.y -= LINE_HEIGHT * 0.5f;
             contentStream.moveTo(SUMMARY_INDENT, pos.y);
             contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
             contentStream.stroke();
             pos.y -= LINE_HEIGHT * 1.2f;
             
-            // 5.4. Chi tiết Thanh toán, Ưu đãi, Khách trả
-            String khachHangMemberDetails = "Gold (giảm 10%)"; 
-            String uuDaiStr = (hd.getKhuyenMai() > 0) ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") : "0 VNĐ";
-            double soTienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai(); 
+            // 5.4. Thông tin bổ sung & Số tiền khách trả
+            String uuDaiStr = (tienKhuyenMai > 0) ? ("-" + currencyFormatter.format(tienKhuyenMai) + " VNĐ") : "0 VNĐ";
+            String memberInfo = "Gold (giảm 10%)"; // Ví dụ tĩnh hoặc lấy từ object KhachHang nếu có logic thành viên
 
             drawer.draw("Hình thức thanh toán:", hinhThucTTStr, false, false);
-            drawer.draw("Khách hàng thành viên:", khachHangMemberDetails, false, false);
+            // drawer.draw("Khách hàng thành viên:", memberInfo, false, false); // Bỏ comment nếu muốn hiện
             drawer.draw("Ưu đãi áp dụng:", uuDaiStr, false, false);
             
-            // Số tiền khách trả
-            drawer.draw("Số tiền khách trả:", currencyFormatter.format(soTienKhachTra) + " VNĐ", true, false); 
+            // Số tiền khách trả chính là Tổng thanh toán
+            drawer.draw("Số tiền khách trả:", currencyFormatter.format(tongThanhToan) + " VNĐ", true, false); 
             
-            // Đường kẻ cuối cùng
             pos.y -= LINE_HEIGHT * 0.2;
             contentStream.moveTo(SUMMARY_INDENT, pos.y);
             contentStream.lineTo(SUMMARY_VALUE_COL, pos.y);
@@ -1837,7 +1871,6 @@ public class DatBan implements Initializable {
     
     /**
      * 🔥 XỬ LÝ LƯU THÔNG TIN ĐẶT HÀNG / KHÁCH ĐẾN QUÁN
-     * === ĐÃ SỬA: Set trạng thái "Chờ xác nhận" nếu có cọc nhưng chưa thanh toán ===
      */
     private void handleLuuDatHang() {
         if (selectedBanList.isEmpty()) {
@@ -1850,43 +1883,47 @@ public class DatBan implements Initializable {
         }
 
         try {
-            // 1. LẤY THÔNG TIN CHUNG (Giữ nguyên)
+            // 1. LẤY THÔNG TIN CHUNG
             String tenKH = txtTenKhachHang.getText();
             String sdt = txtSoDienThoai.getText();
-            if (sdt.isEmpty()) { /* ... báo lỗi ... */ return; }
+            if (sdt.isEmpty()) { 
+                showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập Số điện thoại.");
+                return; 
+            }
             KhachHang khachHang = datBanDAO.timHoacTaoKhachHang(sdt, tenKH);
-            LocalDate ngayDen = datePickerThoiGianDen.getValue(); // <<< Sửa tên biến
-            // ------------------------------------
-
-            LocalTime gioDen = LocalTime.parse(txtThoiGian.getText(), timeFormatter);
+            LocalDate ngayDen = datePickerThoiGianDen.getValue(); 
+            
+            // 🔥 SỬA: Lấy giờ từ ComboBox
+            String gioDenStr = comboThoiGian.getValue();
+            if (gioDenStr == null || gioDenStr.isEmpty()) {
+                showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng chọn Giờ đến.");
+                return; 
+            }
+            LocalTime gioDen = LocalTime.parse(gioDenStr, timeFormatter);
+            
             java.time.LocalDateTime thoiGianDen = ngayDen.atTime(gioDen);
 
             double tongTienCoc = 0;
             try {
                  String tienCocRaw = txtTienCoc.getText().replaceAll("[^0-9.]", "");
                  tongTienCoc = Double.parseDouble(tienCocRaw.isEmpty() ? "0" : tienCocRaw);
-            } catch (NumberFormatException e) { /* ... báo lỗi ... */ return; }
+            } catch (NumberFormatException e) { }
 
-
-            // --- 🔥 LOGIC XÁC ĐỊNH TRẠNG THÁI BAN ĐẦU ---
+            // --- XÁC ĐỊNH TRẠNG THÁI BAN ĐẦU ---
             String trangThaiBanDau;
             boolean coCocVaChuaThanhToan = (tongTienCoc > 0 && !this.daThanhToanCoc);
 
             if (coCocVaChuaThanhToan) {
                 trangThaiBanDau = TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue();
-                System.out.println("LOG: Lưu HĐ với trạng thái 'Chờ xác nhận' do có cọc chưa thanh toán.");
             } else {
-                // Logic cũ: Dựa vào thời gian đến
                 if (thoiGianDen.isBefore(java.time.LocalDateTime.now().plusMinutes(15))) {
                     trangThaiBanDau = TrangThaiHoaDon.DANG_SU_DUNG.getDbValue();
                 } else {
                     trangThaiBanDau = TrangThaiHoaDon.DAT.getDbValue();
                 }
-                System.out.println("LOG: Lưu HĐ với trạng thái '" + trangThaiBanDau + "' (Không cọc hoặc đã thanh toán cọc).");
             }
-            // -----------------------------------------
 
-            // 2. TÁCH BÀN GỐC VÀ BÀN PHỤ (Giữ nguyên)
+            // 2. TÁCH BÀN GỐC VÀ BÀN PHỤ
             Ban banGoc = selectedBanList.get(0);
             List<Ban> banPhuList = new ArrayList<>(selectedBanList.subList(1, selectedBanList.size()));
 
@@ -1896,18 +1933,14 @@ public class DatBan implements Initializable {
             hoaDonGoc.setGioVao(thoiGianDen);
             hoaDonGoc.setKhachHang(khachHang);
             hoaDonGoc.setBan(banGoc);
-            hoaDonGoc.setTrangThai(trangThaiBanDau); // <<< SỬ DỤNG TRẠNG THÁI ĐÃ XÁC ĐỊNH
+            hoaDonGoc.setTrangThai(trangThaiBanDau);
             hoaDonGoc.setTienCoc(tongTienCoc);
             hoaDonGoc.setMaHDGoc(null);
 
-            // Lưu HĐ Gốc VỚI danh sách món
             datBanDAO.luuHoaDonVaChiTiet(hoaDonGoc, monOrderList);
-            // Cập nhật trạng thái bàn Gốc theo trạng thái hóa đơn
-            datBanDAO.capNhatTrangThaiBan(banGoc.getMaBan(), getTrangThaiBanFromHoaDon(trangThaiBanDau)); // <<< Dùng hàm helper
+            datBanDAO.capNhatTrangThaiBan(banGoc.getMaBan(), getTrangThaiBanFromHoaDon(trangThaiBanDau));
 
-            System.out.println("LOG: Đã lưu HD GỐC " + hoaDonGoc.getMaHD() + " cho bàn " + banGoc.getMaBan() + " với trạng thái " + trangThaiBanDau);
-
-            // 4. TẠO CÁC HÓA ĐƠN PHỤ (Luôn là HoaDonTam)
+            // 4. TẠO CÁC HÓA ĐƠN PHỤ
             for (Ban banPhu : banPhuList) {
                 HoaDon hoaDonPhu = new HoaDon();
                 hoaDonPhu.setNgayLap(java.time.LocalDateTime.now());
@@ -1916,23 +1949,20 @@ public class DatBan implements Initializable {
                 hoaDonPhu.setBan(banPhu);
                 hoaDonPhu.setTienCoc(0);
                 hoaDonPhu.setMaHDGoc(hoaDonGoc.getMaHD());
-                hoaDonPhu.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue()); // Phụ luôn là Tạm
+                hoaDonPhu.setTrangThai(TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
 
                 datBanDAO.luuHoaDonVaChiTiet(hoaDonPhu, FXCollections.observableArrayList());
-                // Cập nhật trạng thái bàn Phụ theo trạng thái hóa đơn GỐC
-                datBanDAO.capNhatTrangThaiBan(banPhu.getMaBan(), getTrangThaiBanFromHoaDon(trangThaiBanDau)); // <<< Dùng hàm helper
-
-                System.out.println("LOG: Đã lưu HD PHỤ " + hoaDonPhu.getMaHD() + " cho bàn " + banPhu.getMaBan());
+                datBanDAO.capNhatTrangThaiBan(banPhu.getMaBan(), getTrangThaiBanFromHoaDon(trangThaiBanDau));
             }
 
             // 5. HOÀN TẤT
             showAlert(Alert.AlertType.INFORMATION, "Thành công",
-                String.format("Đã lưu đặt hàng thành công!\nTrạng thái: %s\n- HĐ Gốc: %s (Bàn %s)\n- HĐ Phụ: %d bàn",
-                              TrangThaiHoaDon.fromDbValue(trangThaiBanDau).getDisplayName(), // Hiển thị tên trạng thái
-                              hoaDonGoc.getMaHD(), banGoc.getMaBan(), banPhuList.size()));
+                String.format("Đã lưu đặt hàng thành công!\nTrạng thái: %s\n- HĐ Gốc: %s",
+                              TrangThaiHoaDon.fromDbValue(trangThaiBanDau).getDisplayName(),
+                              hoaDonGoc.getMaHD()));
 
             isBookingConfirmed = false;
-            this.daThanhToanCoc = false; // <<< RESET BIẾN CỌC SAU KHI LƯU
+            this.daThanhToanCoc = false;
             clearFormDatBan();
             loadBookingCards();
             loadTableGrids();
@@ -2192,7 +2222,7 @@ public class DatBan implements Initializable {
         LocalDate ngayKiemTra;
         try {
             ngayKiemTra = datePickerThoiGianDen.getValue();
-            String gioStr = txtThoiGian.getText();
+            String gioStr = comboThoiGian.getValue();
             if (ngayKiemTra == null || gioStr == null || gioStr.trim().isEmpty()) {
                 thoiGianKiemTra = LocalTime.now();
             } else {
@@ -2395,17 +2425,13 @@ public class DatBan implements Initializable {
  // (Bên dưới hàm handleSelectBookingCard)
 
     /**
-     * 🔥 HÀM MỚI: Load thông tin của Hóa đơn lên giao diện chính
-     * === ĐÃ NÂNG CẤP (Gốc - Phụ) + TÔ MÀU BÀN TRÊN SƠ ĐỒ ===
-     * Sẽ tìm và hiển thị tất cả các bàn (Gốc và Phụ) liên quan đến HĐ này.
-     * Sẽ tô màu đỏ các bàn tương ứng trên sơ đồ.
+     * 🔥 HÀM LOAD HÓA ĐƠN: Đã cập nhật để set giờ vào ComboBox
      */
     public void loadHoaDonToMainInterface(HoaDon hd) {
-        System.out.println("LOG: Đang tải Hóa đơn " + (hd.getMaHD() != null ? hd.getMaHD() : "Mới") + " lên giao diện chính.");
+        System.out.println("LOG: Đang tải Hóa đơn " + (hd.getMaHD() != null ? hd.getMaHD() : "Mới"));
 
-        // === BƯỚC 1: RESET TẤT CẢ MÀU CỦA CỤM HÓA ĐƠN TRƯỚC ĐÓ ===
+        // === BƯỚC 1: RESET MÀU CŨ ===
         if (!currentHoaDonGocVaPhu.isEmpty()) {
-            System.out.println("LOG: Reset màu cho cụm HĐ cũ trước khi tải HĐ mới.");
             for (HoaDon hdCu : currentHoaDonGocVaPhu) {
                 if (hdCu.getBan() != null) {
                     Button btn = tableButtonMap.get(hdCu.getBan().getMaBan());
@@ -2416,45 +2442,58 @@ public class DatBan implements Initializable {
                 }
             }
         }
-        // ==========================================================
 
-        // 1. Set hóa đơn hiện tại (HĐ được click)
+        // 1. Set hóa đơn hiện tại
         this.currentHoaDon = hd; 
 
         // 2. KIỂM TRA GỐC/PHỤ
         if (hd.getMaHDGoc() != null) { 
-             showAlert(Alert.AlertType.INFORMATION, "Thông báo", "Bạn đã chọn Hóa đơn Phụ. Đang tải Hóa đơn Gốc liên quan...");
             HoaDon hdGoc = datBanDAO.getHoaDonByMaHD(hd.getMaHDGoc());
-            if (hdGoc == null) {
-                showAlert(Alert.AlertType.ERROR, "Lỗi", "Không tìm thấy HĐ Gốc của HĐ Phụ này!");
-                clearFormDatBan();
-                return;
-            }
-            this.currentHoaDon = hdGoc; // Chuyển sang làm việc với HĐ Gốc
+            if (hdGoc != null) this.currentHoaDon = hdGoc;
         }
 
-        // 3. TÌM TẤT CẢ HĐ PHỤ (Để tô màu bàn)
+        // 3. TÌM TẤT CẢ HĐ PHỤ
         currentHoaDonGocVaPhu.clear(); 
         currentHoaDonGocVaPhu.add(this.currentHoaDon); 
         List<HoaDon> hoaDonPhu = datBanDAO.getHoaDonPhuByMaHDGoc(this.currentHoaDon.getMaHD()); 
         currentHoaDonGocVaPhu.addAll(hoaDonPhu); 
         
-        
-        // -----------------------------------------------------------------
-        // 🔥 BƯỚC KHẮC PHỤC LỖI: TẢI CHI TIẾT DANH SÁCH MÓN ĂN TỪ CSDL
-        // -----------------------------------------------------------------
-        monOrderList.clear(); // Xóa món ăn hiện tại (đang trống hoặc của HĐ cũ)
+        // 4. TẢI MÓN ĂN
+        monOrderList.clear(); 
         if (this.currentHoaDon.getMaHD() != null) {
-            // Gọi DAO để lấy danh sách chi tiết hóa đơn (MonOrder)
-            System.out.println("LOG: Tải món ăn cho HD Gốc: " + this.currentHoaDon.getMaHD());
             ObservableList<MonOrder> chiTiet = datBanDAO.getChiTietHoaDon(this.currentHoaDon.getMaHD());
             monOrderList.addAll(chiTiet);
         }
-        tblMonDaChon.refresh(); // Cập nhật lại giao diện danh sách món ăn
-        calculateTotal();       // Tính toán lại tổng tiền hiển thị
-        // -----------------------------------------------------------------
+     // ---------------------------------------------------------
+        // 🔥 ĐOẠN LOGIC MỚI: LOAD ƯU ĐÃI TỪ HÓA ĐƠN LÊN COMBOBOX
+        // ---------------------------------------------------------
+        // Mặc định là null
+        this.selectedUuDai = null; 
+        
+        if (currentHoaDon.getMaUuDai() != null) {
+            // Tìm ưu đãi trong danh sách đang load (dsUuDaiDangApDung) khớp với Mã Ưu Đãi của HĐ
+            UuDai uuDaiDaChon = dsUuDaiDangApDung.stream()
+                .filter(ud -> ud.getMaUuDai().equals(currentHoaDon.getMaUuDai()))
+                .findFirst()
+                .orElse(null);
 
-        // 5. Populate Middle Panel (Thông tin khách hàng, bàn, thời gian)
+            if (uuDaiDaChon != null) {
+                this.selectedUuDai = uuDaiDaChon;
+                // Tạo chuỗi hiển thị giống format trong loadPromoComboBox
+                String displayString = String.format("%s (Giảm %.0f%%)", uuDaiDaChon.getTenUuDai(), uuDaiDaChon.getGiaTri());
+                promoComboBox.setValue(displayString);
+            } else {
+                // Trường hợp ưu đãi cũ đã hết hạn hoặc bị xóa -> Reset
+                promoComboBox.getSelectionModel().selectFirst(); 
+            }
+        } else {
+            // Nếu HĐ chưa có ưu đãi -> Chọn "Không áp dụng"
+            promoComboBox.getSelectionModel().selectFirst();
+        }
+        tblMonDaChon.refresh(); 
+        calculateTotal();       
+
+        // 5. HIỂN THỊ THÔNG TIN (MIDDLE PANEL)
          if (currentHoaDon.getKhachHang() != null) {
             txtTenKhachHang.setText(currentHoaDon.getKhachHang().getTenKH());
             txtSoDienThoai.setText(currentHoaDon.getKhachHang().getSoDT());
@@ -2462,82 +2501,69 @@ public class DatBan implements Initializable {
             txtTenKhachHang.clear();
             txtSoDienThoai.clear();
         }
+        
+        // 🔥 SỬA: Hiển thị thời gian lên ComboBox và DatePicker
         if (currentHoaDon.getGioVao() != null) {
             datePickerThoiGianDen.setValue(currentHoaDon.getGioVao().toLocalDate());
-            txtThoiGian.setText(currentHoaDon.getGioVao().toLocalTime().format(timeFormatter));
+            
+            // Format giờ từ DB thành chuỗi (ví dụ "18:00")
+            String gioDB = currentHoaDon.getGioVao().toLocalTime().format(timeFormatter);
+            // Set giá trị cho ComboBox (nó sẽ hiển thị ngay cả khi không nằm trong list options)
+            comboThoiGian.setValue(gioDB); 
         } else {
             datePickerThoiGianDen.setValue(LocalDate.now());
-            txtThoiGian.setText(LocalTime.now().format(timeFormatter));
+            // Mặc định chọn giờ đầu tiên hoặc giờ hiện tại
+            comboThoiGian.getSelectionModel().selectFirst();
         }
+        
         txtTienCoc.setText(String.format("%,.0f", currentHoaDon.getTienCoc()));
         
-        // 6. Populate Label Bàn đã chọn (Hiển thị TẤT CẢ bàn)
+        // 6. Populate Label Bàn
         String tatCaBan = currentHoaDonGocVaPhu.stream() 
-            .map(h -> {
-                String tenBan = (h.getBan() != null) ? h.getBan().getMaBan() : "N/A";
-                if (h.getMaHDGoc() == null) return tenBan + " (Gốc)"; 
-                return tenBan;
-            })
+            .map(h -> (h.getBan() != null) ? h.getBan().getMaBan() : "N/A")
             .collect(Collectors.joining(", "));
 
         lblBanDangChon.setText(tatCaBan); 
         lblTrangThaiBan.setText(String.format("Đang xem %d bàn", currentHoaDonGocVaPhu.size())); 
 
-        // Lấy sức chứa của bàn GỐC
         if (currentHoaDon.getBan() != null) { 
             txtSoLuongKhach.setText(String.valueOf(currentHoaDon.getBan().getSucChua()));
-        } else {
-            txtSoLuongKhach.clear();
         }
 
-        txtYeuCau.clear(); //
+        txtYeuCau.clear(); 
+        
+        // Update ComboBox Trạng Thái HĐ
         if (comboTrangThaiHienTai != null) {
-        	if (comboTrangThaiHienTai != null) {
-                String dbVal = currentHoaDon.getTrangThai().getDbValue();
-                String displayStatus;
-                
-                if (dbVal.equals(TrangThaiHoaDon.DANG_SU_DUNG.getDbValue())) {
-                    displayStatus = "Đã nhận bàn";
-                } else if (dbVal.equals(TrangThaiHoaDon.DAT.getDbValue())) {
-                    displayStatus = "Đã đặt";
-                } else if (dbVal.equals(TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue())) {
-                    displayStatus = "Chờ xác nhận";
-                } else {
-                    displayStatus = ""; // Các trạng thái khác (Hủy, TT) không hiển thị trong combo
-                }
-                
-                comboTrangThaiHienTai.setValue(displayStatus);
-            }
-        // 7. TÔ MÀU CÁC NÚT BÀN TRÊN SƠ ĐỒ
+            String dbVal = currentHoaDon.getTrangThai().getDbValue();
+            String displayStatus;
+            if (dbVal.equals(TrangThaiHoaDon.DANG_SU_DUNG.getDbValue())) displayStatus = "Đã nhận bàn";
+            else if (dbVal.equals(TrangThaiHoaDon.DAT.getDbValue())) displayStatus = "Đã đặt";
+            else if (dbVal.equals(TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue())) displayStatus = "Chờ xác nhận";
+            else displayStatus = "";
+            comboTrangThaiHienTai.setValue(displayStatus);
+        }
+
+        // 7. TÔ MÀU BÀN TRÊN SƠ ĐỒ
         TrangThaiHoaDon trangThaiHdGoc = TrangThaiHoaDon.fromDbValue(currentHoaDon.getTrangThai().getDbValue());
-        TrangThaiBan trangThaiCanTo = trangThaiHdGoc == TrangThaiHoaDon.DANG_SU_DUNG
-                                       ? TrangThaiBan.DANG_SU_DUNG // Màu cam nếu đang phục vụ
-                                       : TrangThaiBan.DA_DAT;    // Màu đỏ nếu đã đặt
+        TrangThaiBan trangThaiCanTo = (trangThaiHdGoc == TrangThaiHoaDon.DANG_SU_DUNG) 
+                                      ? TrangThaiBan.DANG_SU_DUNG : TrangThaiBan.DA_DAT;
 
         for (HoaDon hoadon : currentHoaDonGocVaPhu) {
             if (hoadon.getBan() != null) {
                 Button btn = tableButtonMap.get(hoadon.getBan().getMaBan()); 
-                if (btn != null) {
-                    applyTableStyle(btn, trangThaiCanTo); 
-                }
+                if (btn != null) applyTableStyle(btn, trangThaiCanTo); 
             }
         }
-        // ==============================================
 
-        // 8. Cập nhật trạng thái và nút
+        // 8. Cập nhật nút
         isBookingConfirmed = true; 
         updateButtonVisibility(true); 
         if (btnThanhToanCoc != null) {
-            // Chỉ bật nút khi HĐ đang ở trạng thái "Chờ xác nhận"
             boolean enableCocButton = (currentHoaDon != null && currentHoaDon.getTrangThai() == TrangThaiHoaDon.CHO_XAC_NHAN);
             btnThanhToanCoc.setDisable(!enableCocButton);
         }
 
-        // 9. Tắt panel thanh toán nếu đang mở
-        if (vboxReceipt != null) {
-            vboxReceipt.setVisible(false);
-        }
-    }
+        if (vboxReceipt != null) vboxReceipt.setVisible(false);
     }
     /**
      * Tạo thẻ booking hiển thị bên trái với nút chức năng thông minh.
@@ -2756,50 +2782,53 @@ public class DatBan implements Initializable {
     private void setupMonAnTable() {
         colTenMon.setCellValueFactory(cellData -> new SimpleStringProperty(cellData.getValue().getTenMon()));
         
-        colGia.setCellValueFactory(cellData -> {
-            return cellData.getValue().giaProperty(); 
+        // Format giá tiền hiển thị cho đẹp (VD: 120,000)
+        colGia.setCellValueFactory(cellData -> cellData.getValue().giaProperty());
+        colGia.setCellFactory(tc -> new TableCell<MonAn, Number>() {
+            @Override
+            protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                } else {
+                    setText(String.format("%,.0f", item.doubleValue()));
+                }
+            }
         });
         
         colHinhAnh.setCellFactory(param -> new TableCell<MonAn, String>() {
             private final ImageView imageView = new ImageView();
-            private final Label lblNoImage = new Label("N/A"); 
-
             { 
-                imageView.setFitWidth(50); 
-                imageView.setFitHeight(50);
+                imageView.setFitWidth(40); 
+                imageView.setFitHeight(40);
                 imageView.setPreserveRatio(true); 
                 setAlignment(Pos.CENTER);
             }
-            
             @Override
             protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || getItem() == null) {
+                if (empty) {
                     setGraphic(null);
                 } else {
                     byte[] hinhAnhBytes = getTableView().getItems().get(getIndex()).getHinhAnhBytes(); 
-                    
                     if (hinhAnhBytes != null && hinhAnhBytes.length > 0) {
                         try {
-                            Image image = new Image(new ByteArrayInputStream(hinhAnhBytes));
-                            imageView.setImage(image);
+                            imageView.setImage(new Image(new ByteArrayInputStream(hinhAnhBytes)));
                             setGraphic(imageView);
-                            // SỬA LỖI: Cần gán giá trị item cho cell để không bị null pointer
-                            setText(null); 
-                        } catch (Exception e) {
-                            System.err.println("❌ LỖI RUNTIME LOAD ẢNH: " + getTableView().getItems().get(getIndex()).getTenMon() + " - " + e.getMessage());
-                            setGraphic(lblNoImage); 
-                        }
-                    } else {
-                        setGraphic(lblNoImage); 
-                    }
+                        } catch (Exception e) { setGraphic(null); }
+                    } else { setGraphic(null); }
                 }
             }
         });
 
+        // 🔥 NÚT CHỌN: MÀU XANH LÁ
         colChon.setCellFactory(tc -> new TableCell<MonAn, Void>() {
             final Button btn = new Button("Chọn");
             {
+                // Style cho nút Chọn
+                btn.setStyle("-fx-background-color: #2f9e44; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;");
+                btn.setPrefWidth(60);
+                
                 btn.setOnAction(event -> {
                     MonAn mon = getTableView().getItems().get(getIndex());
                     handleChonMon(mon);
@@ -2809,29 +2838,39 @@ public class DatBan implements Initializable {
             @Override
             protected void updateItem(Void item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty) {
-                    setGraphic(null);
-                } else {
-                    setGraphic(btn);
-                    btn.getStyleClass().add("btn-chon-mon");
-                }
+                setGraphic(empty ? null : btn);
             }
         });
     }
     
     private void setupMonOrderTable() {
         colOrderTenMon.setCellValueFactory(cellData -> cellData.getValue().tenMonProperty());
+        
+        // Format đơn giá trong bảng Order
         colOrderDonGia.setCellValueFactory(cellData -> cellData.getValue().donGiaProperty());
+        colOrderDonGia.setCellFactory(tc -> new TableCell<MonOrder, Number>() {
+            @Override
+            protected void updateItem(Number item, boolean empty) {
+                super.updateItem(item, empty);
+                setText((empty || item == null) ? null : String.format("%,.0f", item.doubleValue()));
+            }
+        });
+        
         colOrderSoLuong.setCellValueFactory(cellData -> cellData.getValue().soLuongProperty().asObject());
 
+        // 🔥 NÚT TĂNG GIẢM: MÀU CAM VÀ XANH DƯƠNG
         colOrderTangGiam.setCellFactory(tc -> new TableCell<MonOrder, Void>() {
             final HBox box = new HBox(5);
             final Button btnMinus = new Button("-");
             final Button btnPlus = new Button("+");
             
             {
-                btnMinus.getStyleClass().add("btn-quantity-control");
-                btnPlus.getStyleClass().add("btn-quantity-control");
+                // Style nút Trừ (-) : Màu Cam/Đỏ nhạt
+                btnMinus.setStyle("-fx-background-color: #f08c00; -fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 30px; -fx-cursor: hand;");
+                
+                // Style nút Cộng (+) : Màu Xanh dương
+                btnPlus.setStyle("-fx-background-color: #1971c2; -fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 30px; -fx-cursor: hand;");
+                
                 box.setAlignment(Pos.CENTER);
                 box.getChildren().addAll(btnMinus, btnPlus);
 
@@ -2858,10 +2897,13 @@ public class DatBan implements Initializable {
             }
         });
 
+        // 🔥 NÚT HỦY: MÀU ĐỎ
         colOrderHuy.setCellFactory(tc -> new TableCell<MonOrder, Void>() {
             final Button btnHuy = new Button("X");
             {
-                btnHuy.getStyleClass().add("btn-huy-mon");
+                // Style nút Hủy : Màu Đỏ đậm
+                btnHuy.setStyle("-fx-background-color: #e03131; -fx-text-fill: white; -fx-font-weight: bold; -fx-min-width: 30px; -fx-cursor: hand;");
+                
                 btnHuy.setOnAction(event -> {
                     MonOrder order = getTableView().getItems().get(getIndex());
                     monOrderList.remove(order);
@@ -2878,7 +2920,6 @@ public class DatBan implements Initializable {
         
         tblMonDaChon.setItems(monOrderList);
     }
-
     private void handleChonMon(MonAn mon) {
         Optional<MonOrder> existingOrder = monOrderList.stream()
             .filter(o -> o.getMaMon().equals(mon.getMaMon()))
@@ -2896,26 +2937,37 @@ public class DatBan implements Initializable {
     /**
      * TÍNH TOÁN VÀ HIỂN THỊ TỔNG TIỀN
      */
+    /**
+     * TÍNH TOÁN VÀ HIỂN THỊ TỔNG TIỀN (ĐÃ SỬA LOGIC VAT)
+     */
     private void calculateTotal() {
         double tongTienMonAn = monOrderList.stream()
                 .mapToDouble(order -> order.getDonGia() * order.getSoLuong())
                 .sum();
         
-        // Khai báo tỷ lệ
-        final double SERVICE_FEE_RATE = 0.05; // 5%
-        final double VAT_RATE = 0.08;         // 8%
-        
-        // 🔥 SỬA LỖI: TÍNH PHÍ DỊCH VỤ DỰA TRÊN TỔNG TIỀN MÓN ĂN
+        // 1. Phí dịch vụ (5% trên tổng món)
+        final double SERVICE_FEE_RATE = 0.05; 
         double phiDichVu = tongTienMonAn * SERVICE_FEE_RATE; 
         
-        double thueVAT = (tongTienMonAn + phiDichVu) * VAT_RATE; // VAT tính trên (Tổng món + Phí dịch vụ)
+        // 2. 🔥 SỬA: Thuế VAT (8% TRÊN TỔNG MÓN ĂN - Theo yêu cầu)
+        final double VAT_RATE = 0.08;         
+        // Code cũ (sai): double thueVAT = (tongTienMonAn + phiDichVu) * VAT_RATE;
+        double thueVAT = tongTienMonAn * VAT_RATE; // Code mới (Đúng)
         
+        // 3. Khuyến mãi
         double tienKhuyenMai = 0.0; 
         if (selectedUuDai != null) {
-            // Giảm giá trị * trên tổng tiền món ăn (Giả định GiaTri là % giảm)
             tienKhuyenMai = tongTienMonAn * (selectedUuDai.getGiaTri() / 100.0);
         }
         
+        // Cập nhật model
+        if (currentHoaDon != null) {
+            currentHoaDon.setKhuyenMai(tienKhuyenMai);
+            currentHoaDon.setPhiDichVu(phiDichVu);
+            currentHoaDon.setThueVAT(thueVAT);
+        }
+
+        // 4. Tiền cọc
         double tienCocDaThanhToan = 0.0;
         try {
             String tienCocRaw = txtTienCoc.getText().replaceAll("[^0-9.]", "");
@@ -2924,12 +2976,12 @@ public class DatBan implements Initializable {
             tienCocDaThanhToan = 0.0;
         }
         
+        // 5. Tổng thanh toán
         double tongTienThanhToan = tongTienMonAn + phiDichVu + thueVAT - tienKhuyenMai - tienCocDaThanhToan;
 
+        // 6. Hiển thị lên UI
         if (lblTongTienMonAn != null) lblTongTienMonAn.setText(String.format("%,.0f Đ", tongTienMonAn));
-        // 🔥 CẬP NHẬT PHÍ DỊCH VỤ
         if (lblPhiDichVu != null) lblPhiDichVu.setText(String.format("%,.0f Đ", phiDichVu)); 
-        
         if (lblThueVAT != null) lblThueVAT.setText(String.format("%,.0f Đ", thueVAT));
         if (lblKhuyenMai != null) lblKhuyenMai.setText(String.format("%,.0f Đ", tienKhuyenMai)); 
         if (lblTienCocSummary != null) lblTienCocSummary.setText(String.format("%,.0f Đ", tienCocDaThanhToan));
@@ -2939,7 +2991,7 @@ public class DatBan implements Initializable {
     
     public void clearFormDatBan() {
         // 1. Clear các trường nhập liệu
-        txtThoiGian.clear(); //
+    	comboThoiGian.getSelectionModel().selectFirst();
         datePickerThoiGianDen.setValue(LocalDate.now()); //
         txtTenKhachHang.clear(); //
         txtSoDienThoai.clear(); //
@@ -3011,96 +3063,131 @@ public class DatBan implements Initializable {
     }
     
  // =========================================================
-    // XỬ LÝ TÌM BÀN TRỐNG THEO THỜI GIAN
-    // === ĐÃ SỬA: SỬ DỤNG GIỜ TÌM KIẾM ĐỂ TÍNH MÀU SẮC (KHẮC PHỤC LỖI MẤT MÀU) ===
+    // XỬ LÝ TÌM BÀN TRỐNG - LOGIC TỐI ƯU (SMART FIT)
     // =========================================================
     private void handleTimBanTrong() {
-
-        LocalDate ngay; //
-        String gioStr; //
-        LocalTime gio; // // Giờ tìm kiếm
-        java.sql.Timestamp ts; //
-
-
+        LocalDate ngay; String gioStr; LocalTime gio; java.sql.Timestamp ts; 
+        int soLuongKhach = 0; 
 
         try {
-            // 1. ĐỌC GIÁ TRỊ TỪ UI VÀ PARSE
             ngay = datePickerThoiGianDen.getValue(); 
-            gioStr = txtThoiGian.getText(); 
+            gioStr = comboThoiGian.getValue(); 
+            String khuVucChon = comboKhuVuc.getValue(); 
+
+            // Parse số lượng khách
+            String slKhachStr = txtSoLuongKhach.getText().trim();
+            if (!slKhachStr.isEmpty()) {
+                try {
+                    soLuongKhach = Integer.parseInt(slKhachStr);
+                    if (soLuongKhach < 0) throw new NumberFormatException();
+                } catch (NumberFormatException e) {
+                    showAlert(Alert.AlertType.WARNING, "Lỗi nhập liệu", "Số lượng khách phải là số nguyên dương.");
+                    return;
+                }
+            }
 
             if (ngay == null || gioStr == null || gioStr.trim().isEmpty()) { 
-                showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập Ngày và Giờ để tìm bàn.");
+                showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng chọn Ngày và Giờ.");
                 return;
             }
 
             gio = LocalTime.parse(gioStr, timeFormatter); 
             ts = java.sql.Timestamp.valueOf(ngay.atTime(gio)); 
 
-            // 2. LUÔN LUÔN RESET FORM VÀ CÁC TRẠNG THÁI
-            System.out.println("LOG handleTimBanTrong: Nhấn Tìm -> Reset form và trạng thái.");
+            // Reset Form & Restore UI
             clearFormDatBan(); 
             this.currentHoaDon = null; 
             this.isBookingConfirmed = false; 
-
-            // 3. Đặt lại giá trị Ngày/Giờ sau khi clear
             datePickerThoiGianDen.setValue(ngay); 
-            txtThoiGian.setText(gioStr); 
+            comboThoiGian.setValue(gioStr); 
+            if (soLuongKhach > 0) txtSoLuongKhach.setText(String.valueOf(soLuongKhach));
+            comboKhuVuc.setValue(khuVucChon); 
 
-
-            System.out.println("\n*** LOG: THỰC HIỆN TÌM BÀN TRỐNG TẠI THỜI GIAN NGƯỜI DÙNG NHẬP: " + gioStr + " ***");
-
-            // 4. LẤY TRẠNG THÁI KHẢ DỤNG TỪ DAO (Bảng tất cả bàn + isAvailable)
+            // Lấy dữ liệu từ DB
             List<Map<String, Object>> allBanInfo = datBanDAO.getAllBanWithAvailability(ts); 
-
-            // 5. CẬP NHẬT DS HĐ ĐANG CHỜ (cho logic tô màu)
-            // Phải tải lại danh sách HĐ cho ngày đang tìm kiếm
             this.dsHoaDonDatTrongNgay = datBanDAO.getDsDatBanHomNay(ngay); 
-            System.out.println("  DEBUG: Đã cập nhật dsHoaDonDatTrongNgay cho ngày " + ngay + ". Số lượng: " + dsHoaDonDatTrongNgay.size()); 
 
-            // 6. XÁC ĐỊNH MÀU HIỂN THỊ (ƯU TIÊN LOGIC 4/8 TIẾNG TỪ CONTROLLER)
             List<Ban> banHienThi = new ArrayList<>(); 
             
-            System.out.println("  DEBUG: Bắt đầu vòng lặp tô màu:"); 
             for (Map<String, Object> banInfo : allBanInfo) { 
                 Ban ban = (Ban) banInfo.get("ban");
+                
+                // 1. ĐIỀU KIỆN TIÊN QUYẾT: BÀN PHẢI ĐỦ CHỖ
+                if (soLuongKhach > 0 && ban.getSucChua() < soLuongKhach) {
+                    continue; 
+                }
+
+                boolean passKhuVuc = true;
+                
+                // 2. LOGIC LỌC
+                if (khuVucChon != null && soLuongKhach > 0) {
+                    
+                    if (khuVucChon.equals("Tự động")) {
+                        // --- A. PHÂN LOẠI KHU VỰC ---
+                        // Nhóm < 9 người: Ẩn Phòng riêng (để dành phòng cho nhóm 9-10 trở lên)
+                        if (soLuongKhach < 9 && ban.getLoaiBan() == LoaiBan.PHONG) {
+                            passKhuVuc = false;
+                        }
+                        // Nhóm >= 10 người: Ẩn bàn Sảnh (thường bàn sảnh chỉ max 8)
+                        else if (soLuongKhach >= 10 && ban.getLoaiBan() != LoaiBan.PHONG) {
+                             passKhuVuc = false;
+                        }
+
+                        // --- B. ĐỘ VỪA VẶN (FIT LOGIC) ---
+                        if (passKhuVuc) {
+                            int gheDu = ban.getSucChua() - soLuongKhach;
+
+                            if (soLuongKhach < 10) {
+                                // Với nhóm nhỏ (< 10): Áp dụng "Vừa khít" (Strict Fit)
+                                // Chỉ cho phép dư tối đa 1 ghế
+                                // VD: Khách 3 -> Bàn 4 (Dư 1) OK. Bàn 6 (Dư 3) Ẩn.
+                                if (gheDu > 1) passKhuVuc = false;
+                            } else {
+                                // Với nhóm lớn (>= 10): Áp dụng "Linh hoạt" (Loose Fit)
+                                // Cho phép dư tối đa 5 ghế (vì bàn lớn hiếm)
+                                // VD: Khách 13 -> Phòng 15 (Dư 2) OK.
+                                if (gheDu > 5) passKhuVuc = false;
+                            }
+                        }
+                    }
+                    // Logic lọc cứng nếu user chọn cụ thể Khu vực (Tầng trệt/1/Phòng)
+                    else if (!khuVucChon.equals("Tất cả")) {
+                         if (khuVucChon.equals("Tầng trệt") && ban.getLoaiBan() != LoaiBan.TANG_TRET) passKhuVuc = false;
+                         else if (khuVucChon.equals("Tầng 1") && ban.getLoaiBan() != LoaiBan.TANG_1) passKhuVuc = false;
+                         else if (khuVucChon.equals("Phòng riêng") && ban.getLoaiBan() != LoaiBan.PHONG) passKhuVuc = false;
+                    }
+                }
+                
+                if (!passKhuVuc) continue; 
+
+                // 3. XÁC ĐỊNH TRẠNG THÁI MÀU SẮC
                 Ban banMoi = new Ban(ban.getMaBan(), ban.getViTri(), ban.getSucChua(), ban.getLoaiBan(), ban.getTrangThai());
-
-                TrangThaiBan finalStatus;
+                TrangThaiBan trangThaiHienThi = getTrangThaiHienThi(banMoi, gio); 
                 
-                // Trạng thái theo logic 4/8 tiếng (ĐỎ/CAM)
-                TrangThaiBan trangThaiTheoLogic48 = getTrangThaiHienThi(banMoi, gio); 
-                
-                // Trạng thái khả dụng (từ DAO)
-                boolean isAvailable = (Boolean) banInfo.get("isAvailable");
-                
-                System.out.println("    - Processing Table: " + ban.getMaBan() + " | Is Available (DAO): " + isAvailable + " | 4/8h Logic Status: " + trangThaiTheoLogic48); 
-
-                // === LOGIC ƯU TIÊN MỚI ===
-                // Nếu logic 4/8 tiếng cho thấy ĐỎ/CAM -> Ưu tiên giữ màu đó, bất kể DAO nói gì.
-                if (trangThaiTheoLogic48 != TrangThaiBan.TRONG) {
-                     finalStatus = trangThaiTheoLogic48;
-                     System.out.println("      -> Priority 1: Assigning status based on 4/8h logic (BUSY): " + finalStatus);
+                if (trangThaiHienThi != TrangThaiBan.TRONG) {
+                     banMoi.setTrangThai(trangThaiHienThi);
+                } else {
+                     banMoi.setTrangThai(TrangThaiBan.TRONG);
                 }
-                // Nếu không có HĐ nào ràng buộc (theo logic 4/8h) -> Set TRỐNG
-                else {
-                     finalStatus = TrangThaiBan.TRONG;
-                     System.out.println("      -> Priority 2: Assigning status: TRONG.");
-                }
-
-                banMoi.setTrangThai(finalStatus);
-                System.out.println("      ===> Final Assigned Status for " + banMoi.getMaBan() + ": " + finalStatus);
+                
                 banHienThi.add(banMoi); 
             }
             
-            // 7. TẢI LẠI GIAO DIỆN
             loadTableGridsBase(banHienThi); 
+            
+            if (banHienThi.isEmpty()) {
+                String msg = "Không tìm thấy bàn trống phù hợp.";
+                if (soLuongKhach > 0 && "Tự động".equals(khuVucChon)) {
+                    msg += "\n(Hệ thống đang ẩn các bàn quá rộng hoặc quá chật để tối ưu. Hãy thử chọn khu vực 'Tất cả' để xem toàn bộ bàn).";
+                }
+                showAlert(Alert.AlertType.INFORMATION, "Thông báo", msg);
+            }
 
         } catch (java.time.format.DateTimeParseException e) { 
-            showAlert(Alert.AlertType.ERROR, "Lỗi định dạng", "Giờ nhập không hợp lệ. Vui lòng nhập theo định dạng HH:mm (ví dụ: 14:30).");
+            showAlert(Alert.AlertType.ERROR, "Lỗi định dạng", "Giờ không hợp lệ.");
         } catch (Exception ex) { 
             ex.printStackTrace();
-            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể tìm bàn trống. Kiểm tra dữ liệu đầu vào hoặc kết nối DB.");
-            // Nếu có lỗi, tải lại sơ đồ bàn với giờ hiện tại để không bị trống
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể tìm bàn: " + ex.getMessage());
             loadTableGrids(); 
         }
     }
@@ -3136,8 +3223,7 @@ public class DatBan implements Initializable {
  // ui.DatBan.java
 
     /**
-     * 🔥 XỬ LÝ SỬA HÓA ĐƠN (Thông tin KH, Tiền cọc, Danh sách món)
-     * ĐÃ SỬA: Loại bỏ hoàn toàn hộp thoại xác nhận. Việc lưu được thực hiện tự động.
+     * 🔥 XỬ LÝ SỬA HÓA ĐƠN (Thông tin KH, Tiền cọc, Danh sách món, VÀ KHUYẾN MÃI)
      */
     private void handleSuaHoaDon() {
         if (currentHoaDon == null) {
@@ -3145,11 +3231,8 @@ public class DatBan implements Initializable {
             return;
         }
         
-        // 🔥 BỎ QUA BƯỚC XÁC NHẬN (CONFIRMATION MODAL) VÀ THỰC HIỆN LƯU TRỰC TIẾP
-        
         try {
             // 1. Cập nhật Khách hàng
-            // Sử dụng dữ liệu từ UI để tìm hoặc tạo Khách hàng
             KhachHang kh = datBanDAO.timHoacTaoKhachHang(txtSoDienThoai.getText(), txtTenKhachHang.getText());
             
             // 2. Cập nhật Tiền cọc
@@ -3157,23 +3240,42 @@ public class DatBan implements Initializable {
             try {
                  String tienCocRaw = txtTienCoc.getText().replaceAll("[^0-9.]", ""); 
                  tienCoc = Double.parseDouble(tienCocRaw.isEmpty() ? "0" : tienCocRaw);
-            } catch (NumberFormatException e) {
-                 showAlert(Alert.AlertType.ERROR, "Lỗi", "Tiền cọc không hợp lệ.");
-                 return;
-            }
+            } catch (NumberFormatException e) { }
 
-            // 3. Gọi DAO cập nhật thông tin chính (Sử dụng MaHD Gốc)
+            // 3. Gọi DAO cập nhật thông tin chính (MaKH, TienCoc)
             datBanDAO.capNhatThongTinHoaDon(currentHoaDon.getMaHD(), kh.getMaKH(), tienCoc);
 
-            // 4. Gọi DAO cập nhật chi tiết món ăn (Xóa cũ, thêm mới)
+            // 4. Gọi DAO cập nhật chi tiết món ăn
             datBanDAO.capNhatChiTietHoaDon(currentHoaDon.getMaHD(), monOrderList);
+            
+            // ---------------------------------------------------------
+            // 🔥 ĐOẠN LOGIC MỚI BỔ SUNG: CẬP NHẬT KHUYẾN MÃI
+            // ---------------------------------------------------------
+            // Tính toán tổng tiền món để tính % giảm giá
+            double tongTienMon = monOrderList.stream().mapToDouble(m -> m.getDonGia() * m.getSoLuong()).sum();
+            double tienKhuyenMai = 0;
+            String maUuDai = null;
+
+            if (selectedUuDai != null) {
+                maUuDai = selectedUuDai.getMaUuDai();
+                // Tính tiền giảm giá dựa trên % giá trị ưu đãi
+                tienKhuyenMai = tongTienMon * (selectedUuDai.getGiaTri() / 100.0);
+            }
+
+            // Gọi hàm DAO vừa thêm ở Bước 1
+            datBanDAO.capNhatKhuyenMaiHoaDon(currentHoaDon.getMaHD(), maUuDai, tienKhuyenMai);
+
+            // Cập nhật lại object hiện tại trên RAM để đồng bộ
+            currentHoaDon.setMaUuDai(maUuDai);
+            currentHoaDon.setKhuyenMai(tienKhuyenMai);
+            // ---------------------------------------------------------
             
             // Chỉ hiện thông báo thành công nếu người dùng nhấn nút Sửa Món
             if (btnSuaMon.isFocused()) {
                 showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã cập nhật Hóa đơn " + currentHoaDon.getMaHD() + " thành công.");
             }
             
-            // Tải lại danh sách bên trái (cần thiết cho cả Sửa và Thanh toán)
+            // Tải lại danh sách bên trái
             loadBookingCards(); 
 
         } catch (Exception e) {

@@ -5,14 +5,14 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Lớp Entity (Model) đại diện cho đối tượng Hóa Đơn.
- * Đã cập nhật hoàn chỉnh để đồng bộ với các DAO và Controller.
+ * Đã cập nhật hoàn chỉnh: Thêm Setters cho các trường tính toán để đồng bộ với UI.
  */
 public class HoaDon {
 
-    private String maHD; // Đổi tên cho khớp DAO
+    private String maHD; 
     private LocalDateTime ngayLap;
     private PTTThanhToan hinhThucTT;
-    private TrangThaiHoaDon trangThai; // Thuộc tính kiểu Enum
+    private TrangThaiHoaDon trangThai; 
     private String maUuDai;
     private KhachHang khachHang; 
     private String tenNhanVien;  
@@ -31,25 +31,24 @@ public class HoaDon {
 
     // Constructors
     public HoaDon() {
-        // Constructor rỗng để DAO dễ sử dụng setters
+        // Constructor rỗng
     }
     
-
-    // Hàm tính toán tổng tiền (có thể gọi lại khi thêm/bớt món hoặc cập nhật ưu đãi)
+    // Hàm tính toán tổng tiền (Logic mặc định nếu không set từ ngoài)
     public void calculateTotals() {
-        // === Logic tính toán ===
-        this.phiDichVu = this.tongCongMonAn * 0.05; // Giả định 5%
-        this.thueVAT = this.tongCongMonAn * 0.08;   // Giả định 8%
+        // 1. Phí dịch vụ 5% trên tổng món
+        this.phiDichVu = this.tongCongMonAn * 0.05; 
+        
+        // 2. Thuế VAT 8% trên tổng món (Theo yêu cầu mới)
+        this.thueVAT = this.tongCongMonAn * 0.08;   
 
-        // 🔥 ĐÃ XÓA DÒNG "this.khuyenMai = 0.0;"
-        // Giờ khuyến mãi sẽ được giữ nguyên giá trị được set từ bên ngoài
-
+        // 3. Tổng thanh toán
         this.tongTienThanhToan = this.tongCongMonAn + this.phiDichVu + this.thueVAT - this.tienCoc - this.khuyenMai;
+        
         if (this.tongTienThanhToan < 0) {
-            this.tongTienThanhToan = 0; // Đảm bảo tổng tiền không âm
+            this.tongTienThanhToan = 0; 
         }
     }
-
 
     // --- Getters ---
     public String getMaHD() { return maHD; }
@@ -68,33 +67,24 @@ public class HoaDon {
     public double getThueVAT() { return thueVAT; }
     public double getKhuyenMai() { return khuyenMai; }
     public double getTongTienThanhToan() { return tongTienThanhToan; }
+    public String getMaHDGoc() { return maHDGoc; }
 
     // --- Getters tiện ích cho UI ---
-    /** Lấy mã bàn (String) hoặc null nếu không có bàn. */
     public String getMaBan() {
         return (this.ban != null) ? this.ban.getMaBan() : null;
     }
-    /** Lấy số điện thoại KH (String) hoặc null nếu không có KH. */
     public String getSoDienThoaiKH() {
         return (this.khachHang != null) ? this.khachHang.getSoDT() : null;
-    }
-    public String getMaHDGoc() {
-        return maHDGoc;
     }
 
     // --- Setters ---
     public void setMaHD(String maHD) { this.maHD = maHD; }
     public void setNgayLap(LocalDateTime ngayLap) { this.ngayLap = ngayLap; }
     public void setHinhThucTT(PTTThanhToan hinhThucTT) { this.hinhThucTT = hinhThucTT; }
-    public void setMaHDGoc(String maHDGoc) {
-        this.maHDGoc = maHDGoc;
-    }
-    // Setter 1: Nhận Enum (Dùng cho Controller/Logic nội bộ)
+    public void setMaHDGoc(String maHDGoc) { this.maHDGoc = maHDGoc; }
+    
     public void setTrangThai(TrangThaiHoaDon trangThai) { this.trangThai = trangThai; }
-
-    // Setter 2: Nhận String (Dùng cho DAO/đọc từ DB)
     public void setTrangThai(String trangThaiDbValue) { 
-        // 🔥 FIX LỖI DÒNG 86: Dùng hàm chuyển đổi tĩnh từ Enum
         this.trangThai = TrangThaiHoaDon.fromDbValue(trangThaiDbValue); 
     }
 
@@ -104,17 +94,30 @@ public class HoaDon {
     public void setBan(Ban ban) { this.ban = ban; }
     public void setGioVao(LocalDateTime gioVao) { this.gioVao = gioVao; }
     public void setGioRa(LocalDateTime gioRa) { this.gioRa = gioRa; }
+    
     public void setTongCongMonAn(double tongCongMonAn) {
         this.tongCongMonAn = tongCongMonAn;
-        calculateTotals(); // Tính lại tổng tiền khi tổng món ăn thay đổi
+        calculateTotals(); 
     }
     public void setTienCoc(double tienCoc) {
         this.tienCoc = tienCoc;
-        calculateTotals(); // Tính lại tổng tiền khi tiền cọc thay đổi
+        calculateTotals(); 
     }
     public void setKhuyenMai(double khuyenMai) {
         this.khuyenMai = khuyenMai;
-        calculateTotals(); // Tính lại tổng tiền khi khuyến mãi thay đổi
+        calculateTotals(); 
     }
-    // Không cần setters cho các trường tính toán
+
+    // 🔥 [THÊM MỚI] Các Setter cho trường tính toán (Để khớp với DatBan.java)
+    public void setPhiDichVu(double phiDichVu) {
+        this.phiDichVu = phiDichVu;
+    }
+
+    public void setThueVAT(double thueVAT) {
+        this.thueVAT = thueVAT;
+    }
+
+    public void setTongTienThanhToan(double tongTienThanhToan) {
+        this.tongTienThanhToan = tongTienThanhToan;
+    }
 }

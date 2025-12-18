@@ -322,22 +322,24 @@ public class DatBanDAO {
      */
     public List<HoaDon> getDsDatBanHomNay(LocalDate date) {
         List<HoaDon> list = new ArrayList<>();
+        // 🔥 ĐÃ SỬA: Thêm hd.tienKhuyenMai
         String sql = """
-            SELECT
-                hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
-                hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
-                hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
-                hd.maNV, n.tenNV, hd.maHDGoc
-            FROM HoaDon hd
-            LEFT JOIN Ban b ON hd.maBan = b.maBan
-            LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
-            LEFT JOIN NhanVien n ON hd.maNV = n.maNV
+        	    SELECT
+        	        hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
+        	        u.giaTri AS phanTramGiam, -- <<< LẤY TỪ BẢNG UUDAI
+        	        hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
+        	        hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
+        	        hd.maNV, n.tenNV, hd.maHDGoc
+        	    FROM HoaDon hd
+        	    LEFT JOIN Ban b ON hd.maBan = b.maBan
+        	    LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
+        	    LEFT JOIN NhanVien n ON hd.maNV = n.maNV
+        	    LEFT JOIN UuDai u ON hd.maUuDai = u.maUuDai -- <<< JOIN VỚI BẢNG UUDAI
             WHERE
-                hd.trangThai IN (?, ?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam', 'ChoXacNhan' 🔥 THÊM ?
+                hd.trangThai IN (?, ?, ?, ?)
                 AND (
                     CAST(hd.gioVao AS DATE) = ?
-                    -- Chỉ lấy HĐ 'DangSuDung'/'HoaDonTam'/'ChoXacNhan' từ ngày hôm trước
-                    OR (hd.trangThai IN (?, ?, ?) AND CAST(hd.gioVao AS DATE) < ?) -- 🔥 THÊM ?
+                    OR (hd.trangThai IN (?, ?, ?) AND CAST(hd.gioVao AS DATE) < ?)
                 )
              ORDER BY hd.gioVao ASC
         """;
@@ -345,48 +347,45 @@ public class DatBanDAO {
         try (Connection con = ConnectDB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
-            // Tham số cho WHERE hd.trangThai IN (...)
+            // (Giữ nguyên phần set tham số 1->9)
             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
             ps.setString(2, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
             ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
-            ps.setString(4, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
-
-            // Tham số cho điều kiện ngày
-            ps.setDate(5, java.sql.Date.valueOf(date)); // CAST(hd.gioVao AS DATE) = ?
-
-            // Tham số cho OR (hd.trangThai IN (...) AND CAST(hd.gioVao AS DATE) < ?)
+            ps.setString(4, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue());
+            ps.setDate(5, java.sql.Date.valueOf(date));
             ps.setString(6, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
             ps.setString(7, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
-            ps.setString(8, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
-            ps.setDate(9, java.sql.Date.valueOf(date)); // CAST(hd.gioVao AS DATE) < ?
+            ps.setString(8, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue());
+            ps.setDate(9, java.sql.Date.valueOf(date));
 
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                 // ... (Code tạo đối tượng HoaDon giữ nguyên) ...
                 HoaDon hoaDon = new HoaDon();
-                // ... (set các thuộc tính) ...
-                 hoaDon.setMaHD(rs.getString("maHD"));
+                hoaDon.setMaHD(rs.getString("maHD"));
                 hoaDon.setMaUuDai(rs.getString("maUuDai"));
                 hoaDon.setTienCoc(rs.getDouble("tienCoc"));
+                
+                // 🔥 ĐÃ SỬA: Set tiền khuyến mãi
+                double phanTram = rs.getDouble("phanTramGiam");
+                hoaDon.setKhuyenMai(0);
+
                 hoaDon.setTenNhanVien(rs.getString("tenNV"));
                 hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(rs.getString("ptThanhToan")));
-                hoaDon.setTrangThai(rs.getString("trangThai")); // Setter nhận String
+                hoaDon.setTrangThai(rs.getString("trangThai")); 
                 Timestamp tsNgayLap = rs.getTimestamp("ngayLap"); hoaDon.setNgayLap( (tsNgayLap != null) ? tsNgayLap.toLocalDateTime() : null );
                 Timestamp tsGioVao = rs.getTimestamp("gioVao"); hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
                 Timestamp tsGioRa = rs.getTimestamp("gioRa"); hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
                 hoaDon.setMaHDGoc(rs.getString("maHDGoc"));
-                 // Khách hàng
+                
+                // (Giữ nguyên KhachHang, Ban)
                 if (rs.getString("maKH") != null) { LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null; KhachHang kh = new KhachHang( rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"), rs.getString("khEmail"), ngayDK, rs.getString("khDiaChi"), rs.getString("khThanhVien") ); hoaDon.setKhachHang(kh); } else { hoaDon.setKhachHang(null); }
-                 // Bàn
                 if (rs.getString("maBan") != null) { Ban ban = new Ban( rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"), LoaiBan.fromString(rs.getString("banLoaiBan")), TrangThaiBan.fromDbValue(rs.getString("banTrangThai")) ); hoaDon.setBan(ban); } else { hoaDon.setBan(null); }
-                 hoaDon.setTongCongMonAn(0); // Tạm thời
+                
                 list.add(hoaDon);
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi khi lấy danh sách đặt bàn hôm nay: " + e.getMessage());
             e.printStackTrace();
-            // return new ArrayList<>(); // Trả về list rỗng nếu lỗi
         }
         return list;
     }
@@ -398,71 +397,71 @@ public class DatBanDAO {
      */
     public List<HoaDon> getDsHoaDonDangCho() {
         List<HoaDon> list = new ArrayList<>();
+        // 🔥 ĐÃ SỬA: Thêm hd.tienKhuyenMai
         String sql = """
-            SELECT
-                hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
-                hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
-                hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
-                hd.maNV, n.tenNV
-            FROM HoaDon hd
-            LEFT JOIN Ban b ON hd.maBan = b.maBan
-            LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
-            LEFT JOIN NhanVien n ON hd.maNV = n.maNV
+        	    SELECT
+        	        hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
+        	        u.giaTri AS phanTramGiam, -- <<< LẤY GIÁ TRỊ TỪ BẢNG UUDAI
+        	        hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
+        	        hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
+        	        hd.maNV, n.tenNV
+        	    FROM HoaDon hd
+        	    LEFT JOIN Ban b ON hd.maBan = b.maBan
+        	    LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
+        	    LEFT JOIN NhanVien n ON hd.maNV = n.maNV
+        	    LEFT JOIN UuDai u ON hd.maUuDai = u.maUuDai -- <<< THÊM DÒNG NÀY
             WHERE
-                hd.trangThai IN (?, ?, ?, ?) -- 'Dat', 'DangSuDung', 'HoaDonTam', 'ChoXacNhan' 🔥 THÊM ?
+                hd.trangThai IN (?, ?, ?, ?)
             ORDER BY
-                -- Ưu tiên 1: Trạng thái
                 CASE hd.trangThai
-                    WHEN ? THEN 1 -- 'DangSuDung'
-                    WHEN ? THEN 1 -- 'HoaDonTam'
-                    WHEN ? THEN 2 -- 'ChoXacNhan' 🔥 THÊM MỚI
-                    WHEN ? THEN 3 -- 'Dat'       🔥 SỬA THỨ TỰ
+                    WHEN ? THEN 1
+                    WHEN ? THEN 1
+                    WHEN ? THEN 2
+                    WHEN ? THEN 3
                     ELSE 4
                 END ASC,
-                -- Ưu tiên 2: Giờ vào sớm nhất
                 hd.gioVao ASC
         """;
 
         try (Connection con = ConnectDB.getConnection();
              PreparedStatement ps = con.prepareStatement(sql)) {
 
-            // Tham số cho WHERE
+            // (Giữ nguyên tham số)
             ps.setString(1, TrangThaiHoaDon.DAT.getDbValue());
             ps.setString(2, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
             ps.setString(3, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
-            ps.setString(4, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
-
-            // Tham số cho ORDER BY CASE
+            ps.setString(4, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue());
             ps.setString(5, TrangThaiHoaDon.DANG_SU_DUNG.getDbValue());
             ps.setString(6, TrangThaiHoaDon.HOA_DON_TAM.getDbValue());
-            ps.setString(7, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue()); // 🔥 Tham số mới
-            ps.setString(8, TrangThaiHoaDon.DAT.getDbValue());       // 🔥 Tham số mới
+            ps.setString(7, TrangThaiHoaDon.CHO_XAC_NHAN.getDbValue());
+            ps.setString(8, TrangThaiHoaDon.DAT.getDbValue());
 
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
-                // ... (Code tạo đối tượng HoaDon giữ nguyên) ...
                  HoaDon hoaDon = new HoaDon();
-                // ... (set các thuộc tính) ...
                  hoaDon.setMaHD(rs.getString("maHD"));
                  hoaDon.setMaUuDai(rs.getString("maUuDai"));
                  hoaDon.setTienCoc(rs.getDouble("tienCoc"));
+                 
+                 // 🔥 ĐÃ SỬA: Set tiền khuyến mãi
+                 hoaDon.setKhuyenMai(0);
+
+                 // (Giữ nguyên các field khác)
                  hoaDon.setTenNhanVien(rs.getString("tenNV"));
                  hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(rs.getString("ptThanhToan")));
-                 hoaDon.setTrangThai(rs.getString("trangThai")); // Setter nhận String
+                 hoaDon.setTrangThai(rs.getString("trangThai"));
                  Timestamp tsNgayLap = rs.getTimestamp("ngayLap"); hoaDon.setNgayLap( (tsNgayLap != null) ? tsNgayLap.toLocalDateTime() : null );
                  Timestamp tsGioVao = rs.getTimestamp("gioVao"); hoaDon.setGioVao( (tsGioVao != null) ? tsGioVao.toLocalDateTime() : null );
                  Timestamp tsGioRa = rs.getTimestamp("gioRa"); hoaDon.setGioRa( (tsGioRa != null) ? tsGioRa.toLocalDateTime() : null );
-                 // Khách hàng
+                 
                  if (rs.getString("maKH") != null) { LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null; KhachHang kh = new KhachHang( rs.getString("maKH"), rs.getString("tenKH"), rs.getString("soDT"), rs.getString("khEmail"), ngayDK, rs.getString("khDiaChi"), rs.getString("khThanhVien") ); hoaDon.setKhachHang(kh); } else { hoaDon.setKhachHang(null); }
-                 // Bàn
                  if (rs.getString("maBan") != null) { Ban ban = new Ban( rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"), LoaiBan.fromString(rs.getString("banLoaiBan")), TrangThaiBan.fromDbValue(rs.getString("banTrangThai")) ); hoaDon.setBan(ban); } else { hoaDon.setBan(null); }
+                
                 list.add(hoaDon);
             }
         } catch (SQLException e) {
-            System.err.println("Lỗi khi lấy danh sách hóa đơn đang chờ: " + e.getMessage());
             e.printStackTrace();
-            // return new ArrayList<>(); // Trả về list rỗng nếu lỗi
         }
         return list;
     }
@@ -569,9 +568,12 @@ public class DatBanDAO {
      * @return Đối tượng HoaDon, hoặc null nếu không tìm thấy.
      */
     public HoaDon getHoaDonByMaHD(String maHD) {
+        // SỬA: Bỏ 'hd.giaTri', thêm JOIN UuDai để lấy % giảm giá (nếu cần tham khảo), 
+        // nhưng quan trọng nhất là KHÔNG ĐƯỢC SELECT hd.giaTri hay hd.tienKhuyenMai
         String sql = """
             SELECT
                 hd.maHD, hd.ngayLap, hd.maUuDai, hd.ptThanhToan, hd.trangThai, hd.gioVao, hd.gioRa, hd.tienCoc,
+                u.giaTri AS phanTramGiam, -- <<< Lấy % từ bảng UuDai (giống các hàm khác)
                 hd.maKH, kh.tenKH, kh.soDT, kh.email AS khEmail, kh.ngayDangKy AS khNgayDK, kh.thanhVien AS khThanhVien, kh.diaChi AS khDiaChi,
                 hd.maBan, b.viTri AS banViTri, b.sucChua, b.loaiBan AS banLoaiBan, b.trangThai AS banTrangThai,
                 hd.maNV, n.tenNV, hd.maHDGoc
@@ -579,6 +581,7 @@ public class DatBanDAO {
             LEFT JOIN Ban b ON hd.maBan = b.maBan
             LEFT JOIN KhachHang kh ON hd.maKH = kh.maKH
             LEFT JOIN NhanVien n ON hd.maNV = n.maNV
+            LEFT JOIN UuDai u ON hd.maUuDai = u.maUuDai -- <<< JOIN VỚI BẢNG UUDAI
             WHERE hd.maHD = ?
         """;
 
@@ -592,20 +595,24 @@ public class DatBanDAO {
             if (rs.next()) {
                 HoaDon hoaDon = new HoaDon();
 
-                // Thông tin Hóa đơn
                 hoaDon.setMaHD(rs.getString("maHD"));
                 hoaDon.setMaUuDai(rs.getString("maUuDai"));
                 hoaDon.setTienCoc(rs.getDouble("tienCoc"));
+                
+                // SỬA: Set tiền khuyến mãi = 0. 
+                // Lý do: DB không lưu số tiền. Khi load lên UI, hàm loadHoaDonToMainInterface 
+                // sẽ tự động tính lại tiền dựa trên 'maUuDai' và tổng tiền món ăn.
+                hoaDon.setKhuyenMai(0); 
+                
                 hoaDon.setTenNhanVien(rs.getString("tenNV"));
-                // Giả định PTTThanhToan có fromDbValue
                 hoaDon.setHinhThucTT(PTTThanhToan.fromDbValue(rs.getString("ptThanhToan"))); 
                 hoaDon.setTrangThai(rs.getString("trangThai")); 
                 hoaDon.setNgayLap( (rs.getTimestamp("ngayLap") != null) ? rs.getTimestamp("ngayLap").toLocalDateTime() : null );
                 hoaDon.setGioVao( (rs.getTimestamp("gioVao") != null) ? rs.getTimestamp("gioVao").toLocalDateTime() : null );
                 hoaDon.setGioRa( (rs.getTimestamp("gioRa") != null) ? rs.getTimestamp("gioRa").toLocalDateTime() : null );
-                hoaDon.setMaHDGoc(rs.getString("maHDGoc")); // Thêm maHDGoc
+                hoaDon.setMaHDGoc(rs.getString("maHDGoc"));
 
-                // Thông tin Khách hàng
+                // (Giữ nguyên phần lấy KhachHang và Ban)
                 if (rs.getString("maKH") != null) {
                     LocalDate ngayDK = rs.getDate("khNgayDK") != null ? rs.getDate("khNgayDK").toLocalDate() : null;
                     KhachHang kh = new KhachHang(
@@ -616,10 +623,9 @@ public class DatBanDAO {
                     hoaDon.setKhachHang(kh);
                 }
 
-                // Thông tin Bàn
                 if (rs.getString("maBan") != null) {
                     Ban ban = new Ban(
-                        rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"), // sucChua đã được sửa ở lần trước
+                        rs.getString("maBan"), rs.getString("banViTri"), rs.getInt("sucChua"),
                         LoaiBan.fromString(rs.getString("banLoaiBan")),
                         TrangThaiBan.fromDbValue(rs.getString("banTrangThai"))
                     );
@@ -1630,4 +1636,31 @@ public class DatBanDAO {
          }
          return list;
      }
+     /**
+      * 🔥 DAO MỚI: Cập nhật thông tin Khuyến mãi cho Hóa đơn.
+      * Dùng khi nhấn nút Sửa hoặc Thanh toán.
+      */
+     public void capNhatKhuyenMaiHoaDon(String maHD, String maUuDai, double giaTri) throws SQLException {
+    	    // CHỈ CẬP NHẬT MÃ ƯU ĐÃI, BỎ QUA SỐ TIỀN (giaTri)
+    	    String sql = "UPDATE HoaDon SET maUuDai = ? WHERE maHD = ?"; 
+    	    
+    	    try (Connection con = ConnectDB.getConnection();
+    	         PreparedStatement ps = con.prepareStatement(sql)) {
+    	         
+    	         if (maUuDai == null) {
+    	             ps.setNull(1, java.sql.Types.VARCHAR);
+    	         } else {
+    	             ps.setString(1, maUuDai);
+    	         }
+    	         
+    	         // ps.setDouble(2, giaTri); // <<< XÓA DÒNG NÀY
+    	         ps.setString(2, maHD); // Index lùi lại thành 2
+    	         
+    	         ps.executeUpdate();
+    	         System.out.println("LOG DAO: Đã cập nhật Mã Ưu Đãi (" + maUuDai + ") cho HD " + maHD);
+    	    } catch (SQLException e) {
+    	         System.err.println("Lỗi khi cập nhật khuyến mãi hóa đơn: " + e.getMessage());
+    	         throw e;
+    	    }
+    	}
 }

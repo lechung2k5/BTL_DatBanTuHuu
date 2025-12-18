@@ -71,7 +71,6 @@ public class KhuyenMai {
                 deleteButton.getStyleClass().add("delete-button");
                 pane.setAlignment(Pos.CENTER);
                 
-                // Sử dụng getTableRow() để lấy đúng item
                 deleteButton.setOnAction(event -> {
                     Promotion promo = getTableRow().getItem();
                     if (promo != null) {
@@ -85,7 +84,6 @@ public class KhuyenMai {
                 super.updateItem(item, empty);
                 setGraphic(empty ? null : pane);
                 
-                // Vô hiệu hóa nút xóa khi đang ở chế độ thêm/sửa
                 if (deleteButton != null) {
                     deleteButton.setDisable(isEditMode);
                 }
@@ -108,13 +106,16 @@ public class KhuyenMai {
     }
 
     private void setupInputValidation() {
+        // RÀNG BUỘC: Tên khuyến mãi giới hạn độ dài
         txtTenKM.textProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal != null && newVal.length() > 100) {
                 txtTenKM.setText(oldVal);
             }
         });
+        
+        // RÀNG BUỘC: Giá trị giới hạn độ dài (cho phép nhập tự do, validate khi Lưu)
         txtGiaTri.textProperty().addListener((obs, oldVal, newVal) -> {
-            if (newVal != null && !newVal.matches("\\d*(\\.\\d*)?")) {
+            if (newVal != null && newVal.length() > 10) {
                 txtGiaTri.setText(oldVal);
             }
         });
@@ -164,7 +165,7 @@ public class KhuyenMai {
     // ==================== XỬ LÝ CÁC NÚT ====================
     
     private void themKhuyenMai() {
-        // Kiểm tra xem có đang trong chế độ chỉnh sửa không
+        // RÀNG BUỘC: Chỉ quản lý mới có quyền thực hiện
         if (isEditMode) {
             Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
             confirm.setTitle("Xác nhận");
@@ -181,6 +182,8 @@ public class KhuyenMai {
         setFormEditable(true);
         isEditMode = true;
         selectedPromotion = null;
+        
+        // RÀNG BUỘC: Mã ưu đãi tự động phát sinh, định dạng {id}, NOT NULL
         currentMaKM = uuDaiDAO.taoMaUuDaiMoi();
         
         txtTenKM.requestFocus();
@@ -192,6 +195,7 @@ public class KhuyenMai {
     }
 
     private void chinhSuaKhuyenMai() {
+        // RÀNG BUỘC: Phải chọn voucher trước khi sửa
         if (selectedPromotion == null) {
             showAlert(Alert.AlertType.WARNING, "Chưa chọn", "Vui lòng chọn khuyến mãi cần sửa từ bảng.");
             return;
@@ -209,6 +213,7 @@ public class KhuyenMai {
     }
 
     private void luuKhuyenMai() {
+        // RÀNG BUỘC: Kiểm tra tất cả ràng buộc trước khi lưu
         if (!validateAllInput()) {
             return;
         }
@@ -218,16 +223,17 @@ public class KhuyenMai {
         LocalDate ngayBatDau = datePickerStart.getValue();
         LocalDate ngayKetThuc = datePickerEnd.getValue();
         
+        // RÀNG BUỘC: Kiểm tra trùng mã voucher (đã xử lý trong DAO)
         UuDai uuDai = new UuDai();
         uuDai.setMaUuDai(currentMaKM);
         uuDai.setTenUuDai(tenKM);
-        uuDai.setMoTa(tenKM); // Mô tả mặc định bằng tên
+        uuDai.setMoTa(tenKM);
         uuDai.setGiaTri(giaTri);
         uuDai.setNgayBatDau(ngayBatDau);
         uuDai.setNgayKetThuc(ngayKetThuc);
         
         boolean success;
-        if (selectedPromotion == null) { // Chế độ thêm mới
+        if (selectedPromotion == null) {
             success = uuDaiDAO.themUuDai(uuDai);
             if (success) {
                 showAlert(Alert.AlertType.INFORMATION, "Thêm thành công", 
@@ -236,7 +242,7 @@ public class KhuyenMai {
                 showAlert(Alert.AlertType.ERROR, "Lỗi thêm", "Không thể thêm khuyến mãi vào database.");
                 return;
             }
-        } else { // Chế độ sửa
+        } else {
             success = uuDaiDAO.capNhatUuDai(uuDai);
             if (success) {
                 showAlert(Alert.AlertType.INFORMATION, "Cập nhật thành công", 
@@ -247,11 +253,13 @@ public class KhuyenMai {
             }
         }
         
+        // RÀNG BUỘC: Ghi log lịch sử thao tác (đã xử lý trong DAO)
         loadDataFromDatabase();
         resetFormState();
     }
 
     private void xoaKhuyenMai(Promotion promo) {
+        // RÀNG BUỘC: Chỉ quản lý mới có quyền xóa
         Alert confirmDialog = new Alert(Alert.AlertType.CONFIRMATION);
         confirmDialog.setTitle("Xác nhận xóa");
         confirmDialog.setHeaderText("Bạn chắc chắn muốn xóa khuyến mãi này?");
@@ -265,7 +273,6 @@ public class KhuyenMai {
                     showAlert(Alert.AlertType.INFORMATION, "Xóa thành công", 
                              "Đã xóa khuyến mãi \"" + promo.getName() + "\"");
                     
-                    // Xóa selection nếu item đang được chọn
                     if (selectedPromotion != null && 
                         selectedPromotion.getCode().equals(promo.getCode())) {
                         selectedPromotion = null;
@@ -361,28 +368,49 @@ public class KhuyenMai {
     private void updateTableState(boolean disable) {
         tblKhuyenMai.setDisable(disable);
         filterComboBox.setDisable(disable);
-        
-        // Refresh lại table để cập nhật trạng thái nút xóa
         tblKhuyenMai.refresh();
     }
 
-    // ==================== VALIDATION ====================
+    // ==================== VALIDATION - RÀNG BUỘC ====================
     
     private boolean validateAllInput() {
-        return validateTenKhuyenMai() && validateGiaTri() && validateDateRange();
+        return validateMaUuDai() && 
+               validateTenKhuyenMai() && 
+               validateGiaTri() && 
+               validateNgayBatDau() &&
+               validateNgayKetThuc() &&
+               validateDateRange();
     }
 
+    // RÀNG BUỘC 1: Mã ưu đãi (maUuDai)
+    // - Không được null
+    // - Không được rỗng ("")
+    // - Định dạng: {id}, NOT NULL
+    private boolean validateMaUuDai() {
+        if (currentMaKM == null || currentMaKM.trim().isEmpty()) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi hệ thống", "Mã ưu đãi không được tạo. Vui lòng thử lại.");
+            return false;
+        }
+        return true;
+    }
+
+    // RÀNG BUỘC 2: Tên ưu đãi (tenUuDai)
+    // - Không được null
+    // - Không được rỗng ("")
+    // - Bắt buộc nhập
     private boolean validateTenKhuyenMai() {
         String tenKM = txtTenKM.getText().trim();
         
         if (tenKM.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập tên khuyến mãi.");
+            showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", 
+                     "Tên khuyến mãi không được để trống.\nVui lòng nhập tên khuyến mãi.");
             txtTenKM.requestFocus();
             return false;
         }
         
         if (tenKM.length() < 5) {
-            showAlert(Alert.AlertType.WARNING, "Tên quá ngắn", "Tên khuyến mãi phải có ít nhất 5 ký tự.");
+            showAlert(Alert.AlertType.WARNING, "Tên quá ngắn", 
+                     "Tên khuyến mãi phải có ít nhất 5 ký tự để đảm bảo đầy đủ thông tin.");
             txtTenKM.requestFocus();
             return false;
         }
@@ -390,24 +418,43 @@ public class KhuyenMai {
         return true;
     }
 
+    // RÀNG BUỘC 3: Giá trị ưu đãi (giaTri)
+    // - Phải >= 0
+    // - Kiểu dữ liệu: double
+    // - Có thể là % hoặc số tiền cụ thể
+    // - Giá trị từ 0 đến 100 (%)
     private boolean validateGiaTri() {
         String giaTriStr = txtGiaTri.getText().trim();
         
         if (giaTriStr.isEmpty()) {
-            showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", "Vui lòng nhập giá trị khuyến mãi.");
+            showAlert(Alert.AlertType.WARNING, "Thiếu thông tin", 
+                     "Giá trị khuyến mãi không được để trống.\nVui lòng nhập giá trị khuyến mãi (%).");
             txtGiaTri.requestFocus();
             return false;
         }
         
         try {
             double giaTri = Double.parseDouble(giaTriStr);
-            if (giaTri < 0 || giaTri > 100) {
-                showAlert(Alert.AlertType.WARNING, "Giá trị không hợp lệ", "Giá trị phải từ 0 đến 100.");
+            
+            // RÀNG BUỘC: giaTri >= 0
+            if (giaTri < 0) {
+                showAlert(Alert.AlertType.WARNING, "Giá trị không hợp lệ", 
+                         "Giá trị khuyến mãi không được âm.\nVui lòng nhập giá trị từ 0 đến 100.");
                 txtGiaTri.requestFocus();
                 return false;
             }
+            
+            // RÀNG BUỘC: giaTri <= 100 (%)
+            if (giaTri > 100) {
+                showAlert(Alert.AlertType.WARNING, "Giá trị không hợp lệ", 
+                         "Giá trị khuyến mãi không được vượt quá 100%.\nVui lòng nhập giá trị từ 0 đến 100.");
+                txtGiaTri.requestFocus();
+                return false;
+            }
+            
         } catch (NumberFormatException e) {
-            showAlert(Alert.AlertType.WARNING, "Giá trị không hợp lệ", "Vui lòng nhập số hợp lệ.");
+            showAlert(Alert.AlertType.WARNING, "Giá trị không hợp lệ", 
+                     "Giá trị khuyến mãi phải là số.\nVui lòng nhập số hợp lệ (ví dụ: 10, 15.5).");
             txtGiaTri.requestFocus();
             return false;
         }
@@ -415,24 +462,48 @@ public class KhuyenMai {
         return true;
     }
 
-    private boolean validateDateRange() {
+    // RÀNG BUỘC 4: Ngày bắt đầu (ngayBatDau)
+    // - NOT NULL
+    // - Kiểu dữ liệu: Date
+    private boolean validateNgayBatDau() {
         if (datePickerStart.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Thiếu ngày bắt đầu", "Vui lòng chọn ngày bắt đầu.");
+            showAlert(Alert.AlertType.WARNING, "Thiếu ngày bắt đầu", 
+                     "Ngày bắt đầu không được để trống.\nVui lòng chọn ngày bắt đầu áp dụng khuyến mãi.");
             datePickerStart.requestFocus();
             return false;
         }
-        
+        return true;
+    }
+
+    // RÀNG BUỘC 5: Ngày kết thúc (ngayKetThuc)
+    // - NOT NULL
+    // - Phải >= ngayBatDau
+    // - Kiểu dữ liệu: Date
+    private boolean validateNgayKetThuc() {
         if (datePickerEnd.getValue() == null) {
-            showAlert(Alert.AlertType.WARNING, "Thiếu ngày kết thúc", "Vui lòng chọn ngày kết thúc.");
+            showAlert(Alert.AlertType.WARNING, "Thiếu ngày kết thúc", 
+                     "Ngày kết thúc không được để trống.\nVui lòng chọn ngày kết thúc áp dụng khuyến mãi.");
             datePickerEnd.requestFocus();
             return false;
         }
+        return true;
+    }
+
+    // RÀNG BUỘC 6: Khoảng thời gian
+    // - ngayKetThuc >= ngayBatDau
+    private boolean validateDateRange() {
+        LocalDate ngayBatDau = datePickerStart.getValue();
+        LocalDate ngayKetThuc = datePickerEnd.getValue();
         
-        if (datePickerEnd.getValue().isBefore(datePickerStart.getValue())) {
-            showAlert(Alert.AlertType.WARNING, "Ngày không hợp lệ", 
-                     "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.");
-            datePickerEnd.requestFocus();
-            return false;
+        if (ngayBatDau != null && ngayKetThuc != null) {
+            if (ngayKetThuc.isBefore(ngayBatDau)) {
+                showAlert(Alert.AlertType.WARNING, "Ngày không hợp lệ", 
+                         "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu.\n" +
+                         "Ngày bắt đầu: " + ngayBatDau.format(formatter) + "\n" +
+                         "Ngày kết thúc: " + ngayKetThuc.format(formatter));
+                datePickerEnd.requestFocus();
+                return false;
+            }
         }
         
         return true;

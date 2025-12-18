@@ -28,7 +28,6 @@
                              <ImageView fitHeight="16.0" fitWidth="16.0" pickOnBounds="true" preserveRatio="true"> <image><Image url="@/icons/menubar/icons8-utilities-50.png" /></image> </ImageView>
                           </graphic>
                         <items>
-                          <MenuItem fx:id="quanLyBanMenuItem" mnemonicParsing="false" text="Quản lý Bàn" onAction="#handleQuanLyBan"/>
                           <MenuItem fx:id="guiChuongTrinhTVMenuItem" mnemonicParsing="false" text="Gửi Chương trình Thành viên" onAction="#handleGuiChuongTrinhTV"/>
                           <MenuItem fx:id="xemLogKiemKeTienMat" mnemonicParsing="false" text="Xem log kiểm kê tiền mặt" onAction="#handleXemLogKiemKeTienMat"/>
                         </items>
@@ -65,7 +64,7 @@
                             </children>
                         </HBox>
                         <Region HBox.hgrow="ALWAYS"/>
-                        <ImageView fx:id="profileImage" fitHeight="30.0" fitWidth="30.0" preserveRatio="true" styleClass="profile-image"> <image> <Image url="https://i.imgur.com/83p1Ym1.png"/> </image> </ImageView>
+                        <ImageView fx:id="profileImage" fitHeight="30.0" fitWidth="30.0" preserveRatio="true" styleClass="profile-image"> <image> <Image url="@/icons/iconUserPlaceholder.png"/> </image> </ImageView>
                         <VBox styleClass="user-info" alignment="CENTER_LEFT">
                            <children>
                                 <Label fx:id="userNameLabel" text="Tên nhân viên" styleClass="user-name"/>

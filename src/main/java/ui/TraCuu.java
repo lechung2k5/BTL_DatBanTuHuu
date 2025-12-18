@@ -311,27 +311,54 @@ public class TraCuu {
         danhSachKhachHang.setAll(l);
     }
 
+    // 🔥 RÀNG BUỘC: Tìm kiếm hóa đơn CHỈ theo SĐT hoặc Mã HD
     private void timHD(String t) {
         if (t == null || t.trim().isEmpty()) { 
             danhSachHoaDon.setAll(tatCaHoaDon); 
             return; 
         }
         String s = t.toLowerCase().trim();
+        
+        // Ràng buộc: Chỉ tìm kiếm theo SĐT KH hoặc Mã HD
         danhSachHoaDon.setAll(tatCaHoaDon.stream()
-            .filter(h -> (h.getSdtKH() != null && h.getSdtKH().toLowerCase().contains(s)) ||
-                        (h.getMaHD() != null && h.getMaHD().toLowerCase().contains(s)))
+            .filter(h -> {
+                // Kiểm tra SĐT KH (không null và chứa từ khóa)
+                boolean matchSDT = h.getSdtKH() != null && 
+                                  !h.getSdtKH().equals("N/A") && 
+                                  h.getSdtKH().toLowerCase().contains(s);
+                
+                // Kiểm tra Mã HD (không null và chứa từ khóa)
+                boolean matchMaHD = h.getMaHD() != null && 
+                                   h.getMaHD().toLowerCase().contains(s);
+                
+                // Trả về true nếu khớp với SĐT HOẶC Mã HD
+                return matchSDT || matchMaHD;
+            })
             .collect(Collectors.toList()));
     }
 
+    // 🔥 RÀNG BUỘC: Tìm kiếm khách hàng CHỈ theo SĐT hoặc Tên KH
     private void timKH(String t) {
         if (t == null || t.trim().isEmpty()) { 
             danhSachKhachHang.setAll(tatCaKhachHang); 
             return; 
         }
         String s = t.toLowerCase().trim();
+        
+        // Ràng buộc: Chỉ tìm kiếm theo SĐT hoặc Họ tên KH
         danhSachKhachHang.setAll(tatCaKhachHang.stream()
-            .filter(k -> (k.getSdt() != null && k.getSdt().toLowerCase().contains(s)) ||
-                        (k.getHoTen() != null && k.getHoTen().toLowerCase().contains(s)))
+            .filter(k -> {
+                // Kiểm tra SĐT (không null và chứa từ khóa)
+                boolean matchSDT = k.getSdt() != null && 
+                                  k.getSdt().toLowerCase().contains(s);
+                
+                // Kiểm tra Họ tên (không null và chứa từ khóa)
+                boolean matchHoTen = k.getHoTen() != null && 
+                                    k.getHoTen().toLowerCase().contains(s);
+                
+                // Trả về true nếu khớp với SĐT HOẶC Họ tên
+                return matchSDT || matchHoTen;
+            })
             .collect(Collectors.toList()));
     }
 
