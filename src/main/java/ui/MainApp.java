@@ -138,7 +138,7 @@ public class MainApp extends Application {
 
             Scene scene = new Scene(root);
             scene.getStylesheets().add(getClass().getResource("/css/manHinhChinh.css").toExternalForm());
-            scene.getStylesheets().add(getClass().getResource("/css/Dashboard.css").toExternalForm());
+            scene.getStylesheets().add(getClass().getResource("/css/DashBoard.css").toExternalForm());
             // Thêm các file CSS khác nếu cần
 
             Stage mainStage = new Stage();
@@ -249,6 +249,7 @@ public class MainApp extends Application {
 
     // --- Hàm main (giữ nguyên) ---
      public static void main(String[] args) {
+    	 
         launch(args);
     }
 

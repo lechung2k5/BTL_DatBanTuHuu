@@ -29,7 +29,11 @@
                           </graphic>
                         <items>
                           <MenuItem fx:id="guiChuongTrinhTVMenuItem" mnemonicParsing="false" text="Gửi Chương trình Thành viên" onAction="#handleGuiChuongTrinhTV"/>
-                          <MenuItem fx:id="xemLogKiemKeTienMat" mnemonicParsing="false" text="Xem log kiểm kê tiền mặt" onAction="#handleXemLogKiemKeTienMat"/>
+                          <Menu text="Quản lý Tài chính">
+							    <MenuItem text="Chốt ca &amp; Kiểm kê" onAction="#handleXemLogKiemKeTienMat" />
+							    
+							    <MenuItem text="Xem Nhật ký kiểm kê" onAction="#handleXemNhatKyKiemKe" />
+							</Menu>
                         </items>
                       </Menu>
                      <Menu mnemonicParsing="false" text="Trợ giúp">

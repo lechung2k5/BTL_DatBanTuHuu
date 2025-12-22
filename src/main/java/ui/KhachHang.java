@@ -6,7 +6,26 @@ import java.time.format.DateTimeFormatter;
 import java.util.List; // Import List
 import java.util.Optional; // Import Optional
 import java.util.regex.Pattern; // === THAY ĐỔI ===: Thêm import để kiểm tra regex
+import entity.TaiKhoan; // Để lấy tên NV
+import ui.MainApp;
+//=== CÁC IMPORT CHO IN ẤN VÀ PDFBOX ===
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.font.PDFont;
+import org.apache.pdfbox.pdmodel.font.PDType0Font;
+import org.apache.pdfbox.pdmodel.font.PDType1Font;
+import org.apache.pdfbox.printing.PDFPrintable;
+import org.apache.pdfbox.util.Matrix;
 
+import javax.print.attribute.HashPrintRequestAttributeSet;
+import javax.print.attribute.PrintRequestAttributeSet;
+import java.awt.print.PrinterJob;
+import java.io.InputStream;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import javafx.application.Platform;
 import dao.KhachHangDAO;
 import dao.HoaDonDAO; // THÊM IMPORT HoaDonDAO
 import entity.ChiTietHoaDon;
@@ -98,7 +117,7 @@ public class KhachHang {
 
         // Lắng nghe thay đổi ComboBox và ô tìm kiếm, gọi updateFilter
         filterComboBox.valueProperty().addListener((obs, oldVal, newVal) -> updateFilter());
-        txtSearch.textProperty().addListener((obs, oldVal, newVal) -> updateFilter()); // Lọc ngay khi gõ
+        //txtSearch.textProperty().addListener((obs, oldVal, newVal) -> updateFilter()); // Lọc ngay khi gõ
         // Nút Tìm có thể không cần thiết nếu lọc live, nhưng vẫn giữ lại
         btnTim.setOnAction(e -> updateFilter());
     }
@@ -108,7 +127,10 @@ public class KhachHang {
         btnThem.setOnAction(e -> handleThem());
         btnSua.setOnAction(e -> handleSua());
         btnXoa.setOnAction(e -> handleXoa());
-        btnXoaTrang.setOnAction(e -> clearForm());
+        btnXoaTrang.setOnAction(e -> {
+            clearForm();
+            txtHoTen.requestFocus(); // Chỉ focus khi người dùng cố tình bấm nút Xóa trắng
+        });
     }
 
     /** Lắng nghe sự kiện chọn dòng trên TableView */
@@ -339,7 +361,7 @@ public class KhachHang {
         txtHoTen.clear(); txtSDT.clear(); txtDiaChi.clear(); txtEmail.clear();
         datePickerNgayDangKy.setValue(null);
         tblKhachHang.getSelectionModel().clearSelection(); // Bỏ chọn dòng
-        txtHoTen.requestFocus(); // Focus vào ô Họ tên
+        
     }
 
     // === THAY ĐỔI ===: Cập nhật hàm kiểm tra dữ liệu đầu vào
@@ -444,6 +466,11 @@ public class KhachHang {
      */
     private void showInvoiceHistoryDialog(entity.KhachHang customer) {
         List<HoaDon> hoaDonList = hoaDonDAO.getHoaDonByMaKH(customer.getMaKH());
+        if (hoaDonList != null) {
+            hoaDonList = hoaDonList.stream()
+                .filter(hd -> hd.getHinhThucTT() != null)
+                .collect(java.util.stream.Collectors.toList());
+        }
         Dialog<Void> dialog = new Dialog<>();
         dialog.setTitle("Lịch sử hóa đơn - " + customer.getTenKH());
         dialog.setHeaderText("Danh sách hóa đơn của: " + customer.getTenKH() + " (SĐT: " + customer.getSoDT() + ")");
@@ -499,7 +526,7 @@ public class KhachHang {
      * Hiển thị Dialog chi tiết hóa đơn dựa vào mã hóa đơn.
      * Đã sửa lỗi định dạng thời gian.
      */
-   private void showInvoiceDetailDialog(String maHD) {
+    private void showInvoiceDetailDialog(String maHD) {
         HoaDon hoaDon = hoaDonDAO.getHoaDonChiTietByMaHD(maHD);
         if (hoaDon == null) { showAlert(Alert.AlertType.ERROR, "Lỗi", "Không tìm thấy hóa đơn " + maHD); return; }
         List<ChiTietHoaDon> chiTietList = hoaDonDAO.getChiTietHoaDon(maHD);
@@ -511,100 +538,360 @@ public class KhachHang {
         // --- Layout chính ---
         VBox mainLayout = new VBox(15);
         mainLayout.setPadding(new Insets(15));
-        // ✅ ÁP DỤNG STYLE CSS VÀ STYLE CLASS
+        
+        // Load CSS nếu có
         String cssPath = getClass().getResource("/css/HoaDon.css") != null ? getClass().getResource("/css/HoaDon.css").toExternalForm() : null;
         if (cssPath != null) {
-            // Nên lấy DialogPane để áp dụng CSS cho toàn bộ cửa sổ (bao gồm cả nền)
             detailDialog.getDialogPane().getStylesheets().add(cssPath);
-            // Áp dụng style class cho nội dung bên trong nếu cần (VBox đã có padding)
-            mainLayout.getStyleClass().add("right-panel"); // Tái sử dụng style panel
+            mainLayout.getStyleClass().add("right-panel");
         } else {
-            System.err.println("Không tìm thấy file HoaDon.css");
-            // Có thể thêm style nền mặc định nếu CSS không load được
             mainLayout.setStyle("-fx-background-color: #FFF3E0; -fx-background-radius: 10;");
         }
 
-
         // --- Tiêu đề ---
         Label title = new Label("CHI TIẾT HÓA ĐƠN " + maHD);
-        title.getStyleClass().add("screen-title"); // Sử dụng style title
-        // ✅ CĂN GIỮA TIÊU ĐỀ
+        title.getStyleClass().add("screen-title");
         title.setMaxWidth(Double.MAX_VALUE);
         title.setAlignment(Pos.CENTER);
 
-
-        // --- Thông tin chung (GridPane) ---
+        // --- Thông tin chung ---
         GridPane infoGrid = new GridPane(); infoGrid.setHgap(10); infoGrid.setVgap(8);
-        // ... (Cài đặt ColumnConstraints - giữ nguyên) ...
-        ColumnConstraints col1=new ColumnConstraints(); col1.setHgrow(Priority.NEVER); ColumnConstraints col2=new ColumnConstraints(); col2.setHgrow(Priority.ALWAYS);
-        ColumnConstraints col3=new ColumnConstraints(); col3.setHgrow(Priority.NEVER); ColumnConstraints col4=new ColumnConstraints(); col4.setHgrow(Priority.ALWAYS);
+        ColumnConstraints col1=new ColumnConstraints(); col1.setHgrow(Priority.NEVER); 
+        ColumnConstraints col2=new ColumnConstraints(); col2.setHgrow(Priority.ALWAYS);
+        ColumnConstraints col3=new ColumnConstraints(); col3.setHgrow(Priority.NEVER); 
+        ColumnConstraints col4=new ColumnConstraints(); col4.setHgrow(Priority.ALWAYS);
         infoGrid.getColumnConstraints().addAll(col1, col2, col3, col4);
 
-        Label titleLabel; Label valueLabel; int rowIndex = 0;
-        // ... (Thêm các Label Ngày, SĐT, Bàn, Thu ngân, Giờ vào/ra vào infoGrid - giữ nguyên code) ...
-        // Ngày - SĐT Khách
-        titleLabel = new Label("Ngày:"); titleLabel.getStyleClass().add("info-title");
-        valueLabel = new Label(hoaDon.getNgayLap() != null ? hoaDon.getNgayLap().format(dateFormatter) : "N/A");
-        valueLabel.getStyleClass().add("info-value"); infoGrid.add(titleLabel, 0, rowIndex); infoGrid.add(valueLabel, 1, rowIndex);
-        titleLabel = new Label("SĐT Khách:"); titleLabel.getStyleClass().add("info-title");
-        valueLabel = new Label(hoaDon.getSoDienThoaiKH() != null ? hoaDon.getSoDienThoaiKH() : "N/A");
-        valueLabel.getStyleClass().add("info-value"); infoGrid.add(titleLabel, 2, rowIndex); infoGrid.add(valueLabel, 3, rowIndex);
-        rowIndex++;
+        int rowIndex = 0;
+        // Ngày - SĐT
+        addInfoRow(infoGrid, rowIndex++, "Ngày:", (hoaDon.getNgayLap() != null ? hoaDon.getNgayLap().format(dateFormatter) : "N/A"), 
+                                         "SĐT Khách:", (hoaDon.getSoDienThoaiKH() != null ? hoaDon.getSoDienThoaiKH() : "N/A"));
         // Bàn - Thu ngân
-        titleLabel = new Label("Bàn:"); titleLabel.getStyleClass().add("info-title");
-        valueLabel = new Label(hoaDon.getMaBan() != null ? hoaDon.getMaBan() : "N/A");
-        valueLabel.getStyleClass().add("info-value"); infoGrid.add(titleLabel, 0, rowIndex); infoGrid.add(valueLabel, 1, rowIndex);
-        titleLabel = new Label("Thu ngân:"); titleLabel.getStyleClass().add("info-title");
-        valueLabel = new Label(hoaDon.getTenNhanVien() != null ? hoaDon.getTenNhanVien() : "N/A");
-        valueLabel.getStyleClass().add("info-value"); infoGrid.add(titleLabel, 2, rowIndex); infoGrid.add(valueLabel, 3, rowIndex);
-        rowIndex++;
+        addInfoRow(infoGrid, rowIndex++, "Bàn:", (hoaDon.getMaBan() != null ? hoaDon.getMaBan() : "N/A"), 
+                                         "Thu ngân:", (hoaDon.getTenNhanVien() != null ? hoaDon.getTenNhanVien() : "N/A"));
         // Giờ vào - Giờ ra
-        titleLabel = new Label("Giờ vào:"); titleLabel.getStyleClass().add("info-title");
-        valueLabel = new Label(hoaDon.getGioVao() != null ? hoaDon.getGioVao().toLocalTime().format(timeFormatter) : "N/A");
-        valueLabel.getStyleClass().add("info-value"); infoGrid.add(titleLabel, 0, rowIndex); infoGrid.add(valueLabel, 1, rowIndex);
-        titleLabel = new Label("Giờ ra:"); titleLabel.getStyleClass().add("info-title");
-        valueLabel = new Label(hoaDon.getGioRa() != null ? hoaDon.getGioRa().toLocalTime().format(timeFormatter) : "N/A");
-        valueLabel.getStyleClass().add("info-value"); infoGrid.add(titleLabel, 2, rowIndex); infoGrid.add(valueLabel, 3, rowIndex);
+        addInfoRow(infoGrid, rowIndex++, "Giờ vào:", (hoaDon.getGioVao() != null ? hoaDon.getGioVao().toLocalTime().format(timeFormatter) : "N/A"), 
+                                         "Giờ ra:", (hoaDon.getGioRa() != null ? hoaDon.getGioRa().toLocalTime().format(timeFormatter) : "N/A"));
 
-
-        // --- Bảng chi tiết món ăn --- (Giữ nguyên)
+        // --- Bảng chi tiết món ---
         TableView<ChiTietHoaDon> detailTable = new TableView<>();
-        // ... (Cài đặt cột và dữ liệu cho detailTable) ...
         detailTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY); detailTable.setPrefHeight(180);
-        TableColumn<ChiTietHoaDon, Void> colSTT = new TableColumn<>("STT"); colSTT.setPrefWidth(40); colSTT.setSortable(false); colSTT.setCellFactory(col -> new TableCell<>() { @Override public void updateIndex(int index) { super.updateIndex(index); setText(isEmpty() || index < 0 ? null : Integer.toString(index + 1)); } });
-        TableColumn<ChiTietHoaDon, String> colTenMon = new TableColumn<>("Tên món"); colTenMon.setCellValueFactory(new PropertyValueFactory<>("tenMon")); colTenMon.setPrefWidth(150);
-        TableColumn<ChiTietHoaDon, Integer> colSoLuong = new TableColumn<>("Số lượng"); colSoLuong.setCellValueFactory(new PropertyValueFactory<>("soLuong")); colSoLuong.setPrefWidth(70);
-        TableColumn<ChiTietHoaDon, Double> colDonGia = new TableColumn<>("Đơn giá"); colDonGia.setCellValueFactory(new PropertyValueFactory<>("donGia")); colDonGia.setPrefWidth(90); colDonGia.setCellFactory(column -> new TableCell<>() { @Override protected void updateItem(Double item, boolean empty) { super.updateItem(item, empty); setText(empty || item == null ? null : String.format("%,.0f", item)); setAlignment(Pos.CENTER_RIGHT); } });
-        TableColumn<ChiTietHoaDon, Double> colThanhTien = new TableColumn<>("Thành tiền"); colThanhTien.setCellValueFactory(new PropertyValueFactory<>("thanhTien")); colThanhTien.setPrefWidth(100); colThanhTien.setCellFactory(column -> new TableCell<>() { @Override protected void updateItem(Double item, boolean empty) { super.updateItem(item, empty); setText(empty || item == null ? null : String.format("%,.0f", item)); setAlignment(Pos.CENTER_RIGHT); } });
+        
+        TableColumn<ChiTietHoaDon, Void> colSTT = new TableColumn<>("STT"); colSTT.setPrefWidth(40); 
+        colSTT.setCellFactory(col -> new TableCell<>() { @Override public void updateIndex(int index) { super.updateIndex(index); setText(isEmpty() || index < 0 ? null : Integer.toString(index + 1)); } });
+        
+        TableColumn<ChiTietHoaDon, String> colTenMon = new TableColumn<>("Tên món"); colTenMon.setCellValueFactory(new PropertyValueFactory<>("tenMon"));
+        TableColumn<ChiTietHoaDon, Integer> colSoLuong = new TableColumn<>("SL"); colSoLuong.setCellValueFactory(new PropertyValueFactory<>("soLuong")); colSoLuong.setPrefWidth(50);
+        TableColumn<ChiTietHoaDon, Double> colDonGia = new TableColumn<>("Đơn giá"); colDonGia.setCellValueFactory(new PropertyValueFactory<>("donGia")); 
+        colDonGia.setCellFactory(c -> new TableCell<>() { @Override protected void updateItem(Double item, boolean empty) { super.updateItem(item, empty); setText(empty || item == null ? null : String.format("%,.0f", item)); setAlignment(Pos.CENTER_RIGHT); }});
+        TableColumn<ChiTietHoaDon, Double> colThanhTien = new TableColumn<>("Thành tiền"); colThanhTien.setCellValueFactory(new PropertyValueFactory<>("thanhTien"));
+        colThanhTien.setCellFactory(c -> new TableCell<>() { @Override protected void updateItem(Double item, boolean empty) { super.updateItem(item, empty); setText(empty || item == null ? null : String.format("%,.0f", item)); setAlignment(Pos.CENTER_RIGHT); }});
+        
         detailTable.getColumns().addAll(colSTT, colTenMon, colSoLuong, colDonGia, colThanhTien);
         detailTable.setItems(FXCollections.observableArrayList(chiTietList));
-        if(chiTietList.isEmpty()) detailTable.setPlaceholder(new Label("Không có chi tiết món ăn."));
 
-
-        // --- Phần Tổng tiền --- (Giữ nguyên)
+        // --- Tổng tiền ---
         VBox totalBox = new VBox(5); totalBox.setPadding(new Insets(5, 0, 5, 0));
-        double tongMonAn = hoaDon.getTongCongMonAn(); double phiDichVu = tongMonAn * 0.05; double thueVAT = tongMonAn * 0.08; double khuyenMai = 0.0;
-        totalBox.getChildren().addAll( createTotalRow("Tổng cộng món ăn:", String.format("%,.0f VNĐ", tongMonAn)), createTotalRow("Phí dịch vụ (5%):", String.format("%,.0f VNĐ", phiDichVu)), createTotalRow("Thuế VAT (8%):", String.format("%,.0f VNĐ", thueVAT)), createTotalRow("Tiền đặt cọc bàn:", String.format("%,.0f VNĐ", hoaDon.getTienCoc())), createTotalRow("Khuyến mãi:", String.format("%,.0f VNĐ", khuyenMai)) );
+        double tongMonAn = hoaDon.getTongCongMonAn(); 
+        totalBox.getChildren().addAll( 
+            createTotalRow("Tổng cộng món ăn:", String.format("%,.0f VNĐ", tongMonAn)), 
+            createTotalRow("Phí dịch vụ (5%):", String.format("%,.0f VNĐ", tongMonAn * 0.05)), 
+            createTotalRow("Thuế VAT (8%):", String.format("%,.0f VNĐ", tongMonAn * 0.08)), 
+            createTotalRow("Tiền đặt cọc bàn:", String.format("%,.0f VNĐ", hoaDon.getTienCoc())) 
+        );
 
-        // --- Phần Tổng Thanh Toán --- (Giữ nguyên)
-        HBox finalTotalBox = new HBox(); finalTotalBox.setAlignment(Pos.CENTER_RIGHT);
+        // --- 🔥 PHẦN CUỐI: NÚT IN + TỔNG TIỀN ---
+        HBox finalTotalBox = new HBox(10); 
+        finalTotalBox.setAlignment(Pos.CENTER_RIGHT);
+        
+        // ✅ Nút In Hóa Đơn (Thêm mới)
+        Button btnPrint = new Button("In hóa đơn");
+        btnPrint.setStyle("-fx-background-color: #2196F3; -fx-text-fill: white; -fx-font-weight: bold;");
+        btnPrint.setOnAction(e -> handleInHoaDon(hoaDon)); // Gọi hàm in
+
         Label finalTotalLabel = new Label("Tổng tiền thanh toán:"); finalTotalLabel.getStyleClass().add("total-title");
         Label finalTotalValue = new Label(String.format("%,.0f VNĐ", hoaDon.getTongTienThanhToan())); finalTotalValue.getStyleClass().add("total-value");
+        
         Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
-        finalTotalBox.getChildren().addAll(finalTotalLabel, spacer, finalTotalValue);
+        finalTotalBox.getChildren().addAll(btnPrint, spacer, finalTotalLabel, finalTotalValue);
 
-        // --- Thêm vào layout chính ---
+        // --- Add all to layout ---
         mainLayout.getChildren().addAll(title, infoGrid, detailTable, totalBox, finalTotalBox);
 
-        // --- Cài đặt Dialog ---
         detailDialog.getDialogPane().setContent(mainLayout);
-        detailDialog.getDialogPane().setPrefWidth(550);
+        detailDialog.getDialogPane().setPrefWidth(600);
         detailDialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-
-        // ✅ Xóa nền mặc định của DialogPane để thấy nền của mainLayout
         detailDialog.getDialogPane().setStyle("-fx-background-color: transparent;");
 
         detailDialog.showAndWait();
+    }
+ // ==============================================================================
+    // 🔥 CÁC HÀM XỬ LÝ IN HÓA ĐƠN (COPY TỪ HoaDonUI.java)
+    // ==============================================================================
+
+    // Helper Class cho vị trí Y
+    private static class YPosition {
+        public float y;
+        public YPosition(float initialY) { this.y = initialY; }
+    }
+
+    /**
+     * Xử lý sự kiện nhấn nút In Hóa Đơn
+     */
+    private void handleInHoaDon(HoaDon hdDisplay) {
+        if (hdDisplay == null || hdDisplay.getMaHD() == null) {
+            showAlert(Alert.AlertType.WARNING, "Lỗi", "Không có hóa đơn hợp lệ để in.");
+            return;
+        }
+        
+        // Lấy lại chi tiết đầy đủ từ DAO để đảm bảo dữ liệu mới nhất
+        HoaDon hd = hoaDonDAO.getHoaDonChiTietByMaHD(hdDisplay.getMaHD());
+        if (hd == null) {
+             Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể tải chi tiết hóa đơn từ database."));
+            return;
+        }
+        
+        // Chạy trong Thread riêng để tránh treo giao diện
+        new Thread(() -> {
+            PDDocument document = null;
+            try {
+                // Tạo file PDF trong bộ nhớ
+                document = createReceiptPdf(hd);
+                
+                // Chuẩn bị lệnh in
+                PrinterJob job = PrinterJob.getPrinterJob();
+                PrintRequestAttributeSet attr = new HashPrintRequestAttributeSet();
+                
+                if (job.printDialog(attr)) {
+                    java.awt.print.PageFormat pageFormat = job.getPageFormat(attr);
+                    
+                    // Chuyển PDF thành nội dung in được
+                    org.apache.pdfbox.printing.PDFPrintable printableData = 
+                        new org.apache.pdfbox.printing.PDFPrintable(document);
+                    
+                    job.setPrintable(printableData, pageFormat);
+                    job.print(attr); // Gửi lệnh in
+                    
+                    Platform.runLater(() -> showAlert(Alert.AlertType.INFORMATION, "Thành công", "Đã gửi lệnh in cho Hóa đơn " + hd.getMaHD()));
+                } else {
+                    Platform.runLater(() -> showAlert(Alert.AlertType.INFORMATION, "Hủy", "Đã hủy thao tác in."));
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                Platform.runLater(() -> showAlert(Alert.AlertType.ERROR, "Lỗi in ấn", "Lỗi khi tạo hoặc in PDF: " + e.getMessage()));
+            } finally {
+                if (document != null) {
+                    try { document.close(); } catch (IOException ignored) {}
+                }
+            }
+        }).start();
+    }
+
+    /**
+     * Tạo đối tượng PDF Invoice (Logic y hệt HoaDonUI)
+     */
+    private PDDocument createReceiptPdf(HoaDon hd) throws IOException {
+        PDDocument document = new PDDocument();
+        PDPage page = new PDPage(PDRectangle.A4);
+        document.addPage(page);
+
+        final float PAGE_WIDTH = page.getMediaBox().getWidth();
+        final float MARGIN = 72; 
+        final float Y_START = page.getMediaBox().getHeight() - MARGIN;
+        final float LINE_HEIGHT = 16; 
+        
+        final YPosition pos = new YPosition(Y_START); 
+
+        // Load Font
+        PDFont font = PDType1Font.HELVETICA;
+        PDFont fontBold = PDType1Font.HELVETICA_BOLD;
+        try {
+            InputStream fontStream = getClass().getResourceAsStream("/fonts/UTM Avo.ttf");
+            if (fontStream != null) {
+                try { font = PDType0Font.load(document, fontStream); } finally { fontStream.close(); }
+            }
+            InputStream fontBoldStream = getClass().getResourceAsStream("/fonts/UTM AvoBold.ttf");
+            if (fontBoldStream != null) {
+                try { fontBold = PDType0Font.load(document, fontBoldStream); } finally { fontBoldStream.close(); }
+            }
+        } catch (Exception e) {
+            System.err.println("Dùng font mặc định do lỗi load font: " + e.getMessage());
+        }
+        
+        // Lấy chi tiết món ăn
+        List<ChiTietHoaDon> monAnList = hoaDonDAO.getChiTietHoaDon(hd.getMaHD());
+        
+        final DecimalFormat currencyFormatter = new DecimalFormat("###,###");
+        final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+        final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+        // Chuẩn bị dữ liệu text
+        String banStr = hd.getMaBan() != null ? hd.getMaBan() : "N/A";
+        String ngayStr = hd.getNgayLap() != null ? hd.getNgayLap().toLocalDate().format(dateFormatter) : "N/A";
+        String gioVaoStr = hd.getGioVao() != null ? hd.getGioVao().toLocalTime().format(timeFormatter) : "N/A";
+        String gioRaStr = hd.getGioRa() != null ? hd.getGioRa().toLocalTime().format(timeFormatter) : "N/A";
+        
+        // Lấy tên thu ngân từ MainApp
+        String tenThuNgan = "N/A";
+        try {
+            TaiKhoan tk = MainApp.getLoggedInUser();
+            if (tk != null && tk.getNhanVien() != null) {
+                tenThuNgan = tk.getNhanVien().getHoTen(); 
+            } else if (hd.getTenNhanVien() != null) {
+                 tenThuNgan = hd.getTenNhanVien();
+            }
+        } catch (Exception e) {}
+
+        String khachHangStr = hd.getSoDienThoaiKH() != null ? hd.getSoDienThoaiKH() : "N/A";
+        String hinhThucTTStr = hd.getHinhThucTT() != null ? hd.getHinhThucTT().getDisplayName() : "N/A";
+
+        try (PDPageContentStream contentStream = new PDPageContentStream(document, page)) {
+            // 1. HEADER
+            contentStream.beginText(); contentStream.setFont(fontBold, 14); 
+            float titleWidth = fontBold.getStringWidth("NHÀ HÀNG TỨ HỮU") / 1000 * 14;
+            contentStream.newLineAtOffset((PAGE_WIDTH - titleWidth) / 2, pos.y);
+            contentStream.showText("NHÀ HÀNG TỨ HỮU"); contentStream.endText(); pos.y -= LINE_HEIGHT * 1.5f;
+            
+            contentStream.beginText(); contentStream.setFont(font, 10);
+            String address = "Địa chỉ: 77 Hồ Tùng Mậu, Phường Châu Đốc, An Giang";
+            float addressWidth = font.getStringWidth(address) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - addressWidth) / 2, pos.y);
+            contentStream.showText(address); contentStream.endText(); pos.y -= LINE_HEIGHT;
+
+            contentStream.beginText(); contentStream.setFont(font, 10);
+            String sdt = "SĐT: 0909 123 456";
+            float sdtWidth = font.getStringWidth(sdt) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - sdtWidth) / 2, pos.y);
+            contentStream.showText(sdt); contentStream.endText(); pos.y -= LINE_HEIGHT * 1.5f;
+
+            // 2. TITLE
+            contentStream.beginText(); contentStream.setFont(fontBold, 16);
+            titleWidth = fontBold.getStringWidth("HÓA ĐƠN THANH TOÁN") / 1000 * 16;
+            contentStream.newLineAtOffset((PAGE_WIDTH - titleWidth) / 2, pos.y);
+            contentStream.showText("HÓA ĐƠN THANH TOÁN"); contentStream.endText(); pos.y -= LINE_HEIGHT * 1.2f;
+
+            contentStream.beginText(); contentStream.setFont(fontBold, 12);
+            String maHDLabel = "Số HĐ: " + (hd.getMaHD() != null ? hd.getMaHD() : "N/A");
+            float maHDWidth = fontBold.getStringWidth(maHDLabel) / 1000 * 12;
+            contentStream.newLineAtOffset((PAGE_WIDTH - maHDWidth) / 2, pos.y);
+            contentStream.showText(maHDLabel); contentStream.endText(); pos.y -= LINE_HEIGHT * 1.8f;
+
+            // 3. INFO
+            final float COL_SEP = (PAGE_WIDTH - 2 * MARGIN) / 2;
+            final float COL_1_START = MARGIN;
+            final float COL_2_START = MARGIN + COL_SEP;
+            contentStream.setFont(font, 10);
+            
+            contentStream.beginText(); contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Bàn: " + banStr);
+            contentStream.setTextMatrix(Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Thu ngân: " + tenThuNgan); contentStream.endText(); pos.y -= LINE_HEIGHT * 0.9f;
+
+            contentStream.beginText(); contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Ngày: " + ngayStr);
+            contentStream.setTextMatrix(Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Khách hàng: " + khachHangStr); contentStream.endText(); pos.y -= LINE_HEIGHT * 0.9f;
+
+            contentStream.beginText(); contentStream.newLineAtOffset(COL_1_START, pos.y);
+            contentStream.showText("Giờ vào: " + gioVaoStr);
+            contentStream.setTextMatrix(Matrix.getTranslateInstance(COL_2_START, pos.y));
+            contentStream.showText("Giờ ra: " + gioRaStr); contentStream.endText(); pos.y -= LINE_HEIGHT * 1.5f;
+
+            // 4. TABLE
+            final float FONT_SIZE_TABLE = 9; 
+            float colSTT = MARGIN; float colTenMon = MARGIN + 30; float colSL = PAGE_WIDTH - MARGIN - 180;  
+            float colDonGia = PAGE_WIDTH - MARGIN - 110; float colThanhTien = PAGE_WIDTH - MARGIN - 30; 
+
+            contentStream.beginText(); contentStream.setFont(fontBold, FONT_SIZE_TABLE);
+            contentStream.newLineAtOffset(colSTT, pos.y); contentStream.showText("STT");
+            contentStream.setTextMatrix(Matrix.getTranslateInstance(colTenMon, pos.y)); contentStream.showText("Tên món");
+            contentStream.setTextMatrix(Matrix.getTranslateInstance(colSL, pos.y)); contentStream.showText("SL");
+            contentStream.setTextMatrix(Matrix.getTranslateInstance(colDonGia, pos.y)); contentStream.showText("Đơn giá (VNĐ)");
+            contentStream.setTextMatrix(Matrix.getTranslateInstance(colThanhTien, pos.y)); contentStream.showText("Thành tiền");
+            contentStream.endText();
+            
+            contentStream.setFont(font, FONT_SIZE_TABLE);
+            float currentY = pos.y - LINE_HEIGHT * 1.2f; 
+            
+            for (int i = 0; i < monAnList.size(); i++) {
+                ChiTietHoaDon mon = monAnList.get(i);
+                contentStream.beginText();
+                contentStream.newLineAtOffset(colSTT, currentY); contentStream.showText(String.valueOf(i + 1));
+                contentStream.setTextMatrix(Matrix.getTranslateInstance(colTenMon, currentY)); contentStream.showText(mon.getTenMon());
+                
+                String slStr = String.valueOf(mon.getSoLuong());
+                float slWidth = font.getStringWidth(slStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(Matrix.getTranslateInstance(colSL - slWidth + 15, currentY)); contentStream.showText(slStr);
+
+                String dgStr = currencyFormatter.format(mon.getDonGia());
+                float dgWidth = font.getStringWidth(dgStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(Matrix.getTranslateInstance(colDonGia - dgWidth + 15, currentY)); contentStream.showText(dgStr);
+                
+                String ttStr = currencyFormatter.format(mon.getThanhTien());
+                float ttWidth = font.getStringWidth(ttStr) / 1000 * FONT_SIZE_TABLE;
+                contentStream.setTextMatrix(Matrix.getTranslateInstance(colThanhTien - ttWidth + 15, currentY)); contentStream.showText(ttStr);
+                contentStream.endText();
+                currentY -= LINE_HEIGHT * 1.6f; 
+            }
+            pos.y = currentY + LINE_HEIGHT * 1.6f; pos.y -= LINE_HEIGHT * 1.0f;
+
+            // 5. SUMMARY
+            final float SUMMARY_INDENT = MARGIN; final float SUMMARY_VALUE_COL = PAGE_WIDTH - MARGIN;
+            
+            class SummaryDrawer {
+                private final PDFont rFont, bFont;
+                SummaryDrawer(PDFont r, PDFont b) { rFont = r; bFont = b; }
+                void draw(String label, String value, boolean isBold, boolean isTotal) throws IOException {
+                    float size = isTotal ? 12 : 10; PDFont f = isBold ? bFont : rFont;
+                    contentStream.beginText(); contentStream.setFont(f, size);
+                    contentStream.newLineAtOffset(SUMMARY_INDENT, pos.y); contentStream.showText(label); contentStream.endText();
+                    float vW = f.getStringWidth(value) / 1000 * size;
+                    contentStream.beginText(); contentStream.setFont(f, size);
+                    contentStream.newLineAtOffset(SUMMARY_VALUE_COL - vW, pos.y); contentStream.showText(value); contentStream.endText();
+                    pos.y -= LINE_HEIGHT * (isTotal ? 1.4f : 1.1f); 
+                }
+            }
+            SummaryDrawer drawer = new SummaryDrawer(font, fontBold);
+            
+            drawer.draw("Tổng cộng món ăn:", currencyFormatter.format(hd.getTongCongMonAn()) + " VNĐ", true, false); 
+            drawer.draw("Phí dịch vụ (5%):", currencyFormatter.format(hd.getPhiDichVu()) + " VNĐ", false, false);
+            drawer.draw("Thuế VAT (8%):", currencyFormatter.format(hd.getThueVAT()) + " VNĐ", false, false);
+            drawer.draw("Tiền đặt cọc bàn:", "-" + currencyFormatter.format(hd.getTienCoc()) + " VNĐ", false, false);
+            
+            pos.y += LINE_HEIGHT * 0.5f; contentStream.setLineWidth(0.5f);
+            contentStream.moveTo(SUMMARY_INDENT, pos.y); contentStream.lineTo(SUMMARY_VALUE_COL, pos.y); contentStream.stroke();
+            pos.y -= LINE_HEIGHT * 1.2f;
+
+            drawer.draw("Tổng thanh toán:", currencyFormatter.format(hd.getTongTienThanhToan()) + " VNĐ", true, true);
+
+            pos.y -= LINE_HEIGHT * 0.5f; contentStream.moveTo(SUMMARY_INDENT, pos.y); contentStream.lineTo(SUMMARY_VALUE_COL, pos.y); contentStream.stroke(); pos.y -= LINE_HEIGHT * 1.2f;
+            
+            String uuDaiStr = (hd.getKhuyenMai() > 0) ? ("-" + currencyFormatter.format(hd.getKhuyenMai()) + " VNĐ") : "0 VNĐ";
+            double soTienKhachTra = hd.getTongTienThanhToan() + hd.getKhuyenMai(); 
+
+            drawer.draw("Hình thức thanh toán:", hinhThucTTStr, false, false);
+            drawer.draw("Ưu đãi áp dụng:", uuDaiStr, false, false);
+            drawer.draw("Số tiền khách trả:", currencyFormatter.format(soTienKhachTra) + " VNĐ", true, false); 
+            
+            // 6. FOOTER
+            pos.y -= LINE_HEIGHT * 2.5f;
+            contentStream.beginText(); contentStream.setFont(font, 10);
+            String footer = "Nhà hàng Tứ Hữu xin cám ơn và hẹn gặp lại!";
+            float footerWidth = font.getStringWidth(footer) / 1000 * 10;
+            contentStream.newLineAtOffset((PAGE_WIDTH - footerWidth) / 2, pos.y);
+            contentStream.showText(footer); contentStream.endText();
+        }
+        return document;
+    }
+    // Helper nhỏ để add row vào grid cho gọn
+    private void addInfoRow(GridPane grid, int row, String l1, String v1, String l2, String v2) {
+        Label lbl1 = new Label(l1); lbl1.getStyleClass().add("info-title");
+        Label val1 = new Label(v1); val1.getStyleClass().add("info-value");
+        Label lbl2 = new Label(l2); lbl2.getStyleClass().add("info-title");
+        Label val2 = new Label(v2); val2.getStyleClass().add("info-value");
+        grid.add(lbl1, 0, row); grid.add(val1, 1, row);
+        grid.add(lbl2, 2, row); grid.add(val2, 3, row);
     }
 
     /** Hàm tiện ích tạo một dòng HBox cho phần tổng tiền */

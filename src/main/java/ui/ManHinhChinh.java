@@ -1,5 +1,14 @@
 package ui;
-
+import java.sql.Connection;
+import javafx.scene.web.WebEngine;
+import javafx.scene.web.WebView;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.time.LocalDate;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.File;
+import java.awt.Desktop;
 // ========================================================================
 // IMPORTS
 // ========================================================================
@@ -9,6 +18,7 @@ import entity.HoaDon;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
+import javafx.scene.Scene;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.control.Label;
 import javafx.scene.control.Button;
@@ -56,8 +66,19 @@ import java.util.stream.Collectors;
 import dao.TaiKhoanDAO;
 import javafx.scene.Node;
 import javafx.util.Pair;
-import java.sql.SQLException;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.time.LocalDate;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.File;
+import java.awt.Desktop;
 public class ManHinhChinh {
     
     // ========================================================================
@@ -112,6 +133,7 @@ public class ManHinhChinh {
     // ========================================================================
     // BIẾN INSTANCE
     // ========================================================================
+    private entity.NhanVien currentNhanVien;
     private MainApp mainApp;
     private Button activeButton;
     private final Map<Button, String> defaultIcons = new HashMap<>();
@@ -184,7 +206,48 @@ public class ManHinhChinh {
             }
         });
     }
+    @FXML
+    private void handleXemNhatKyKiemKe() {
+        try {
+            // Đường dẫn file log mà bạn đã lưu ở hàm nhập tiền
+            java.io.File file = new java.io.File("nhat_ky_kiem_ke.txt");
+            
+            if (!file.exists()) {
+                showAlert(Alert.AlertType.WARNING, "Thông báo", "Chưa có dữ liệu nhật ký kiểm kê nào được ghi lại.");
+                return;
+            }
 
+            // NGHIỆP VỤ CHUẨN: Mở trực tiếp file nhật ký để xem lịch sử ca trước
+            if (java.awt.Desktop.isDesktopSupported()) {
+                java.awt.Desktop.getDesktop().open(file);
+            } else {
+                // Nếu không mở được file trực tiếp, hiện thông báo lỗi
+                showAlert(Alert.AlertType.ERROR, "Lỗi hệ thống", "Máy tính không hỗ trợ mở tệp văn bản trực tiếp.");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể mở nhật ký kiểm kê.");
+        }
+    }
+    private double getDoanhThuTrongNgay() {
+        double tongTien = 0;
+        // Lấy ngày hiện tại theo định dạng yyyy-MM-dd để so khớp với SQL Server
+        LocalDate homNay = LocalDate.now();
+        String sql = "SELECT SUM(tongTien) FROM HoaDon WHERE CAST(ngayLap AS DATE) = ? AND trangThai = N'Đã thanh toán'";
+        
+        try (Connection con = connect.ConnectDB.getConnection();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setDate(1, java.sql.Date.valueOf(homNay));
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                tongTien = rs.getDouble(1);
+            }
+        } catch (Exception e) {
+            System.err.println("Lỗi truy vấn doanh thu: " + e.getMessage());
+            e.printStackTrace();
+        }
+        return tongTien;
+    }
     public void chuyenSangTabDatBan(HoaDon hd) {
         try {
             setActiveButton(quanLyDatBanButton);
@@ -501,8 +564,13 @@ public class ManHinhChinh {
             final String password = "rnwm bkli pycf bjcv";    
 
             Properties prop = new Properties();
-            prop.put("mail.smtp.host", "smtp.gmail.com"); prop.put("mail.smtp.port", "587");
-            prop.put("mail.smtp.auth", "true"); prop.put("mail.smtp.starttls.enable", "true");
+            prop.put("mail.smtp.host", "smtp.gmail.com"); 
+            prop.put("mail.smtp.port", "587");
+            prop.put("mail.smtp.auth", "true"); 
+            prop.put("mail.smtp.starttls.enable", "true");
+            // CẤU HÌNH FIX LỖI TLS
+            prop.put("mail.smtp.ssl.protocols", "TLSv1.2");
+            prop.put("mail.smtp.ssl.trust", "smtp.gmail.com");
 
             Session session = Session.getInstance(prop, new javax.mail.Authenticator() {
                 protected PasswordAuthentication getPasswordAuthentication() {
@@ -529,19 +597,132 @@ public class ManHinhChinh {
         }
     }
     
-    @FXML private void handleXemLogKiemKeTienMat() { showAlert(Alert.AlertType.INFORMATION, "Thông báo", "Chức năng đang phát triển."); }
+    @FXML private void handleXemLogKiemKeTienMat() { 
+    	// 1. Tự động lấy doanh thu thực tế từ DB
+        double tienHeThong = getDoanhThuTrongNgay();
+
+        // 2. Tạo giao diện nhập liệu đẹp hơn một chút
+        TextInputDialog dialog = new TextInputDialog("");
+        dialog.setTitle("Hệ thống Quản lý Tứ Hữu - Kiểm kê tài chính");
+        dialog.setHeaderText("BÁO CÁO DOANH THU TRONG NGÀY\n" 
+                          + "Số tiền trên máy tính toán: " + String.format("%,.0f VNĐ", tienHeThong));
+        dialog.setContentText("Nhập số tiền mặt thực tế tại quầy:");
+
+        // Thêm icon nếu cần (tùy thuộc vào resources của bạn)
+        Optional<String> result = dialog.showAndWait();
+
+        result.ifPresent(tienNhap -> {
+            try {
+                // Loại bỏ dấu phẩy nếu người dùng nhập kiểu 1,000,000
+                String cleanInput = tienNhap.replace(",", "").replace(".", "");
+                double tienThucTe = Double.parseDouble(cleanInput);
+                double chenhLech = tienThucTe - tienHeThong;
+
+                // 3. Ghi log vào file text (Không sửa DB để giữ nguyên báo cáo)
+                saveKiemKeLog(tienHeThong, tienThucTe);
+
+                // 4. Hiển thị thông báo kết quả chi tiết
+                String tinhTrang = (chenhLech == 0) ? "Khớp hoàn toàn" : (chenhLech > 0 ? "Dư tiền" : "Thiếu tiền");
+                
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Kết quả kiểm kê");
+                alert.setHeaderText("Tình trạng: " + tinhTrang);
+                alert.setContentText(String.format(
+                    "Hệ thống: %,.0f VNĐ\nThực tế: %,.0f VNĐ\nChênh lệch: %,.0f VNĐ\n\nĐã lưu vào nhật ký hệ thống.",
+                    tienHeThong, tienThucTe, chenhLech
+                ));
+                alert.showAndWait();
+
+            } catch (NumberFormatException e) {
+                showAlert(Alert.AlertType.ERROR, "Lỗi định dạng", "Vui lòng chỉ nhập số tiền (ví dụ: 500000).");
+            }
+        });
+    }
 
     // === CHỨC NĂNG MỞ PDF (ĐÃ NÂNG CẤP - CHẠY ĐƯỢC TRÊN MỌI MÁY) ===
     
-    @FXML 
-    private void handleHuongDan() { 
-        moFilePDF(HUONG_DAN_PDF_PATH);
+    private void saveKiemKeLog(double heThong, double thucTe) {
+        java.time.format.DateTimeFormatter dtf = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
+        String thoiGian = dtf.format(java.time.LocalDateTime.now());
+        
+        // Xử lý an toàn cho mọi nhân viên
+        String tenNV = "Nhân viên trực ca";
+        try {
+            if (this.currentNhanVien != null && this.currentNhanVien.getHoTen() != null) {
+                tenNV = this.currentNhanVien.getHoTen();
+            }
+        } catch (Exception e) {
+            // Nếu có lỗi khi truy cập đối tượng nhân viên, vẫn giữ tên mặc định
+        }
+
+        String logLine = String.format("[%s] NV: %-20s | Máy: %15s | Thực: %15s | Lệch: %15s",
+                thoiGian, 
+                tenNV, 
+                String.format("%,.0f", heThong), 
+                String.format("%,.0f", thucTe), 
+                String.format("%,.0f", thucTe - heThong));
+
+        try (java.io.BufferedWriter writer = new java.io.BufferedWriter(new java.io.FileWriter("nhat_ky_kiem_ke.txt", true))) {
+            writer.write(logLine);
+            writer.newLine();
+        } catch (java.io.IOException e) {
+            System.err.println("Lỗi ghi nhật ký: " + e.getMessage());
+        }
     }
 
     @FXML 
-    private void handleGioiThieu() { 
-        moFilePDF(GIOI_THIEU_PDF_PATH);
+    private void handleHuongDan() { 
+        try {
+            Stage stage = new Stage();
+            stage.setTitle("Hướng Dẫn Sử Dụng - Future Vision");
+
+            WebView webView = new WebView();
+            WebEngine webEngine = webView.getEngine();
+
+            // Load từ resources
+            URL url = getClass().getResource("/html/huong_dan.html");
+            if (url != null) {
+                webEngine.load(url.toExternalForm());
+            }
+
+            Scene scene = new Scene(webView);
+            stage.setScene(scene);
+            stage.setMaximized(true); // Mở full màn hình cho đẳng cấp
+            stage.show();
+        } catch (Exception e) {
+            showAlert(Alert.AlertType.ERROR, "Lỗi", "Không thể mở tài liệu hướng dẫn.");
+        }
     }
+
+	@FXML
+	private void handleGioiThieu() {
+	    try {
+	        Stage stage = new Stage();
+	        stage.setTitle("Hệ Thống Tứ Hữu - Future Vision 2025");
+
+	        WebView webView = new WebView();
+	        WebEngine webEngine = webView.getEngine();
+
+	        // Nạp file từ resources (đã sửa đường dẫn theo ý bạn)
+	        URL url = getClass().getResource("/html/gioi_thieu.html");
+	        if (url != null) {
+	            webEngine.load(url.toExternalForm());
+	        } else {
+	            webEngine.loadContent("<h1 style='color:white; background:#0f172a; height:100vh; display:flex; align-items:center; justify-content:center;'>Lỗi: Không tìm thấy file HTML!</h1>");
+	        }
+
+	        Scene scene = new Scene(webView);
+	        stage.setScene(scene);
+
+	        // --- ĐẲNG CẤP FULL MÀN HÌNH TẠI ĐÂY ---
+	        stage.setMaximized(true); // Mở bung toàn màn hình ngay lập tức
+	        stage.setFullScreen(false); // Không dùng FullScreen để vẫn thấy thanh taskbar (chuyên nghiệp hơn)
+	        
+	        stage.show();
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
+	}
     
     private void moFilePDF(String resourcePath) {
         if (!Desktop.isDesktopSupported()) {
