@@ -12,7 +12,7 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<HBox fx:controller="ui.DangNhap" alignment="CENTER" prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
+<HBox fx:controller="ui.DangNhap" alignment="CENTER" prefHeight="600.0" prefWidth="900.0" styleClass="root" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1">
    <children>
 		<VBox alignment="CENTER" style="-fx-background-color: #d1b184;" HBox.hgrow="ALWAYS">
 		    <children>
@@ -53,7 +53,7 @@
                                       <Insets right="10.0" />
                                    </HBox.margin>
                                 </ImageView>
-                                <TextField fx:id="txtMaNhanVien" styleClass="text-field-custom" promptText="Mã nhân viên" />
+                                <TextField fx:id="txtMaNhanVien" styleClass="text-field-custom" promptText="Mã nhân viên" HBox.hgrow="ALWAYS"/>
                              </children>
                           </HBox>
                           <HBox alignment="CENTER_LEFT" styleClass="text-field-box">
@@ -66,17 +66,17 @@
                                       <Insets right="10.0" />
                                    </HBox.margin>
                                 </ImageView>
-                                <PasswordField fx:id="txtPassword" styleClass="text-field-custom" promptText="Password" />
+                                <PasswordField fx:id="txtPassword" styleClass="text-field-custom" promptText="Password" HBox.hgrow="ALWAYS"/>
                              </children>
                           </HBox>
                        </children>
                     </VBox>
                     <HBox alignment="CENTER_RIGHT">
                        <children>
-                          <Hyperlink text="Quên mật khẩu?" styleClass="forgot-password" />
+                          <Hyperlink onAction="#handleQuenMatKhau" styleClass="forgot-password" text="Quên mật khẩu?" />
                        </children>
                     </HBox>
-                    <Button onAction="#handleDangNhapButtonAction" styleClass="login-button" text="Đăng nhập" />
+                    <Button fx:id="btnDangNhap" onAction="#handleDangNhapButtonAction" styleClass="login-button" text="Đăng nhập" />
                 </children>
             </VBox>
          </children>

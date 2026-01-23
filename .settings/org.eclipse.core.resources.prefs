@@ -1,4 +1,14 @@
 eclipse.preferences.version=1
 encoding//src/main/java=UTF-8
+encoding//src/main/java/dao/DanhMucMonDAO.java=UTF-8
+encoding//src/main/java/dao/HoaDonDAO.java=UTF-8
+encoding//src/main/java/dao/MonAnDAO.java=UTF-8
+encoding//src/main/java/entity/ChiTietHoaDon.java=UTF-8
+encoding//src/main/java/entity/HoaDon.java=UTF-8
+encoding//src/main/java/entity/MonAn.java=UTF-8
+encoding//src/main/java/entity/PTTThanhToan.java=UTF-8
+encoding//src/main/java/entity/TrangThaiHoaDon.java=UTF-8
 encoding//src/main/resources=UTF-8
+encoding//src/test/java=UTF-8
+encoding//src/test/resources=UTF-8
 encoding/<project>=UTF-8
